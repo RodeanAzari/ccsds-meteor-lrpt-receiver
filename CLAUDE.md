@@ -16,6 +16,21 @@ host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + 
 
 **Dependency:** the shared Ethernet core `fpga-eth-core` (MII MAC, CRC-32, async FIFO, IPv4/UDP RX/TX), built in the order-book project and pulled in as a git submodule at `rtl/eth/`. **Don't modify it here.** Fixes go upstream to `fpga-eth-core`, then get bumped in the submodule.
 
+**fpga-eth-core reuse requirements (Projects 3 and 4 depend on these):**
+- **Sustained streaming:** Project 3 replays IQ at ~16 Mbit/s continuously for a full
+  satellite pass (~15 min) and cannot tolerate drops. Add a sustained-load test
+  (sim + hardware): ≥10 min continuous at the highest rate the link sustains, zero drops,
+  and report the RX FIFO high-water mark.
+- **Generic TX:** the TX path takes an arbitrary payload (AXI-Stream + length +
+  destination port), not just BBO/stats packets. Prove it with an echo test of random
+  payload lengths 1–1472 bytes.
+- **Runtime-configurable RX filter:** multicast group and UDP port set by registers,
+  not parameters baked into the bitstream.
+- **Consumer guide** in the fpga-eth-core README: interfaces, clocking, resets,
+  resource cost, and a minimal example top level that isn't the order book.
+- Done = a second, non-ITCH example design builds and passes using only the
+  documented interface.
+
 ---
 
 ## Current status
