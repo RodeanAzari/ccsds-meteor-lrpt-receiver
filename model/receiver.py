@@ -38,7 +38,9 @@ class RxConfig:
     cic_order: int = 3
     comp_taps: int = 31
     rrc_span: int = 8
-    costas_bw: float = 0.005  # rad/sample at the decimated rate
+    # rad/sample at 256 kS/s. data/results/sync_costas_bw.csv: 0.0005 to 0.001 decode the most frames.
+    # 0.001 keeps twice the bandwidth of 0.0005 for Doppler-rate and coarse-estimate error.
+    costas_bw: float = 0.001
     costas_max_hz: float = 15_000.0
     timing_kp: float = 0.02
     timing_ki: float = 1e-4
@@ -249,14 +251,21 @@ def frame_sync(soft: Floats, threshold: float, flywheel: int) -> list[tuple[int,
             break
         p, h = best
         alternate, swap, _ = hypotheses[h]
-        misses = 0
-        # LOCK
-        while p < size and misses <= flywheel:
-            misses = 0 if corrs[h][p] > threshold else misses + 1
-            if misses <= flywheel:
-                frames.append((p - ASM_TRANSIENT_SYMBOLS, alternate, swap))
+        # LOCK. Frames under a missed ASM are held back and emitted only if the lock is later confirmed.
+        # On loss, search resumes just past the last confirmed ASM, so no frame is emitted twice.
+        pending: list[tuple[int, bool, bool]] = []
+        last_good = p
+        while p < size and len(pending) <= flywheel:
+            frame = (p - ASM_TRANSIENT_SYMBOLS, alternate, swap)
+            if corrs[h][p] > threshold:
+                frames.extend(pending)
+                frames.append(frame)
+                pending = []
+                last_good = p
+            else:
+                pending.append(frame)
             p += CODED_FRAME_SYMBOLS
-        pos = p - CODED_FRAME_SYMBOLS * flywheel if misses > flywheel else size
+        pos = last_good + 1 if len(pending) > flywheel else size
     return frames
 
 

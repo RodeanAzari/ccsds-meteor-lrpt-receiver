@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 
 from model.channel import TxConfig, apply_carrier, awgn, modulate, noise_sigma, rrc, to_cu8
-from model.coding import build_cadus, encode_stream
-from model.receiver import RxConfig, data_bytes, decode_iq, ingest_cu8
+from model.coding import CODED_FRAME_SYMBOLS, build_cadus, encode_stream
+from model.receiver import RxConfig, data_bytes, decode_iq, frame_sync, ingest_cu8
 
 N_FRAMES = 6
 SEED = 11
@@ -77,6 +77,19 @@ def test_random_data_cannot_false_lock_before_the_real_frame() -> None:
         result = decode_iq(x, RxConfig())
         truth = {bytes(p) for p in data_bytes(plain)}
         assert sum(bytes(c) in truth for c in data_bytes(result.cadus)) >= N_FRAMES - 3
+
+
+def test_lock_loss_never_emits_a_frame_twice() -> None:
+    # Regression: after a carrier cycle slip, frames emitted under the flywheel were found again
+    # under the new phase hypothesis, so frames synced exceeded frames sent (223 of 200 in
+    # data/results/fer_full_chain.csv). That would inflate every frame count.
+    _, on_air = build_cadus(12, 3)
+    soft = 2.0 * encode_stream(on_air).astype(np.float64) - 1.0
+    slip = 5 * CODED_FRAME_SYMBOLS
+    soft[slip + 1 :: 2] *= -1.0  # a 90 degree slip from frame 5 onward
+    starts = [s for s, _, _ in frame_sync(soft, RxConfig().sync_threshold, RxConfig().flywheel)]
+    assert len(starts) == len(set(starts))
+    assert starts == [f * CODED_FRAME_SYMBOLS for f in range(12)]
 
 
 def test_noise_only_produces_no_frames() -> None:

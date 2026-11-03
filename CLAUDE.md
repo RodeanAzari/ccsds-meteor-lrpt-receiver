@@ -10,7 +10,7 @@ RTL-SDR → .iq file ──C++ gs-replay──UDP──▶ Arty A7:  DDC → RRC
 host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + stats ◀─┘
 ```
 
-**This is a portfolio project.** Working RTL is half the deliverable. The other half is evidence: a decoded satellite image from your own receiver, constellation plots, BER curves against theory, video, and a README a hiring engineer can absorb in 60 seconds. §11 is mandatory. **A phase without its numbers and media is not done.**
+**This is a portfolio project.** Working RTL is half the deliverable. The other half is evidence: a decoded satellite image from your own receiver, constellation plots, BER curves against theory, video, and a proper in depth and full README. §11 is mandatory. **A phase without its numbers and media is not done.**
 
 **Languages:** SystemVerilog (RTL), Python/NumPy (golden model, cocotb, analysis), C++20 (ground station).
 
@@ -568,24 +568,59 @@ Claude generates plots and terminal recordings itself. For photos, phone video a
 - **Passes:** each one captured, with date, max elevation and outcome.
 - **These entries are interview material.** Claude appends one at the end of every session.
 
-### 11.4 README structure
+### 11.4 README standard
 
-1. One-sentence description
-2. **Hero image**, then the constellation GIF
-3. **Results table**, measured only (`[TBD]` until measured):
-   - BER coding gain at 10⁻⁵
-   - Viterbi throughput and headroom
-   - lock time; Doppler range tracked
-   - real-pass frames decoded and FER
-   - match vs. SatDump
-   - Fmax/WNS
-   - utilization per block
-   - coverage %
-4. Architecture diagram (image, not ASCII)
-5. Media gallery and demo video link
-6. Design decisions (Viterbi architecture, soft-decision width, OQPSK timing, phase-ambiguity resolution, fixed point), linking to `docs/design.md`
-7. Limitations stated plainly: recorded rather than live RF, 72k mode only
-8. Build and run instructions, including how to capture your own pass
+
+
+The README is a technical project report, not a summary. Use the RISC-V core's README
+(github.com/RodeanAzari/riscv-rv32i-tmr-core) as the template for structure, depth and tone.
+Every number comes from a committed report or CSV produced by a `make` target and links
+to it; anything unmeasured is a dash or `[TBD]`, never an estimate. Sections, in order:
+
+**At a glance table:** directly under the intro and hero image, the README has a two-column
+table (`| | |`) of 10–15 rows that summarizes the whole project for someone who reads nothing
+else. Each row is a short label and a short measured fact with its condition
+(e.g. "p99 latency | 312 ns, 1M events, 125 MHz core"). Every value comes from a committed
+report and matches the full Results section. Unmeasured rows show `[TBD]` until measured.
+Keep it current at the end of every phase.
+
+Rows: Target signal (Meteor-M N2-4, 72k OQPSK) · Receive chain · Real passes decoded ·
+CADU match vs. SatDump · Coding gain at BER 10⁻⁵ · Viterbi throughput and headroom ·
+Lock time / Doppler range tracked · Formal proofs · Bugs caught · Fmax ·
+Utilization per block · Ground-station tools + CI checks
+
+1. **Title that states the claim**, then an intro paragraph with the headline numbers,
+   a status line, a sourcing note ("every number comes from `docs/reports/`, produced by
+   `make …`"), and a hero image or GIF with a caption.
+2. **At a glance**: a two-column table of the key facts and metrics.
+3. **Status**: the phase table, linking to `docs/design.md` and `docs/log.md`.
+4. **Architecture**: a Mermaid diagram plus bullets on clocking, CDC, interfaces and data flow.
+5. **Verification, by layer**: formal (properties proven, depth), cocotb (tests passed,
+   events checked against the golden model, coverage bins hit), hardware (ILA captures
+   checked by script). Include a **numbered list of bugs found**, each with how it was found
+   and which layer caught it, and any bugs planted to prove the testbench catches them.
+6. **One deep section per major block**: what it does, the design alternatives in a
+   comparison table (resources, latency, Fmax), which one was chosen and why, and how it
+   was verified.
+7. **On the board**: photos, ILA captures with a sample-by-sample table explaining what
+   the waveform shows, real terminal output in code blocks.
+8. **Demos**: embedded video, the commands to reproduce them, and a table of each demo
+   with its on-board result.
+9. **In Vivado**: a captioned screenshot grid (device view, worst path, timing,
+   utilization, schematic, power) for each major build.
+10. **Results**: tables where every row links to its report file, with measurement
+    conditions stated (clock, data set, run length).
+11. **Limitations**: a candid bulleted list of what the design doesn't do, what's
+    optimistic about the numbers, and what's untested.
+12. **Build and reproduce**: prerequisites with versions, a table of every `make` target,
+    and what runs in CI vs. locally.
+13. **Repository layout** table, then **Roadmap**.
+
+Tone: precise, numbers always carry their conditions, no marketing language, failures and
+limits stated openly. Update the README at the end of every phase. A phase isn't done
+until its section is written to this standard.
+
+Deep sections: DDC, timing/carrier recovery, frame sync and phase ambiguity, Viterbi, Reed-Solomon, ground station. Hero: your decoded Meteor image next to SatDump’s. Limitation #1: recorded rather than live RF.
 
 ---
 
