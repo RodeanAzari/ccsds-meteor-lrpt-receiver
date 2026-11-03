@@ -1,0 +1,608 @@
+# CLAUDE.md — CCSDS Satellite Telemetry Receiver
+
+## What this is
+
+A satellite downlink receiver built in SystemVerilog on the Digilent Arty A7-100T. It decodes real **Meteor-M N2-4 LRPT (72k mode)** passes recorded with an RTL-SDR. C++ ground-station software runs around it on the host.
+
+```
+RTL-SDR → .iq file ──C++ gs-replay──UDP──▶ Arty A7:  DDC → RRC → timing + carrier recovery (OQPSK)
+                                                     → encoded-ASM sync → Viterbi K=7 r½ → derandomizer → RS(255,223)×4
+host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + stats ◀─┘
+```
+
+**This is a portfolio project.** Working RTL is half the deliverable. The other half is evidence: a decoded satellite image from your own receiver, constellation plots, BER curves against theory, video, and a README a hiring engineer can absorb in 60 seconds. §11 is mandatory. **A phase without its numbers and media is not done.**
+
+**Languages:** SystemVerilog (RTL), Python/NumPy (golden model, cocotb, analysis), C++20 (ground station).
+
+**Dependency:** the shared Ethernet core `fpga-eth-core` (MII MAC, CRC-32, async FIFO, IPv4/UDP RX/TX), built in the order-book project and pulled in as a git submodule at `rtl/eth/`. **Don't modify it here.** Fixes go upstream to `fpga-eth-core`, then get bumped in the submodule.
+
+---
+
+## Current status
+
+<!-- Claude: update as phases complete. Never mark a phase done until its §9 checklist
+     passes in full, INCLUDING the portfolio items. -->
+
+| Phase | Status | Key result |
+|---|---|---|
+| 0 — Signal spec + capture kit | IN PROGRESS | `docs/signal-spec.md` written from source, not yet confirmed on a recording |
+| A — Python golden model | NOT STARTED | — |
+| B — Digital downconverter | NOT STARTED | — |
+| C — Synchronization | NOT STARTED | — |
+| D — Viterbi + frame sync | NOT STARTED | — |
+| E — Reed-Solomon + integration + real decode | NOT STARTED | — |
+| F — C++ ground station | NOT STARTED | — |
+
+---
+
+## Rules for Claude
+
+- **Never invent a number.** Unmeasured values are `[TBD]`. Every reported number links to its CSV in `data/results/` or to a recording in `data/MANIFEST.md`. No estimates dressed as results.
+- **SatDump before the golden model, golden model before RTL.** No RTL block is written until its Python model exists and produces test vectors.
+- **"Done" means verified.** A block is done when its tests pass, `make lint` is clean, and `make ci` passes locally. A phase is done when its full §9 checklist passes.
+- **Never guess signal parameters.** Anything marked "Phase 0" in §2 comes from SatDump's source and is written into `docs/signal-spec.md`. That file is the spec. If code and spec disagree, stop and flag it.
+- **Record decisions.** Every architectural choice gets an ADR in `docs/decisions/` (§5.5), including the alternatives rejected.
+- **Portfolio moments.** At the end of every phase, and whenever something visually striking works (first lock, first frame, first real decode):
+  - generate the plots yourself;
+  - list exactly what physical captures the user should make (photos, phone video, screen recordings);
+  - add them to `docs/portfolio-todo.md`;
+  - wait for the user to confirm before marking the phase done.
+- **Lab notebook.** Append a `docs/log.md` entry at the end of every working session (§11.3).
+- **Keep the front page current.** Update the status table and README results at the end of every phase.
+- **Stay in scope.** If a task drifts into §10, say so before doing it.
+- **Small, frequent commits** (§5.4).
+
+---
+
+## 1. Hardware
+
+**FPGA:** Digilent Arty A7-100T, `xc7a100tcsg324-1` (supported by free Vivado).
+- 63,400 LUTs, 240 DSP48E1, 135 BRAM36 (4,860 Kb), 256 MB DDR3L.
+- TI DP83848J 10/100 PHY over MII.
+- **No RF front end.** RF is captured on the host.
+
+**RF capture kit (~$100):**
+
+| Item | Notes |
+|---|---|
+| RTL-SDR Blog V4 kit with dipole | Configure the dipole as a **V-dipole**: two ~53 cm legs at ~120°, horizontal, oriented north–south, clear sky |
+| 137 MHz SAW filter + LNA | FM broadcast overloads the RTL-SDR without it |
+| Coax + SMA adapters | — |
+
+Receive-only operation needs no licence in Canada. A QFH antenna (circular polarization, matches the satellite's RHCP) is a later upgrade, not a prerequisite.
+
+**Host:** Linux machine cabled directly to the Arty.
+
+---
+
+## 2. Signal specification
+
+### 2.1 Target: Meteor-M N2-4 LRPT, 72k mode (SatDump pipeline `meteor_m2-x_lrpt`)
+
+| Parameter | Value | Confidence |
+|---|---|---|
+| Frequency | **137.9 MHz**. It has switched to 137.1 MHz in the past. | Check before every pass |
+| Modulation | **OQPSK** (Q offset by half a symbol). The older Meteor-M N2 used plain QPSK; N2-2/3/4 use OQPSK. | High |
+| Symbol rate | 72,000 sym/s, giving 144 kbit/s coded and 72 kbit/s after Viterbi | High |
+| Convolutional code | K = 7, r = ½, G1 = 171₈ (1111001), G2 = 133₈ (1011011) | High. Output order and inversion → Phase 0 |
+| Frame | CADU = 1,024 bytes: ASM `0x1ACFFC1D` (4 B) + 1,020 B randomized CVCDU | High |
+| Randomizer | CCSDS PN: h(x) = x⁸+x⁷+x⁵+x³+1, all-ones seed, 255-byte period. **Reset at the start of each frame, after the ASM. The ASM is not randomized.** | High |
+| Reed-Solomon | RS(255,223) over GF(2⁸), field poly x⁸+x⁷+x²+x+1 (0x187), generator roots α^(11j) for j = 112…143, E = 16. **Interleave depth 4: byte *i* belongs to codeword *i* mod 4.** | High. Symbol basis (conventional vs. dual) → Phase 0 |
+| Matched filter | RRC; roll-off → Phase 0 | Verify |
+| Differential coding, I/Q swap/conjugation | → Phase 0 | Verify |
+| Doppler at 137.9 MHz | Up to ±3.4 kHz, sweeping through the pass, plus the RTL-SDR TCXO offset | Physics |
+
+**SatDump is the reference implementation.** Every "Phase 0" item gets read from SatDump's M2-x 72k pipeline definition and the module source, then written into `docs/signal-spec.md`, citing the source file and commit. A wrong guess costs weeks of "almost locks".
+
+### 2.2 Mode check before every capture
+
+Meteor satellites have switched between 72k and **80k** mode with little notice. 80k mode adds a convolutional interleaver, with state large enough to need DDR3, plus inserted sync words. **This receiver targets 72k only.**
+
+Check a current status source before every capture. If the satellite is in 80k mode, wait, or use an archived 72k recording. Field test: at a 72k setting, an 80k signal never resolves to four clean points.
+
+### 2.3 Capture settings
+
+- **Valid RTL-SDR rates only:** 225–300 kS/s or 900 kS/s–3.2 MS/s. Anything in between makes the driver silently pick another rate. **Capture at 1.024 MS/s**: ~14.2 samples/symbol and 16.4 Mb/s at 8-bit I/Q, well inside the 100 Mb/s link.
+- **Tune 100–250 kHz off the signal** and let the NCO mix it down. That keeps the RTL-SDR's DC spike out of the band.
+- **Raw format:** unsigned 8-bit interleaved I/Q (midpoint 127.5). Record raw. No resampling, no conversion by tools.
+- **File size:** a 15-minute pass is ~1.8 GB.
+
+### 2.4 Capture workflow: record, then replay
+
+**Never debug against a live pass.**
+
+| Stage | Action |
+|---|---|
+| 0 | Download a public Meteor M2-x 72k IQ recording. Decode it with SatDump. Start the golden model against it. **Do this before buying the kit.** |
+| 1 | SatDump pass prediction → record raw IQ (`rtl_sdr` or a SatDump baseband recording at the settings above) |
+| 2 | **Decode your recording with SatDump first.** If SatDump can't decode it, the antenna or capture is the problem, not the RTL. SatDump's CADUs become ground truth. |
+| 3 | Feed the IQ into Verilator/cocotb. Compare against the golden model and against SatDump. Most development happens here. |
+| 4 | Replay the file to the Arty with `gs-replay`; receive with `gs-rx`; compare with `gs-diff` |
+
+### 2.5 Data management
+
+- **Full recordings never go in the repo.** Store them off-repo and list each one in `data/MANIFEST.md`:
+  - filename and SHA-256
+  - satellite, UTC start time, maximum elevation
+  - centre frequency, sample rate, gain
+  - mode (72k/80k)
+  - whether SatDump decoded it, and the SatDump version
+- **Committed fixtures:** CCSDS test vectors and **one** short real IQ snippet (< 5 MB) around a known-good lock, in `data/samples/`.
+- SatDump's ground-truth CADUs for each recording go in `data/truth/`. Use Git LFS if they're large.
+
+---
+
+## 3. Receiver architecture
+
+```
+ UDP IQ (8-bit unsigned I/Q, 1.024 MS/s)  ── via fpga-eth-core
+   ▼
+ INGEST: replay sequence check (gap counter) → subtract 127.5 → signed → DC block
+   ▼
+ DDC: NCO + mixer (tuning offset + Doppler pre-correction) → CIC ÷4 → compensation FIR
+   ▼  256 kS/s (~3.56 samples/symbol)
+ RRC matched filter                                   ◀── BER-campaign injection mux (§8.4)
+   ▼
+ TIMING: Farrow cubic interpolator + OQPSK-aware Gardner TED + PI loop → 2 samples/symbol
+   ▼
+ CARRIER: OQPSK alignment (delay I by T/2) + Costas (2nd-order PI, tracks Doppler) + AGC
+   ▼  soft symbols, 3–4 bits
+ ENCODED-ASM CORRELATOR: frame alignment + phase-ambiguity resolution → rotate/swap
+   ▼
+ VITERBI K=7 r½ (64-state, fully parallel ACS)
+   ▼  bits
+ ASM CHECK (every 1,024 B) → DERANDOMIZER → deinterleave ×4 → [dual-basis conv] → RS(255,223) ×4
+   ▼
+ CADU + stats packets (+ debug constellation samples) → UDP TX → host
+```
+
+### 3.1 Interfaces and conventions
+
+- **AXI4-Stream between every block** (`tdata`, `tvalid`, `tready`, `tlast`, `tuser`). `tlast` marks CADU boundaries. `tuser` carries sideband such as the rotation hypothesis and flags.
+- **Every block honours backpressure.** Data is never dropped silently. Every overflow point has a counter.
+- **One memory-mapped block holds control and status:** NCO frequency, loop gains, thresholds and counters. The host reaches it via UDP command packets; UART is the fallback.
+- **The packet formats live in `docs/protocol.md`**, the single source of truth for RTL and C++:
+  - IQ replay (sequence number + samples)
+  - CADU+stats: frame counter, rotation hypothesis, Viterbi metric margin, RS corrections per codeword, uncorrectable flags, sync state, cycle timestamp
+  - debug constellation samples
+  - control commands
+- **No ARP needed.** `gs-replay` sends to a configured multicast group, the same RX filter style as the order-book project. `fpga-eth-core` learns the host's MAC/IP from the source fields of received packets for its TX path.
+
+### 3.2 Fixed point
+
+- Every signal's Q-format, rounding and saturation point is recorded in `docs/fixed-point.md`, including CIC bit growth.
+- Rounding and saturation are explicit. Truncation is never silent.
+- The Python bit-true model (§8.1) uses **exactly the same widths and rounding**, so comparisons are bit-exact wherever the design allows.
+
+### 3.3 DDC
+
+- **NCO:** phase accumulator plus a quarter-wave sine/cosine LUT, or a CORDIC. ADR, with measured SFDR.
+- **Mixer:** complex multiply on DSP48E1. Check in the synthesis report that multipliers land in DSPs, not LUTs.
+- **Decimation:** CIC ÷4 (state the order and bit growth), then a compensation FIR for CIC droop.
+- **Clock budget:** the core clock is ~100× the input sample rate. Time-multiplexing is allowed, but clarity comes first; the 100T has area to spare.
+- **Bring-up:** preload a short IQ snippet into BRAM as a ROM. That gets the DDC working without Ethernet or DDR3. A full pass streams from the host. DDR3 (MIG) is only needed if replay must decouple from the host.
+
+### 3.4 Synchronization
+
+- **Timing:** Gardner needs ≥ 2 samples/symbol, and 3.56 isn't an integer, so a Farrow cubic interpolator resamples to 2 sps.
+  - **OQPSK caveat:** with Q staggered by T/2, a plain QPSK Gardner sees the Q rail at the wrong instants. Either delay I by T/2 (a fractional delay at 3.56 sps) **before** the TED, or use an OQPSK-aware TED where Q's strobes are I's midpoints. ADR, with lock behaviour from the model.
+  - The loop filter is PI. Document bandwidth and damping.
+- **OQPSK alignment:** at 2 sps, delaying I by exactly one sample aligns the rails. From there the signal is treated as QPSK for carrier recovery and decisions.
+- **Carrier:** Costas loop with a second-order PI filter. It must track the ±3.4 kHz Doppler sweep plus the TCXO offset. **Document lock range and measured lock time.**
+- **AGC:** normalize amplitude before soft-symbol quantization, so loop gains and soft-bit scaling don't depend on signal strength.
+
+### 3.5 Frame sync and phase ambiguity
+
+- The ASM is convolutionally encoded along with the data. The receiver therefore **correlates soft symbols against the encoded ASM pattern** under every phase hypothesis: 4 rotations, plus I/Q swap if Phase 0 says it's needed. The winner gives both the frame position and the derotation.
+- **Exclude the first 12 encoded symbols** of the pattern. They depend on the previous frame's last 6 bits.
+- **Sync FSM:** SEARCH → VERIFY → LOCK, with configurable thresholds and a flywheel (lose lock after N consecutive misses).
+- After Viterbi, confirm the plain ASM every 1,024 bytes.
+
+### 3.6 Viterbi — the centerpiece
+
+The full tradeoff analysis goes in `docs/viterbi.md`, with an ADR per row:
+
+| Component | Decision |
+|---|---|
+| Branch metrics | 3-bit vs. 4-bit soft quantization: coding gain vs. area. **Measure both.** |
+| ACS | **Fully parallel, 64 states.** The 100T has the area, and it's simpler and faster than folding. |
+| Path metrics | Modulo arithmetic vs. subtract-minimum normalization. Prove no overflow (§8.3). |
+| Survivors | Traceback memory (BRAM) vs. register exchange |
+| Traceback depth | Configurable, 5–7 × K (35–50). **Sweep it and plot BER vs. depth.** |
+| Throughput | Coded symbols/s achieved vs. the 144 k/s needed. Report the headroom. It also sets the maximum BER-campaign replay speed. |
+
+### 3.7 Reed-Solomon
+
+- **Parameterized** over `M` (symbol bits), `PRIM_POLY`, `FCR` (first consecutive root), `PRIM` (root spacing), `NROOTS`, `N` and `K`, with shortened codes supported. **No hardcoded GF(2⁸) logic.** The same block must instantiate as RS(544,514) over GF(2¹⁰) without code changes.
+- **Pipeline:** syndromes (Horner) → Berlekamp–Massey (inversionless preferred) → Chien search → Forney → correction.
+- **Interleave:** four decoder instances, or one time-multiplexed. ADR.
+- **Outputs:** corrected symbols per codeword and an uncorrectable flag.
+- If Phase 0 finds dual-basis representation, convert at the decoder's input and output.
+
+### 3.8 Debug
+
+- ILA builds sit behind a flag: `make impl ILA=1`. Functional builds never depend on debug cores.
+- A debug tap streams decimated soft symbols to the host, for `gs-view`'s live constellation and for the constellation GIF.
+
+---
+
+## 4. C++ ground station (`gs/`)
+
+```
+ .iq ──▶ gs-replay ──UDP──▶ [FPGA] ──UDP──▶ gs-rx ──▶ cadus.bin, packets/
+                                              ├──▶ gs-diff  (vs. SatDump)
+                                              └──▶ gs-view  (live status)
+```
+
+| Tool | Does |
+|---|---|
+| `gs-replay` | Reads `.iq`, packetizes into UDP with sequence numbers, paces at real time, at N× real time, or flat out. Logs the achieved rate on every run. Also replays BER-campaign files into the injection mux (§8.4). |
+| `gs-rx` | Network thread → **lock-free SPSC ring buffer** → processing thread. Parses VCDU and M_PDU headers, demuxes virtual channels, extracts CCSDS space packets. |
+| `gs-diff` | Bit-exact CADU comparison against SatDump's decode of the same recording. Reports the first divergence (frame, byte, bit) and totals. |
+| `gs-view` | Terminal UI: sync state, frame and packet counts, FER, Viterbi and RS corrections, live constellation from the debug tap |
+| *Optional:* image reconstruction | MSU-MR packets → PNG, compared to SatDump's image. It's a JPEG-style decoder, so do it last. |
+
+Write `gs-replay` during Phase B; the hardware bring-up needs it.
+
+---
+
+## 5. Coding standards
+
+### 5.1 SystemVerilog
+
+- **Constructs:**
+  - `logic` only.
+  - `always_ff` for sequential and `always_comb` for combinational logic. Never bare `always`.
+  - `<=` in sequential blocks, `=` in combinational ones.
+- **No latches:** default every `always_comb` output at the top of the block.
+- **Files:** one module per file, filename = module name. Named port connections only.
+- **Every file** begins with `` `default_nettype none `` and ends by restoring `` `default_nettype wire ``.
+- **Suffixes:** `_i`, `_o`, `_n` (active-low), `_q` (registered), `_d` (next state). Parameters are `UPPER_CASE`.
+- **Reset:** synchronous and active-high, with a reset synchronizer per clock domain. Reset control state only; datapath registers stay unreset unless required.
+- **Parameterize:** data widths, decimation ratios, loop gains, traceback depth, and RS (m, n, k, field poly, generator). No magic numbers. Every `localparam` gets a comment citing its source, e.g. `// signal-spec.md §RS`.
+- **CDC:**
+  - Crossings go only through `rtl/lib/cdc_*` (two-flop sync, pulse/toggle sync, Gray-pointer async FIFO) or `fpga-eth-core`'s FIFO.
+  - Every crossing is listed in `docs/design.md` and constrained in XDC.
+- **Vendor primitives** live only in `rtl/lib/xilinx/` wrappers, so everything simulates in Verilator.
+- **SVA assertions** sit next to the RTL they check, guarded so that both Verilator and SymbiYosys see them.
+- **`rtl/` contents:** no `$display`, no delays, no `initial` blocks except BRAM/ROM init.
+- **Lint:** zero Verilator `-Wall` warnings. Any waiver is inline, justified and minimal.
+
+### 5.2 Python
+
+- Python 3.11+ with type hints; `mypy --strict` on `model/`.
+- `ruff` for lint and format; `pytest` for tests.
+- Deterministic and seeded. No plotting inside model code.
+
+### 5.3 C++ (ground station): safety-critical subset
+
+- C++20 with `-Wall -Wextra -Werror`, clang-format.
+- **Data path rules:**
+  - no exceptions and no dynamic allocation after start-up;
+  - fixed-width integer types;
+  - explicit endian handling;
+  - `std::bit_cast`/`memcpy` instead of type punning.
+- clang-tidy and cppcheck clean. ASan/UBSan in Debug builds.
+- GoogleTest on every parser, with captured frames as fixtures.
+- **The packet parser is fuzzed (libFuzzer).** It takes radio input, so treat it as an attack surface.
+
+### 5.4 Commits and tags
+
+- Small, frequent, phase-tagged commits, e.g. `sync: Gardner TED with Farrow interpolator, locks on synthetic OQPSK`. The history is portfolio evidence.
+- Tag milestones: `v0.1-ddc`, `v0.2-sync-lock`, `v0.3-viterbi`, `v0.4-rs`, `v0.5-first-real-decode`, `v1.0`.
+- Never commit Vivado project directories, build output or full IQ recordings.
+
+### 5.5 Decision records (`docs/decisions/NNNN-title.md`)
+
+**Sections:** Context, Options considered, Decision, Consequences, Measured evidence.
+
+**Required ADRs:**
+- NCO implementation
+- CIC order/decimation split
+- Interpolator type
+- OQPSK timing approach
+- Soft-decision width
+- Path-metric normalization
+- Survivor memory
+- Traceback depth
+- BM variant
+- RS instance count
+- Phase-ambiguity strategy
+- IQ transport format
+
+`docs/design.md` summarises them and links each one.
+
+---
+
+## 6. Toolchain and build process
+
+| Tool | Use |
+|---|---|
+| Vivado ML Standard (batch Tcl) | Synthesis, implementation, ILA |
+| Verilator | Lint, simulation |
+| cocotb + cocotb-coverage | Testbenches, coverage |
+| SymbiYosys | Formal on small blocks (§8.3) |
+| Python 3 (NumPy, SciPy, matplotlib, pytest) | Golden model, BER campaigns, plots |
+| C++20, CMake, GoogleTest, clang-tidy, cppcheck, libFuzzer | Ground station |
+| SatDump (stable release, not V2 alpha) | Pass prediction, capture, **golden decoder** |
+| `rtl_sdr` / librtlsdr | Raw IQ capture |
+
+**Pin versions** of every tool in `docs/toolchain.md`. The Tcl scripts warn on a Vivado version mismatch.
+
+### Makefile targets — all must work from a clean checkout
+
+```
+make setup         # .venv + pinned requirements.txt; git submodule update --init
+make lint          # verilator --lint-only -Wall, zero warnings
+make sim           # fast cocotb regression (< 5 min)
+make sim-full      # long runs: full-pass sims, long BER sweeps in sim
+make cov           # coverage report → docs/reports/coverage/
+make formal        # SymbiYosys (§8.3)
+make model-test    # pytest: golden model vs. CCSDS vectors and the committed IQ snippet
+make gs            # cmake build of ground-station tools (Release + Debug/ASan/UBSan)
+make gs-test       # GoogleTest
+make fuzz          # libFuzzer on the packet parser (time-boxed in CI)
+make synth impl prog
+make reports       # copy timing + utilization into docs/reports/<tag>/
+make ber           # BER campaign (sim or hardware, §8.4)
+make plots         # regenerate every plot from data/results/
+make ci            # everything CI runs, locally
+make clean
+```
+
+- **Vivado runs in batch mode** via `syn/` Tcl. No GUI-only steps.
+- **Vivado isn't in hosted CI.** Run it locally and commit the timing and utilization reports for every tagged milestone.
+- **Timing closure is required.** No milestone is tagged with negative slack.
+
+### CI on every push
+
+- `make lint sim formal model-test gs gs-test`
+- a 60 s fuzz run
+- clang-tidy, cppcheck and ruff clean
+
+**A broken CI gets fixed before anything else.**
+
+---
+
+## 7. Repository layout
+
+```
+├── CLAUDE.md
+├── README.md                  # portfolio front page (§11.4)
+├── rtl/                       # synthesizable SystemVerilog ONLY
+│   ├── eth/                   # submodule: fpga-eth-core (do not edit here)
+│   ├── lib/                   # cdc_*, fifos, xilinx/ primitive wrappers
+│   ├── ddc/                   # ingest conversion, NCO, mixer, CIC, comp FIR
+│   ├── sync/                  # RRC, Farrow, Gardner, OQPSK align, Costas, AGC
+│   ├── fec/                   # encoded-ASM correlator, Viterbi, ASM check, derandomizer, RS
+│   ├── io/                    # IQ ingest, CADU/stats/debug packet builder, regs
+│   └── top/
+├── tb/cocotb/  tb/formal/
+├── model/                     # Python: algorithm (float), bit-true, channel/modulator
+├── gs/                        # C++ ground station (CMake)
+├── analysis/                  # BER campaigns, constellation/lock plots
+├── syn/  constr/  scripts/
+├── data/
+│   ├── samples/               # committed: CCSDS vectors + ONE short real IQ snippet (< 5 MB)
+│   ├── truth/                 # SatDump CADUs per recording (LFS if large)
+│   ├── results/               # CSVs behind every reported number
+│   └── MANIFEST.md            # off-repo recordings with SHA-256
+├── docs/
+│   ├── signal-spec.md         # Phase 0 output — the spec
+│   ├── design.md              # architecture, CDC list, ADR summary
+│   ├── decisions/             # ADRs
+│   ├── fixed-point.md  viterbi.md  protocol.md  toolchain.md
+│   ├── log.md                 # lab notebook (§11.3)
+│   ├── portfolio-todo.md      # outstanding captures for the user
+│   ├── reports/               # timing, utilization, coverage per tag
+│   └── media/                 # plots, screenshots, GIFs
+├── Makefile
+└── .github/workflows/
+```
+
+---
+
+## 8. Verification
+
+### 8.1 Models (`model/`)
+
+1. **Algorithm model** (float NumPy, full chain): validated against SatDump on a public recording **before any RTL is written**.
+2. **Bit-true model:** the same chain at RTL widths and rounding. This is the cocotb scoreboard reference.
+3. **Channel model / modulator:** random frames → RS encode → interleave → randomize → conv-encode → OQPSK → RRC → AWGN at a set Eb/N₀, plus carrier offset, Doppler ramp, phase noise and timing offset.
+
+### 8.2 cocotb
+
+- **Per block:** bit-exact against the bit-true model. For loops, compare within tolerances that are defined and justified in the test.
+- **Full chain:** the committed real IQ snippet must produce the same CADUs as SatDump.
+- **Scenarios to cover:**
+  - frequency offset and Doppler ramp; timing offset
+  - every phase rotation and I/Q swap
+  - sync loss and reacquisition
+  - frames at the RS correction limit (16 symbol errors) and just past it (17)
+  - all-zero and all-one payloads
+  - replay packet gaps
+  - backpressure at every interface
+- **Coverage bins:**
+  - sync FSM states and transitions
+  - each phase hypothesis winning
+  - RS errors 0–16 plus uncorrectable
+  - loop lock states
+  - Viterbi normalization events
+  - backpressure per interface
+
+  **Coverage closure means 100% of defined bins**, with a written justification for any exclusion.
+
+### 8.3 Formal (SymbiYosys)
+
+- AXI-Stream handshake properties on block boundaries
+- The sync FSM
+- Viterbi path-metric normalization: no overflow
+- The RS syndrome block on small parameter sets
+
+### 8.4 BER campaigns: hardware-accelerated
+
+- Python generates frames with known payloads at each Eb/N₀ point and writes them as IQ files.
+- **Run them on the FPGA through `gs-replay`.** Simulation can't reach 10⁻⁶ BER in reasonable time; the hardware can.
+- **Throughput cap:** flat-out replay is ~90 Mb/s, about 5.5× real time at 1.024 MS/s. For speed, generate campaign files at the RRC input rate (256 kS/s) and use the **injection mux** at the RRC input. That bypasses the DDC and gives roughly 4× more headroom. The DDC is verified separately.
+- **Statistical rule:** at least 100 bit errors per point. Otherwise report the point as an upper bound.
+- **Plot** on the same axes: uncoded OQPSK (theory Q(√(2Eb/N₀))), Viterbi only, Viterbi + RS, theory, and the model curve. Label pre-/post-FEC explicitly. Report the coding gain at 10⁻⁵. Reference point: soft-decision K=7 r½ Viterbi reaches ~10⁻⁵ near 4.4 dB.
+
+### 8.5 Real-pass validation
+
+- Every recording is decoded by SatDump **first**.
+- `gs-diff` against SatDump's CADUs is the acceptance test, targeting 100% bit-exact on frames both decoders produce.
+- Explain frames that only one side decodes. Usually they sit at the edges of the pass.
+
+---
+
+## 9. Phases and definitions of done
+
+Every phase's DoD includes:
+- README updated
+- `docs/log.md` entry written
+- that phase's media captured (§11.1)
+- the user confirming the physical captures
+
+### Phase 0 — Signal spec + capture kit
+- [ ] `docs/signal-spec.md` written from SatDump's M2-x 72k pipeline and source, with file/commit citations:
+  - RRC roll-off
+  - differential coding
+  - I/Q swap
+  - conv output order and inversion
+  - RS basis
+- [ ] A public M2-x 72k recording decoded with SatDump, before buying anything
+- [ ] Kit bought; **one pass of your own captured at 1.024 MS/s and decoded with SatDump**
+- [ ] Media: antenna setup photo; SatDump waterfall during the pass; SatDump's decoded image
+
+### Phase A — Python golden model
+- [ ] Algorithm model reproduces SatDump's CADUs on the public recording and on your own
+- [ ] Modulator + AWGN generator; model BER curves match theory
+- [ ] Bit-true version defined; `fixed-point.md` started
+- [ ] Media: model constellation before and after carrier lock
+
+### Phase B — DDC
+- [ ] Ingest conversion, NCO, mixer, CIC, compensation FIR; bit-exact against the model
+- [ ] `gs-replay` written
+- [ ] On hardware: first from the BRAM ROM, then over Ethernet from `gs-replay`
+- [ ] Media: spectrum before and after DDC (plot); ILA capture of baseband I/Q
+
+### Phase C — Synchronization
+- [ ] RRC, Farrow + Gardner (OQPSK approach per ADR), OQPSK alignment, Costas, AGC
+- [ ] Locks on synthetic signals with a Doppler ramp; lock time and lock range measured
+- [ ] Locks on the real recording
+- [ ] Media:
+  - **animated constellation GIF**: spinning ring → four clean clusters as the loop locks
+  - lock-time plot
+  - Doppler-tracking plot
+
+### Phase D — Viterbi + frame sync
+- [ ] Built incrementally: branch metrics → one ACS → full ACS array → traceback, each step tested against the model
+- [ ] Encoded-ASM correlator with phase resolution; sync FSM
+- [ ] BER after Viterbi matches the model's curve
+- [ ] 3-bit vs. 4-bit soft-decision comparison measured; traceback-depth sweep
+- [ ] Media: BER plot (Viterbi vs. theory); ILA capture of path metrics; waveform of ACS/traceback
+
+### Phase E — RS + integration + real decode
+- [ ] Parameterized RS decoder, ASM check, derandomizer, full chain
+- [ ] RS block also instantiated as RS(544,514)/GF(2¹⁰) in a unit test, proving the parameterization is real
+- [ ] **A real pass decoded on the FPGA, with CADUs matching SatDump bit-for-bit**
+- [ ] Full hardware BER campaign: uncoded, Viterbi, Viterbi + RS
+- [ ] Timing closed; per-block utilization recorded
+- [ ] Media: real-decode stats; full BER plot; Vivado device view
+
+### Phase F — C++ ground station
+- [ ] `gs-rx`, `gs-diff`, `gs-view`; CI green including static analysis, sanitizers and fuzzing
+- [ ] **Definition of done:** a recorded Meteor pass replays through the Arty and comes out as space packets matching SatDump bit-for-bit
+- [ ] Optional: image reconstructed from your own decoded packets
+- [ ] Media: `gs-view` asciinema during a live replay; **hero image** (§11.1); **demo video**
+
+---
+
+## 10. Out of scope — do not build
+
+- Transmit path
+- LDPC/turbo codes
+- CCSDS SLE and anything past the space-packet layer, except the optional image reconstruction
+- Live RF into the FPGA (RF ADC hardware)
+- 80k interleaved mode, unless the satellite stays in 80k
+- GOES HRIT or other satellites
+- **Cut order if descoping:** RS first, then the derandomizer. DDC → sync → Viterbi is the core and survives any descope.
+
+---
+
+## 11. Portfolio deliverables — mandatory
+
+### 11.1 What to capture
+
+Claude generates plots and terminal recordings itself. For photos, phone video and anything involving the antenna or board, **Claude lists exactly what to capture at the end of each phase, adds it to `docs/portfolio-todo.md`, and waits for the user**.
+
+| Capture | Type | Phase |
+|---|---|---|
+| **Hero image:** Meteor imagery decoded by *your* FPGA receiver, next to SatDump's from the same pass | Image | E/F |
+| **Hero GIF:** constellation locking (ring → 4 clusters) | GIF from debug-tap/model data | C |
+| **Demo video (60–120 s):** antenna and pass capture (time-lapse), replay into the board, `gs-view` live, final image reveal | Phone + OBS, unlisted YouTube | F |
+| Antenna setup photo; SatDump waterfall of your pass | Photo, screenshot | 0 |
+| Spectrum before/after DDC | Plot | B |
+| Lock-time and Doppler-tracking plots | Plot | C |
+| BER vs. Eb/N₀: uncoded, Viterbi, Viterbi + RS, vs. theory | Plot | D/E |
+| BER vs. traceback depth; 3-bit vs. 4-bit soft decision | Plot | D |
+| ILA captures: baseband I/Q, Viterbi path metrics | Screenshots | B/D |
+| Vivado device view + per-block utilization | Screenshot + table | E |
+| `gs-diff` result: "N CADUs, 0 differences vs. SatDump" | asciinema / GIF | E/F |
+
+### 11.2 Media rules
+
+- Files live in `docs/media/`, named `YYYY-MM-DD_phase-x_description.ext`.
+- **Plots are generated by `make plots` from `data/results/`.**
+  - Reproducible and never hand-edited.
+  - One consistent style; axes labeled with units.
+- Every result in `data/results/` has a sidecar `.md` with: commit hash, exact command, tool versions, input recording (MANIFEST entry) or seed, and an interpretation paragraph.
+- GIFs stay ≤ 8 MB in the repo. Videos go to unlisted YouTube or GitHub attachments, linked from the README, never committed.
+- Screenshots are cropped to the point and annotated where it isn't obvious.
+
+### 11.3 Lab notebook — `docs/log.md`
+
+- **Each entry:** dated, with what was done and the numbers measured.
+- **Bugs:** written as **symptom → root cause → fix**.
+- **Passes:** each one captured, with date, max elevation and outcome.
+- **These entries are interview material.** Claude appends one at the end of every session.
+
+### 11.4 README structure
+
+1. One-sentence description
+2. **Hero image**, then the constellation GIF
+3. **Results table**, measured only (`[TBD]` until measured):
+   - BER coding gain at 10⁻⁵
+   - Viterbi throughput and headroom
+   - lock time; Doppler range tracked
+   - real-pass frames decoded and FER
+   - match vs. SatDump
+   - Fmax/WNS
+   - utilization per block
+   - coverage %
+4. Architecture diagram (image, not ASCII)
+5. Media gallery and demo video link
+6. Design decisions (Viterbi architecture, soft-decision width, OQPSK timing, phase-ambiguity resolution, fixed point), linking to `docs/design.md`
+7. Limitations stated plainly: recorded rather than live RF, 72k mode only
+8. Build and run instructions, including how to capture your own pass
+
+---
+
+## 12. Known failure modes
+
+- **Skipping the SatDump check on a capture:** weeks lost debugging RTL when the antenna was the problem
+- **Guessing Phase 0 parameters** (RRC roll-off, differential coding, conv output order, RS basis): "almost locks" forever
+- **Invalid RTL-SDR sample rate** (300–900 kS/s): the driver silently picks another rate
+- **DC spike on the signal** from tuning exactly on frequency. Tune offset.
+- **Treating 72k M2-x as plain QPSK**, or forgetting the half-symbol offset: the constellation smears and never settles
+- **Running a plain QPSK Gardner on unaligned OQPSK:** the timing loop wanders
+- **Costas bandwidth too narrow** for the Doppler sweep: lock lost mid-pass
+- **Correlating the plain ASM before Viterbi:** it's convolutionally encoded, so it never matches
+- **Including the first 12 encoded-ASM symbols** in the correlation: false misses
+- **Viterbi path-metric overflow** after long runs: works for 1,000 frames, fails at 100,000
+- **Derandomizing the ASM**, or not resetting the PN generator each frame
+- **Wrong RS interleave order:** every codeword uncorrectable even with a perfect signal
+- **Wrong RS basis** (conventional vs. dual): same symptom
+- **CIC bit growth undersized:** overflow wraps silently
+- **DSP inference failure:** multipliers in LUTs, timing fails
+- **Editing `rtl/eth/` in place:** the submodule diverges from `fpga-eth-core`

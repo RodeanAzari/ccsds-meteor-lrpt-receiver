@@ -1,0 +1,28 @@
+# Full recordings stay off-repo (data/MANIFEST.md)
+*.iq
+*.cu8
+*.wav
+*.raw
+
+# Python
+.venv/
+__pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Build output
+build/
+sim_build/
+
+# Vivado
+.Xil/
+*.jou
+*.log
+*.str
+vivado_*
+*.runs/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.sim/
