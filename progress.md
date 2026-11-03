@@ -7,7 +7,8 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 **Phase 0: blocked on a real recording.**
 
 - Done: `docs/signal-spec.md`, written from SatDump 1.2.2 source. Nothing in it is confirmed on a real signal yet.
-- Not done: decode a recording with SatDump, buy the kit, capture your own pass.
+- Kit: RTL-SDR Blog V3 + Nooelec SAWbird+ NOAA (CLAUDE.md §1).
+- Not done: decode a real recording with SatDump, capture your own pass.
 
 **Phase A: float model working on synthetic signals.**
 
@@ -15,21 +16,14 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 - Measured (`data/results/`):
   - BER matches theory, uncoded and Viterbi.
   - Full chain recovers every frame it can reach from 2.5 dB up.
-- Not done: SatDump cross-check, a real recording, bit-true model, `docs/fixed-point.md`.
+- SatDump 1.2.2 decodes our synthetic recording: every CADU it writes matches truth (`data/results/satdump_crosscheck.csv`).
+- Not done: a real recording, bit-true model, `docs/fixed-point.md`.
 
 ## Next steps
 
-1. **You:** run the SatDump cross-check on the synthetic file. Generate it with `make synthetic-iq`, then:
-
-   ```
-   satdump meteor_m2-x_lrpt baseband data/synthetic/synthetic_seed2026_1024000SPS.cu8 out \
-       --samplerate 1024000 --baseband_format cu8 --freq_shift -150000 --dc_block
-   python scripts/compare_cadus.py out/meteor_m2-x_lrpt.cadu data/synthetic/synthetic_seed2026_truth.cadu
-   ```
-
-   The command is untested; check SatDump's actual output filename. My attempt to run SatDump was blocked by the
-   permission check.
-2. **You:** get a real recording. Ask on the libre.space forum or buy the kit.
+1. **You:** capture a pass with the V3 + SAWbird+ (bias tee on, gain raised from low while watching the waterfall),
+   or get a public 72k recording from the libre.space forum. Check the satellite is in 72k mode first.
+2. Decode it with SatDump and list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
 4. Bit-true model and `docs/fixed-point.md`. Start the NCO, CIC and soft-width ADRs.

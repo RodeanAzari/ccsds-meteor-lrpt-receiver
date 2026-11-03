@@ -49,3 +49,27 @@
 
 - Running SatDump was blocked by the permission check, so the synthetic-file cross-check is the user's step.
 - No real recording yet.
+
+## 2026-11-03: SatDump cross-check on the synthetic recording; kit change
+
+**Done**
+
+- Moved the project into WSL (`~/CCSDS`), deleted the Windows copy after checking it held nothing the WSL copy lacked,
+  and pushed to a private GitHub repo.
+- Installed SatDump 1.2.2+gb79af48-2 from Ubuntu 26.04's archive. The spec was read from commit `7aef0fe`, also 1.2.2.
+- SatDump decoded `make synthetic-iq`'s recording: 258 of 300 CADUs, all 258 matching truth on the data bytes.
+  Source: `data/results/satdump_crosscheck.csv`. That is the first check of our transmit chain by an independent
+  decoder.
+- The missing leading frames track the carrier offset (first frame 1 at 0 Hz, 70 at a static 1 kHz, 38 at 1 kHz plus
+  30 Hz/s), so they are SatDump's acquisition time.
+- Kit: RTL-SDR Blog V3 (V4 out of stock) plus Nooelec SAWbird+ NOAA on the V3's bias tee. CLAUDE.md §1 updated.
+
+**Bugs**
+
+1. Symptom: the cross-check script reported 0 of 258 frames matching, where a manual check gave 258. Root cause:
+   `build_cadus` returns a (frames, 1024) array, and the script sliced it as a flat byte stream. Fix: index by row.
+
+**Not done**
+
+- Why SatDump drops the last 4 frames, and why it exits with code 1, is not established. Neither affects the CADUs.
+- Still no real recording.
