@@ -117,7 +117,8 @@ def viterbi_decode(soft: npt.NDArray[Any]) -> Bits:
     Uses full-block traceback from the best end state. Traceback depth is a Phase D study.
     """
     if soft.ndim == 1:
-        return viterbi_decode(soft[np.newaxis, :])[0]
+        single: Bits = viterbi_decode(soft[np.newaxis, :])[0]
+        return single
     blocks, n_sym = soft.shape
     n = n_sym // 2
     metrics = np.zeros((blocks, _N_STATES))
