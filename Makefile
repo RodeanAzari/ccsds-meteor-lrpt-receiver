@@ -1,6 +1,6 @@
 PY := .venv/bin/python
 
-.PHONY: setup model-test check-spec lint-py ber sync-study plots synthetic-iq ci clean \
+.PHONY: setup model-test check-spec lint-py ber sync-study ddc-study plots synthetic-iq ci clean \
         lint sim sim-full cov formal gs gs-test fuzz synth impl prog reports
 
 setup:
@@ -22,6 +22,9 @@ ber:
 
 sync-study:
 	$(PY) -m analysis.sync_study
+
+ddc-study:
+	$(PY) -m analysis.ddc_fixed_study
 
 plots:
 	$(PY) -m analysis.plots

@@ -78,15 +78,19 @@ def ddc(x: Complex, cfg: RxConfig) -> Complex:
     for _ in range(cfg.cic_order):
         kernel = np.convolve(kernel, np.ones(cfg.decimation) / cfg.decimation)
     decimated = signal.fftconvolve(mixed, kernel, mode="same")[:: cfg.decimation]
+    out: Complex = signal.fftconvolve(decimated, comp_fir_taps(cfg), mode="same")
+    return out
+
+
+def comp_fir_taps(cfg: RxConfig) -> Floats:
+    """Inverse-droop FIR flat across the signal band (72k * 1.5 / 2 = 54 kHz plus Doppler margin)."""
     fs2 = cfg.fs / cfg.decimation
-    # Inverse-droop FIR flat across the signal band (72k * 1.5 / 2 = 54 kHz plus Doppler margin).
     freq = np.array([0.0, 20e3, 40e3, 60e3, 70e3, 100e3, fs2 / 2])
     droop = (np.sinc(freq / fs2) / np.sinc(freq / cfg.fs)) ** cfg.cic_order
     gain = 1.0 / droop
     gain[-2:] = 0.0
-    comp = signal.firwin2(cfg.comp_taps, freq, gain, fs=fs2)
-    out: Complex = signal.fftconvolve(decimated, comp, mode="same")
-    return out
+    taps: Floats = signal.firwin2(cfg.comp_taps, freq, gain, fs=fs2)
+    return taps
 
 
 def matched_filter(x: Complex, fs: float, span: int) -> Complex:
@@ -315,8 +319,12 @@ def decode_soft(soft: Floats, cfg: RxConfig = RxConfig()) -> RxResult:
 
 def demodulate(x: Complex, cfg: RxConfig = RxConfig()) -> tuple[Floats, Floats, Complex]:
     """Return (serial soft stream, Costas frequency in Hz, 2-sps samples)."""
+    return demodulate_baseband(ddc(x, cfg), cfg)
+
+
+def demodulate_baseband(baseband: Complex, cfg: RxConfig = RxConfig()) -> tuple[Floats, Floats, Complex]:
+    """demodulate() from the DDC output on, so the bit-true DDC (model/ddc_fixed.py) can feed it."""
     fs2 = cfg.fs / cfg.decimation
-    baseband = ddc(x, cfg)
     filtered = matched_filter(baseband, fs2, cfg.rrc_span)
     coarse_hz = coarse_frequency(filtered, fs2, cfg)
     derotated: Complex = filtered * np.exp(-2j * np.pi * coarse_hz * np.arange(filtered.size) / fs2)
