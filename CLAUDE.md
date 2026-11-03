@@ -424,6 +424,16 @@ make clean
 
 ## 8. Verification
 
+**Shared verification code (`tb/common/`):**
+- Project-agnostic pieces live in `tb/common/` and must not import anything from
+  `model/`, `feed/` or `book/`: AXI-Stream driver/monitor, in-order scoreboard that
+  dumps the last N transactions on first mismatch, seeded-random utilities that log
+  the seed, coverage helpers.
+- Ethernet-specific test code (MII driver, frame builder) lives with fpga-eth-core's
+  testbench, not here.
+- When Project 3 starts, `tb/common/` moves to its own repo `tb-common` unchanged.
+  If the move needs edits, the boundary was wrong.
+
 ### 8.1 Models (`model/`)
 
 1. **Algorithm model** (float NumPy, full chain): validated against SatDump on a public recording **before any RTL is written**.
