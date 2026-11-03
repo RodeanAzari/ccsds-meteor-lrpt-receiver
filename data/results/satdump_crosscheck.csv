@@ -1,0 +1,4 @@
+offset_hz,ramp_hz_s,frames_sent,frames_decoded,frames_matching,first_frame,last_frame,satdump_exit
+1000.0,30.0,300,258,258,38,295,1
+0.0,0.0,300,295,295,1,295,1
+1000.0,0.0,300,226,226,70,295,1

@@ -4,7 +4,7 @@ Versions marked "installed" were read from the machine on 2026-11-02. `[TBD]` me
 
 | Tool | Version | Where | Status |
 |---|---|---|---|
-| SatDump | 1.2.2 (commit `7aef0fe`) | Windows portable zip or Ubuntu 24.04 `.deb` | Chosen, not installed |
+| SatDump | 1.2.2+gb79af48-2 (Ubuntu package). `docs/signal-spec.md` was read from commit `7aef0fe`, same version | WSL Ubuntu 26.04, `apt install satdump` | Installed 2026-11-03 |
 | Verilator | 5.050 | WSL Ubuntu 26.04 | Installed |
 | Python | 3.12.10 (Windows), 3.14.4 (WSL) | Both | Installed; project version `[TBD]` |
 | Vivado | `[TBD]` | — | Not installed |
