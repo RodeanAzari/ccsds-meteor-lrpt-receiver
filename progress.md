@@ -44,5 +44,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 ## Open questions
 
 - Board Ethernet from WSL2: UDP multicast may need mirrored networking mode. Test before Phase B.
-- `fpga-eth-core` isn't on this machine or among the repos listed on your GitHub account. Needed for Phase B.
+- Project 2 is `~/OrderBook` (github.com/RodeanAzari/OrderBook), at Phase A awaiting sign-off. `fpga-eth-core` is
+  created in its Phase B, and it has no `tb/common/` and no `eth-core` tags yet. Until `eth-core v0.1`: hardware
+  testing from a BRAM ROM only; until `v0.2`: results over UART/ILA (CLAUDE.md, Dependencies on Project 2).
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
