@@ -123,6 +123,13 @@ def comp_fir(x: Ints, taps: Ints) -> Ints:
 
 def ddc_fixed(raw: npt.NDArray[np.uint8], cfg: RxConfig) -> Complex:
     """Bit-true counterpart of receiver.ddc(); output scaled by 2^-15 so it can feed demodulate_baseband()."""
+    i, q = ddc_fixed_rails(raw, cfg)
+    out: Complex = ((i + 1j * q) / (1 << (OUT_BITS - 1))).astype(np.complex128)
+    return out
+
+
+def ddc_fixed_rails(raw: npt.NDArray[np.uint8], cfg: RxConfig) -> tuple[Ints, Ints]:
+    """The DDC's s16 I and Q output, as the RTL produces it."""
     if (cfg.decimation, cfg.cic_order) != (CIC_R, CIC_ORDER):
         raise ValueError("bit-true DDC is fixed at CIC /4, order 3 (ADR 0004)")
     i, q = ingest(raw)
@@ -130,6 +137,4 @@ def ddc_fixed(raw: npt.NDArray[np.uint8], cfg: RxConfig) -> Complex:
     cos, sin = nco(i.size, freq_word(cfg.tune_offset_hz, cfg.fs))
     i, q = mix(i, q, cos, sin)
     taps = comp_taps(cfg)
-    i, q = comp_fir(cic_decimate(i), taps), comp_fir(cic_decimate(q), taps)
-    out: Complex = ((i + 1j * q) / (1 << (OUT_BITS - 1))).astype(np.complex128)
-    return out
+    return comp_fir(cic_decimate(i), taps), comp_fir(cic_decimate(q), taps)

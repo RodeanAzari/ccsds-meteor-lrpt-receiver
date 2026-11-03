@@ -93,15 +93,25 @@ def comp_fir_taps(cfg: RxConfig) -> Floats:
     return taps
 
 
-def matched_filter(x: Complex, fs: float, span: int) -> Complex:
-    """RRC matched filter, then normalize to unit average rail power."""
+def rrc_taps(fs: float, span: int) -> Floats:
+    """RRC matched-filter taps, `span` symbols each side, unity DC gain."""
     sps = fs / SYMBOL_RATE
     half = round(span * sps)
-    taps = rrc(np.arange(-half, half + 1) / sps, RRC_ALPHA) / sps
-    y: Complex = signal.fftconvolve(x, taps, mode="same")
+    taps: Floats = rrc(np.arange(-half, half + 1) / sps, RRC_ALPHA) / sps
+    return taps
+
+
+def normalize_rails(y: Complex) -> Complex:
+    """Scale to unit average rail power: the AGC's job in hardware, so loop gains don't depend on signal level."""
     power = float(np.mean(np.abs(y) ** 2))
     normalized: Complex = y / np.sqrt(power / 2.0)
     return normalized
+
+
+def matched_filter(x: Complex, fs: float, span: int) -> Complex:
+    """RRC matched filter, then normalize to unit average rail power."""
+    y: Complex = signal.fftconvolve(x, rrc_taps(fs, span), mode="same")
+    return normalize_rails(y)
 
 
 def costas(x: Complex, bw: float, max_rad: float) -> tuple[Complex, Floats]:
@@ -324,8 +334,13 @@ def demodulate(x: Complex, cfg: RxConfig = RxConfig()) -> tuple[Floats, Floats, 
 
 def demodulate_baseband(baseband: Complex, cfg: RxConfig = RxConfig()) -> tuple[Floats, Floats, Complex]:
     """demodulate() from the DDC output on, so the bit-true DDC (model/ddc_fixed.py) can feed it."""
+    return demodulate_filtered(matched_filter(baseband, cfg.fs / cfg.decimation, cfg.rrc_span), cfg)
+
+
+def demodulate_filtered(filtered: Complex, cfg: RxConfig = RxConfig()) -> tuple[Floats, Floats, Complex]:
+    """demodulate() from the RRC output on, so the bit-true RRC (model/rrc_fixed.py) can feed it."""
     fs2 = cfg.fs / cfg.decimation
-    filtered = matched_filter(baseband, fs2, cfg.rrc_span)
+    filtered = normalize_rails(filtered)
     coarse_hz = coarse_frequency(filtered, fs2, cfg)
     derotated: Complex = filtered * np.exp(-2j * np.pi * coarse_hz * np.arange(filtered.size) / fs2)
     locked, freq = costas(derotated, cfg.costas_bw, 2 * np.pi * cfg.costas_max_hz / fs2)
