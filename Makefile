@@ -27,7 +27,7 @@ plots:
 	$(PY) -m analysis.plots
 
 synthetic-iq:
-	$(PY) scripts/make_synthetic_iq.py
+	PYTHONPATH=. $(PY) scripts/make_synthetic_iq.py
 
 # Only what exists so far. Grows with each phase.
 ci: lint-py model-test

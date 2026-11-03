@@ -44,10 +44,11 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 | `gs-diff` compares the 892 data bytes only | SatDump leaves channel errors in parity and ASM | `docs/signal-spec.md` |
 | Carrier before timing; coarse fourth-power estimate first | Timing first fails on OQPSK; narrow loops pull in too slowly | ADR 0002 |
 | Costas 0.001 rad/sample, timing kp 0.02 | Measured sweeps | `data/results/sync_*.csv` |
+| Work in WSL at `~/CCSDS`; board USB through usbipd-win | Toolchain lives in WSL; /mnt/c is slow | This file |
 | Sync threshold 0.75; frames under the flywheel held until the lock is confirmed | Fixes false locks and duplicate frames | `model/receiver.py` |
 
 ## Open questions
 
-- Host setup: CLAUDE.md assumes a Linux host, but this machine is Windows with WSL2. Resolve before Phase B.
+- Board Ethernet from WSL2: UDP multicast may need mirrored networking mode. Test before Phase B.
 - `fpga-eth-core` isn't on this machine or among the repos listed on your GitHub account. Needed for Phase B.
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
