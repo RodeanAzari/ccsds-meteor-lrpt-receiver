@@ -16,6 +16,17 @@ host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + 
 
 **Dependency:** the shared Ethernet core `fpga-eth-core` (MII MAC, CRC-32, async FIFO, IPv4/UDP RX/TX), built in the order-book project and pulled in as a git submodule at `rtl/eth/`. **Don't modify it here.** Fixes go upstream to `fpga-eth-core`, then get bumped in the submodule.
 
+**Dependencies on Project 2 (fpga-eth-core):**
+- Consume fpga-eth-core only as a git submodule pinned to a tag. Never edit it here;
+  request changes in the Project 2 repo.
+- Until `eth-core v0.1` (RX + sustained-stream test) is tagged: hardware testing uses
+  IQ snippets preloaded into a BRAM ROM only. Do not build a temporary Ethernet path.
+- Until `eth-core v0.2` (generic TX) is tagged: results come back over UART or ILA.
+- Testbenches import Project 2's `tb/common/` by path until it is split into `tb-common`.
+  Never copy it.
+- When blocked on a gate, say which tag is missing and continue with the next phase
+  that doesn't need it.
+
 ---
 
 ## Current status
