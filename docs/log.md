@@ -73,3 +73,21 @@
 
 - Why SatDump drops the last 4 frames, and why it exits with code 1, is not established. Neither affects the CADUs.
 - Still no real recording.
+
+## 2026-11-03 (continued): bit-true DDC
+
+**Done**
+
+- `model/ddc_fixed.py`: streaming, causal integer model of ingest, DC block, NCO, mixer, CIC ÷4 and compensation
+  FIR, at the widths in `docs/fixed-point.md`. ADRs 0003 (NCO) and 0004 (CIC).
+- With the bit-true DDC, the receiver decodes the same frames as with the float DDC at every Eb/N0 from 2 to 8 dB,
+  with soft-symbol SNR within 0.01 dB. DDC SQNR is 51.0–53.7 dB on noisy inputs, 64.1 dB clean.
+  Source: `data/results/ddc_fixed_chain.csv`.
+- NCO SFDR is 71.6–72.8 dB over 64 random tuning words (`data/results/ddc_nco_sfdr.csv`).
+- Six tests, two checked by planted bugs: a quadrant slip in the NCO fails 3 tests; a DC block with no feedback
+  fails 1. The CIC test also runs one register bit short and requires that to fail.
+
+**Not done**
+
+- Why DDC SQNR is lower with noise than without is not established. It doesn't reach the soft symbols.
+- Bit-true model from the RRC on.

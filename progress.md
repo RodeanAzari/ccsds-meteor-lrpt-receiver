@@ -17,7 +17,9 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   - BER matches theory, uncoded and Viterbi.
   - Full chain recovers every frame it can reach from 2.5 dB up.
 - SatDump 1.2.2 decodes our synthetic recording: every CADU it writes matches truth (`data/results/satdump_crosscheck.csv`).
-- Not done: a real recording, bit-true model, `docs/fixed-point.md`.
+- Bit-true DDC (`model/ddc_fixed.py`): same frames and soft SNR as the float DDC (`data/results/ddc_fixed_chain.csv`);
+  formats in `docs/fixed-point.md`; ADRs 0003 (NCO) and 0004 (CIC).
+- Not done: a real recording, bit-true model from the RRC on.
 
 ## Next steps
 
@@ -26,7 +28,8 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 2. Decode it with SatDump and list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
-4. Bit-true model and `docs/fixed-point.md`. Start the NCO, CIC and soft-width ADRs.
+4. Bit-true RRC, then sync loops; soft-width ADR. Phase B DDC RTL can start from `model/ddc_fixed.py` (BRAM ROM
+   only until `eth-core-v0.1`).
 
 ## Key decisions
 
