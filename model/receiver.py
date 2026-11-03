@@ -47,6 +47,8 @@ class RxConfig:
     sync_threshold: float = 0.75
     flywheel: int = 4  # consecutive sync misses before returning to search
     viterbi_margin_bits: int = 64
+    coarse_log2: int = 18  # about 1 s of signal at 256 kS/s
+    coarse_threshold: float = 11.0  # peak over median. Noise reaches about 9; the signal 13 at 2 dB
 
 
 @dataclass
@@ -121,6 +123,25 @@ def costas(x: Complex, bw: float, max_rad: float) -> tuple[Complex, Floats]:
         track[n] = freq
     y: Complex = np.array(out_re) + 1j * np.array(out_im)
     return y, np.array(track)
+
+
+def coarse_frequency(x: Complex, fs: float, cfg: RxConfig) -> float:
+    """Estimate the carrier offset in Hz from the fourth-power spectral line, or 0.0 if no line stands out.
+
+    Scans windows in time because a real pass starts in noise. Narrow Costas loops pull in too slowly on
+    their own (data/results/sync_pull_in.csv).
+    """
+    size = 2**cfg.coarse_log2
+    freqs = np.fft.fftfreq(2 * size, 1 / fs)
+    search = np.abs(freqs) < 4 * cfg.costas_max_hz
+    window = np.hanning(size)
+    for start in range(0, max(1, x.size - size + 1), size // 2):
+        seg = x[start : start + size]
+        spectrum = np.abs(np.fft.fft(seg**4 * window[: seg.size], 2 * size))
+        peak = int(np.argmax(np.where(search, spectrum, 0.0)))
+        if spectrum[peak] > cfg.coarse_threshold * np.median(spectrum):
+            return float(freqs[peak]) / 4.0
+    return 0.0
 
 
 def _cubic(p0: float, p1: float, p2: float, p3: float, mu: float) -> float:
@@ -288,9 +309,11 @@ def demodulate(x: Complex, cfg: RxConfig = RxConfig()) -> tuple[Floats, Floats, 
     fs2 = cfg.fs / cfg.decimation
     baseband = ddc(x, cfg)
     filtered = matched_filter(baseband, fs2, cfg.rrc_span)
-    locked, freq = costas(filtered, cfg.costas_bw, 2 * np.pi * cfg.costas_max_hz / fs2)
+    coarse_hz = coarse_frequency(filtered, fs2, cfg)
+    derotated: Complex = filtered * np.exp(-2j * np.pi * coarse_hz * np.arange(filtered.size) / fs2)
+    locked, freq = costas(derotated, cfg.costas_bw, 2 * np.pi * cfg.costas_max_hz / fs2)
     samples = oqpsk_timing(locked, fs2, cfg.timing_kp, cfg.timing_ki)
-    return serial_soft(samples), freq * fs2 / (2 * np.pi), samples
+    return serial_soft(samples), coarse_hz + freq * fs2 / (2 * np.pi), samples
 
 
 def decode_iq(x: Complex, cfg: RxConfig = RxConfig()) -> RxResult:

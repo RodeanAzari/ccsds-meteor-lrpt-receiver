@@ -19,7 +19,9 @@ NOTES = Path(__file__).parent / "interpretations"
 
 def _commit() -> str:
     run = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True)
-    dirty = subprocess.run(["git", "status", "--porcelain", "model", "analysis"], cwd=ROOT, capture_output=True, text=True)
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain", "model", "analysis"], cwd=ROOT, capture_output=True, text=True
+    )
     return run.stdout.strip() + (" (with uncommitted changes)" if dirty.stdout.strip() else "")
 
 
