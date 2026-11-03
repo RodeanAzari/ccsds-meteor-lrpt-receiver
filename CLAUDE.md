@@ -62,13 +62,17 @@ host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + 
 - TI DP83848J 10/100 PHY over MII.
 - **No RF front end.** RF is captured on the host.
 
-**RF capture kit (~$100):**
+**RF capture kit (bought Nov 2026):**
 
 | Item | Notes |
 |---|---|
-| RTL-SDR Blog V4 kit with dipole | Configure the dipole as a **V-dipole**: two ~53 cm legs at ~120°, horizontal, oriented north–south, clear sky |
-| 137 MHz SAW filter + LNA | FM broadcast overloads the RTL-SDR without it |
-| Coax + SMA adapters | — |
+| RTL-SDR Blog V3 kit with dipole | V4 was out of stock. 1 PPM TCXO, software bias tee. Configure the dipole as a **V-dipole**: two ~53 cm legs at ~120°, horizontal, oriented north–south, clear sky |
+| Nooelec SAWbird+ NOAA | 137.5 MHz SAW filter + two-stage LNA (≥30 dB gain). Keeps FM broadcast from overloading the dongle. Powered from the V3's bias tee |
+
+**Signal chain:** V-dipole → dipole's RG174 cable → SAWbird+ input → SAWbird+ output → included SMA M-M adapter → V3 → USB → host. No other coax.
+
+- **Bias tee on** for every capture: in SatDump, or `rtl_sdr -T`. Use only one SAWbird power source at a time.
+- **Gain:** the SAWbird's ≥30 dB can overload the dongle. Start the tuner gain low and raise it while watching SatDump's waterfall for spurs or a raised noise floor, before recording. Record the gain for every capture in `data/MANIFEST.md`.
 
 Receive-only operation needs no licence in Canada. A QFH antenna (circular polarization, matches the satellite's RHCP) is a later upgrade, not a prerequisite.
 
