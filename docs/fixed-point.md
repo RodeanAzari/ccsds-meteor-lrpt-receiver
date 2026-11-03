@@ -34,7 +34,23 @@ noisy point) as the float DDC.
 **Measured.** DDC quantization noise is 51.0–53.7 dB below the output on noisy inputs and 64.1 dB on a clean one
 (`data/results/ddc_fixed_chain.csv`). Why SQNR is lower with noise than without is not yet established.
 
+## RRC matched filter (Phase C)
+
+Bit-true model: `model/rrc_fixed.py`. Input is the comp FIR output above.
+
+| Stage | Signal | Format | Rounding / saturation | Why this width |
+|---|---|---|---|---|
+| RRC | taps (57: ±8 symbols at 3.56 sps, α = 0.5) | s18, 17 fraction bits | taps rounded from `rrc_taps()`; rounding keeps them symmetric | DSP48E1 18-bit B port; max tap 0.32, DC gain 1.000. Symmetry lets the RTL fold pairs through the 25-bit pre-adder (29 multipliers per rail) |
+| RRC | accumulator | ≤ 40 bits | none (exact; DSP48E1 has 48) | 16 + 18 + log₂(57) |
+| RRC | output → timing/carrier | s16 | `>> 17` rounded, saturated | Σ\|taps\| = 1.374, so the worst case is 22,900 · 1.374 = 31,465 < 32,767; checked by `test_rrc_fixed.py` |
+
+**Measured.** RRC SQNR is 63.3–67.6 dB, about 12 dB below the DDC's, and the decoder sees no difference from a float
+RRC: same frames, soft SNR within 0.01 dB (`data/results/rrc_fixed_chain.csv`).
+
+**Normalization.** The float chain scales the RRC output to unit rail power (`normalize_rails()`); in hardware that is
+the AGC's job, which is not yet bit-true.
+
 ## Later stages
 
-RRC, timing, carrier, AGC, soft-symbol quantization, Viterbi and RS: `[TBD]`. Added as each block's bit-true model
+Timing, carrier, AGC, soft-symbol quantization, Viterbi and RS: `[TBD]`. Added as each block's bit-true model
 is written.
