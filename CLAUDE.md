@@ -48,6 +48,7 @@ host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + 
   - add them to `docs/portfolio-todo.md`;
   - wait for the user to confirm before marking the phase done.
 - **Lab notebook.** Append a `docs/log.md` entry at the end of every working session (§11.3).
+- **Progress file.** Read `progress.md` at the start of a session and update it whenever progress, next steps or an important decision changes. Keep it short: only current progress, next steps and important decisions. Replace stale entries rather than appending, and put detail in `docs/log.md`, `docs/decisions/` or `data/results/`.
 - **Keep the front page current.** Update the status table and README results at the end of every phase.
 - **Stay in scope.** If a task drifts into §10, say so before doing it.
 - **Small, frequent commits** (§5.4).
