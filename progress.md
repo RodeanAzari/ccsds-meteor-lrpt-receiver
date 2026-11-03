@@ -12,7 +12,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 
 **Phase A: float model working on synthetic signals.**
 
-- Done: transmit chain, parameterized RS codec, float receiver; 37 tests passing.
+- Done: transmit chain, parameterized RS codec, float receiver; 43 tests passing.
 - Measured (`data/results/`):
   - BER matches theory, uncoded and Viterbi.
   - Full chain recovers every frame it can reach from 2.5 dB up.
