@@ -27,6 +27,19 @@ host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + 
 - When blocked on a gate, say which tag is missing and continue with the next phase
   that doesn't need it.
 
+**Cross-project rules (shared machine, separate repos):**
+- You may READ other projects' repos for reference: docs, interfaces, examples.
+- You may NEVER build from another project's working tree, copy files from it, or edit it.
+- Shared blocks are consumed only at tagged releases:
+  - RTL: git submodule (GitHub URL), checked out at a tag
+  - Python: pip install from git at a tag, pinned in requirements.txt
+- Owners tag a release only after its gate test passes, and record the tag, the test
+  and the evidence in the block's CHANGELOG.md.
+- Consumers check the owner's CHANGELOG.md for new tags. If a needed tag doesn't exist
+  yet, say so and work on a phase that doesn't need it.
+- Need a change to a shared block? Write the request in the owner repo's
+  `docs/requests.md`; the owner session implements it.
+
 ---
 
 ## Current status
