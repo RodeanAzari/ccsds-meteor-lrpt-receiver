@@ -91,3 +91,21 @@
 
 - Why DDC SQNR is lower with noise than without is not established. It doesn't reach the soft symbols.
 - Bit-true model from the RRC on.
+
+## 2026-11-03 (continued): bit-true RRC
+
+**Done**
+
+- `model/rrc_fixed.py`: causal 57-tap RRC (±8 symbols, α = 0.5), taps s1.17, exact accumulator (≤ 40 bits), s16
+  output rounded and saturated. Formats in `docs/fixed-point.md`. `receiver.py` now exposes `rrc_taps()`,
+  `normalize_rails()` and `demodulate_filtered()` so the bit-true path can join the float chain after the RRC.
+- With bit-true DDC + RRC, the receiver decodes the same frames as with bit-true DDC + float RRC at every Eb/N0 from
+  2 to 8 dB (18 of 20), soft SNR within 0.01 dB. RRC SQNR 63.3–67.6 dB, about 12 dB below the DDC's.
+  Source: `data/results/rrc_fixed_chain.csv`.
+- Four tests, checked by two planted bugs: an RRC gain of 4 fails the saturation-bound and SQNR tests; taps
+  quantized to 10 bits fail the DC-gain and SQNR tests.
+
+**Not done**
+
+- The AGC (the float chain's `normalize_rails()`) and the loops are not bit-true yet.
+- Still no real recording.

@@ -19,7 +19,9 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 - SatDump 1.2.2 decodes our synthetic recording: every CADU it writes matches truth (`data/results/satdump_crosscheck.csv`).
 - Bit-true DDC (`model/ddc_fixed.py`): same frames and soft SNR as the float DDC (`data/results/ddc_fixed_chain.csv`);
   formats in `docs/fixed-point.md`; ADRs 0003 (NCO) and 0004 (CIC).
-- Not done: a real recording, bit-true model from the RRC on.
+- Bit-true RRC (`model/rrc_fixed.py`): same frames and soft SNR as the float RRC, SQNR 63–68 dB
+  (`data/results/rrc_fixed_chain.csv`). 47 tests passing.
+- Not done: a real recording, bit-true model from the sync loops on (AGC, Costas, timing).
 
 ## Next steps
 
@@ -28,7 +30,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 2. Decode it with SatDump and list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
-4. Bit-true RRC, then sync loops; soft-width ADR. Phase B DDC RTL can start from `model/ddc_fixed.py` (BRAM ROM
+4. Bit-true AGC + Costas + timing; soft-width ADR. Phase B DDC RTL can start from `model/ddc_fixed.py` (BRAM ROM
    only until `eth-core-v0.1`).
 
 ## Key decisions
@@ -51,3 +53,5 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   created in its Phase B, and it has no `tb/common/` and no `eth-core` tags yet. Until `eth-core v0.1`: hardware
   testing from a BRAM ROM only; until `v0.2`: results over UART/ILA (CLAUDE.md, Dependencies on Project 2).
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
+- `coord.py` says the tb-common stopgap is "import P2's tb/common/ by path"; CLAUDE.md forbids that (pinned tag only).
+  Needs your call before any cocotb work; `dependencies.toml` edits need your approval.
