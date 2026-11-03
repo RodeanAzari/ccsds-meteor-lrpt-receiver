@@ -53,5 +53,5 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   created in its Phase B, and it has no `tb/common/` and no `eth-core` tags yet. Until `eth-core v0.1`: hardware
   testing from a BRAM ROM only; until `v0.2`: results over UART/ILA (CLAUDE.md, Dependencies on Project 2).
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
-- `coord.py` says the tb-common stopgap is "import P2's tb/common/ by path"; CLAUDE.md forbids that (pinned tag only).
-  Needs your call before any cocotb work; `dependencies.toml` edits need your approval.
+- tb/common: follow coord.py (decided 2026-11-03). Import P2's `tb/common/` by path until `tb-common-v0.1`, then the
+  pinned tag. P2 has no `tb/common/` yet, so cocotb benches start with plain cocotb.

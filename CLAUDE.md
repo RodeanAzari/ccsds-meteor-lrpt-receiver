@@ -1,3 +1,9 @@
+Project ID: P3
+@~/fpga-coord/PROTOCOL.md
+
+Current state of the work:
+progress.md
+
 # CLAUDE.md — CCSDS Satellite Telemetry Receiver
 
 ## What this is
@@ -22,8 +28,10 @@ host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + 
 - Until `eth-core v0.1` (RX + sustained-stream test) is tagged: hardware testing uses
   IQ snippets preloaded into a BRAM ROM only. Do not build a temporary Ethernet path.
 - Until `eth-core v0.2` (generic TX) is tagged: results come back over UART or ILA.
-- Testbenches consume Project 2's `tb/common/` only by pip install from git at a tag,
-  pinned in requirements.txt (see Cross-project rules). Never copy it.
+- Until `tb-common-v0.1` is tagged (soft gate in fpga-coord): testbenches import P2's
+  `tb/common/` by path, and record P2's commit hash in each result's sidecar. Never copy it.
+  This is the one exception to "never build from another project's working tree".
+  Once the tag exists: pip install from git at the tag, pinned in requirements.txt.
 - When blocked on a gate, say which tag is missing and continue with the next phase
   that doesn't need it.
 
