@@ -33,7 +33,7 @@ def write_result(name: str, header: Sequence[str], rows: Sequence[Sequence[objec
         writer.writerow(header)
         writer.writerows(rows)
     note = NOTES / f"{name}.md"
-    interpretation = note.read_text().strip() if note.exists() else "[TBD]"
+    interpretation = note.read_text(encoding="utf-8").strip() if note.exists() else "[TBD]"
     versions = f"Python {platform.python_version()}, NumPy {np.__version__}, SciPy {scipy.__version__}"
     command = " ".join(["python", "-m", Path(sys.argv[0]).stem, *sys.argv[1:]])
     path.with_suffix(".md").write_text(

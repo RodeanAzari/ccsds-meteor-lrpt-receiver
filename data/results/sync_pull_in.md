@@ -1,8 +1,8 @@
 # sync_pull_in
 
-- **Commit:** `74ac735d5289b583d5ed08329225f026cd70677c (with uncommitted changes)`
+- **Commit:** `950a988244d0dd72432f974d62e8da0ffc88fea3`
 - **Command:** `python -m sync_study` (module in `analysis/`)
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1
 - **Input:** synthetic, seeds 1 to 4, 6 dB, no coarse estimate. Lock is within 50 Hz (10 ms average) to the end of the run; nan means no lock. No real recording.
 
-[TBD]
+A Costas loop alone can't acquire the Doppler range quickly enough. At 0.002, offsets of 2 kHz and 3.4 kHz mostly don't lock within 3.4 s, and wider loops that pull in faster track too poorly to decode (see sync_costas_bw). This is why the receiver estimates the offset coarsely from the fourth-power spectral line first. No coarse estimate is used in this run.

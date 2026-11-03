@@ -26,7 +26,7 @@ host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + 
 | Phase | Status | Key result |
 |---|---|---|
 | 0 — Signal spec + capture kit | IN PROGRESS | `docs/signal-spec.md` written from source, not yet confirmed on a recording |
-| A — Python golden model | NOT STARTED | — |
+| A — Python golden model | IN PROGRESS | Float model decodes synthetic signals end to end; not yet run on a real recording |
 | B — Digital downconverter | NOT STARTED | — |
 | C — Synchronization | NOT STARTED | — |
 | D — Viterbi + frame sync | NOT STARTED | — |

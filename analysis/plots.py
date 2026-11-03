@@ -90,7 +90,17 @@ def fer_plot() -> None:
     fig, ax = plt.subplots(figsize=(8, 4.5))
     ax.plot(xs, [100 * good[x] / sent[x] for x in xs], "o-", color=BLUE)
     ax.set_xlabel("Eb/N0 (dB)")
-    ax.set_ylabel("Frames recovered intact (%)")
+    ax.set_ylabel("Frames recovered intact (% of sent)")
+    ax.axhline(95, color=MUTED, linewidth=1, linestyle="--")
+    ax.annotate(
+        "Ceiling 95%: the first and last of each 40-frame run have no Viterbi margin",
+        (6, 95),
+        xytext=(0, -16),
+        textcoords="offset points",
+        ha="right",
+        color=MUTED,
+        fontsize=9,
+    )
     ax.set_ylim(0, 100)
     ax.set_title("Full float receiver: samples to RS output, with Doppler and timing offset", color=INK, loc="left")
     fig.tight_layout()
@@ -112,7 +122,8 @@ def constellation_plot() -> None:
     locked = oqpsk_timing(costas(derotated, cfg.costas_bw, math.pi / 4)[0], fs2, cfg.timing_kp, cfg.timing_ki)
     fig, axes = plt.subplots(1, 2, figsize=(9, 4.6))
     for ax, y, title in ((axes[0], unlocked, "Before carrier lock"), (axes[1], locked, "After carrier lock")):
-        pts = y[y.size // 2 : y.size // 2 + 6000]
+        start = (y.size // 4) * 2  # even, so each real strobe pairs with the next imaginary strobe
+        pts = y[start : start + 6000]
         pairs = pts.real[0::2][:-1] + 1j * pts.imag[1::2][: pts.real[0::2].size - 1]
         ax.plot(pairs.real, pairs.imag, ".", markersize=2, color=BLUE, alpha=0.5)
         ax.set_aspect("equal")

@@ -1,0 +1,1 @@
+The timing loop is insensitive to its gain: kp from 0.005 to 0.04 (ki = kp^2/4) all decode 77 to 80 of 88 frames at 2 dB and 88 above that. The default of 0.02 stays. Measured with the Costas loop at its new 0.001 default.

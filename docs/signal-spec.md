@@ -99,7 +99,7 @@ This file wins wherever they differ, as CLAUDE.md itself says. CLAUDE.md §2, §
 | 2 | §3.5: correlate against one encoded ASM pattern, 4 rotations | Two complementary patterns, rotations {0°, 90°} | Correlate on absolute value with {0°, 90°} × swap × shift. Confirm on a recording in Phase A. |
 | 3 | §3.7: dual-basis conversion is possible | Conventional | Drop the `[dual-basis conv]` stage in §3. |
 | 4 | §3.4: delay I | SatDump delays Q | Not a contradiction yet. It depends on the Open item above. |
-| 5 | §3: timing, then carrier | Carrier, then timing | Architecture choice, not a signal parameter. Keep CLAUDE.md's order unless the model shows a problem; record in the OQPSK timing ADR. |
+| 5 | §3: timing, then carrier | Carrier, then timing | The model shows timing first fails on OQPSK. Carrier first, with a coarse estimate before it: ADR 0002. |
 | 6 | §8.5: 100% bit-exact CADUs | SatDump doesn't correct every byte it writes | See below. |
 
 ## What `gs-diff` can compare

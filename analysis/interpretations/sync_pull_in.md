@@ -1,0 +1,1 @@
+A Costas loop alone can't acquire the Doppler range quickly enough. At 0.002, offsets of 2 kHz and 3.4 kHz mostly don't lock within 3.4 s, and wider loops that pull in faster track too poorly to decode (see sync_costas_bw). This is why the receiver estimates the offset coarsely from the fourth-power spectral line first. No coarse estimate is used in this run.
