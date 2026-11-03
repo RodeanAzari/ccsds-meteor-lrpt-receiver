@@ -412,7 +412,8 @@ make clean
 │   ├── lib/                   # cdc_*, fifos, xilinx/ primitive wrappers
 │   ├── ddc/                   # ingest conversion, NCO, mixer, CIC, comp FIR
 │   ├── sync/                  # RRC, Farrow, Gardner, OQPSK align, Costas, AGC
-│   ├── fec/                   # encoded-ASM correlator, Viterbi, ASM check, derandomizer, RS
+│   ├── rs/                    # submodule: fpga-rs-core (do not edit here)
+│   ├── fec/                   # encoded-ASM correlator, Viterbi, ASM check, derandomizer, RS wrappers (basis, interleave ×4)
 │   ├── io/                    # IQ ingest, CADU/stats/debug packet builder, regs
 │   └── top/
 ├── tb/cocotb/  tb/formal/
@@ -574,7 +575,7 @@ Every phase's DoD includes:
 - Live RF into the FPGA (RF ADC hardware)
 - 80k interleaved mode, unless the satellite stays in 80k
 - GOES HRIT or other satellites
-- **Cut order if descoping:** RS first, then the derandomizer. DDC → sync → Viterbi is the core and survives any descope.
+- **Cut order if descoping:** the derandomizer first. DDC → sync → Viterbi is the core and survives any descope. RS can't be cut: Project 4 depends on it (§3.7).
 
 ---
 
