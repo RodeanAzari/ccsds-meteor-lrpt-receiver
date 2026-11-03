@@ -60,7 +60,7 @@ def ccsds_pn() -> list[int]:
     for _ in range(255 * 8):
         bits.append(reg[0])
         fb = reg[0] ^ reg[3] ^ reg[5] ^ reg[7]
-        reg = reg[1:] + [fb]
+        reg = [*reg[1:], fb]
     return [to_int(bits[i : i + 8]) for i in range(0, len(bits), 8)]
 
 
@@ -108,11 +108,15 @@ def main() -> int:
     payload = [(i * 7 + 3) % 5 & 1 for i in range(64)]
     enc = nrzm_encode(payload, 0)
     inv = [b ^ 1 for b in enc]
-    results.append(check("NRZ-M decode is inversion-transparent", nrzm_decode(enc)[1:] == nrzm_decode(inv)[1:] == payload[1:]))
+    results.append(
+        check("NRZ-M decode is inversion-transparent", nrzm_decode(enc)[1:] == nrzm_decode(inv)[1:] == payload[1:])
+    )
 
     # Randomizer matches the first entries of SatDump's ccsds_pn table.
     pn = ccsds_pn()
-    results.append(check("PN table start = FF 48 0E C0 9A 0D 70 BC", pn[:8] == [0xFF, 0x48, 0x0E, 0xC0, 0x9A, 0x0D, 0x70, 0xBC]))
+    results.append(
+        check("PN table start = FF 48 0E C0 9A 0D 70 BC", pn[:8] == [0xFF, 0x48, 0x0E, 0xC0, 0x9A, 0x0D, 0x70, 0xBC])
+    )
 
     return 0 if all(results) else 1
 

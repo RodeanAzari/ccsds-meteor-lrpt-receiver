@@ -1,0 +1,15 @@
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["model.channel.TxConfig", "model.receiver.RxConfig"]
+
+[tool.mypy]
+strict = true
+packages = ["model"]
+
+[tool.pytest.ini_options]
+testpaths = ["model/tests"]

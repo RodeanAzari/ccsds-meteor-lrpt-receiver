@@ -3,6 +3,8 @@
 *.cu8
 *.wav
 *.raw
+*.cf32
+data/synthetic/
 
 # Python
 .venv/
