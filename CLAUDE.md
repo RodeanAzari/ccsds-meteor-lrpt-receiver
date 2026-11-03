@@ -22,8 +22,8 @@ host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + 
 - Until `eth-core v0.1` (RX + sustained-stream test) is tagged: hardware testing uses
   IQ snippets preloaded into a BRAM ROM only. Do not build a temporary Ethernet path.
 - Until `eth-core v0.2` (generic TX) is tagged: results come back over UART or ILA.
-- Testbenches import Project 2's `tb/common/` by path until it is split into `tb-common`.
-  Never copy it.
+- Testbenches consume Project 2's `tb/common/` only by pip install from git at a tag,
+  pinned in requirements.txt (see Cross-project rules). Never copy it.
 - When blocked on a gate, say which tag is missing and continue with the next phase
   that doesn't need it.
 
