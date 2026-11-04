@@ -162,3 +162,21 @@
 **Not done**
 
 - Area per width is `[TBD]` until Phase D synthesis. Traceback depth and survivor scheme. `docs/design.md`.
+
+## 2026-11-04 (continued): traceback depth and survivor memory
+
+**Done**
+
+- `model/viterbi_fixed.py`: ACS split from traceback; per-bit sliding traceback from the best state or state 0, as
+  the planned BRAM traceback does it.
+- Depth sweep (12–96, both starts, 12.0 M bits per Eb/N0, shared decisions): from the best state, depth 48 is 2–5%
+  above full-block BER at 2.5–3 dB; from state 0, depth 96 equals full-block (+0.1% at 2.5 dB). Chose state 0,
+  depth 96: no 64-way minimum tree, and clocks per bit are nearly free. Source: `data/results/traceback_depth.csv`.
+- ADRs 0007 (BRAM survivors, per-bit traceback) and 0008 (depth 96 from state 0). `docs/design.md` written.
+- Two tests, checked by two planted bugs: traceback one step off, and the best-state start ignored.
+
+**Not done**
+
+- Throughput (≈ 1 Mbit/s at 100 MHz, 14× real time) is derived, not measured. It would cap an RRC-injection BER
+  campaign near 14× real time. Chunked traceback is the fallback.
+- Depth 96 is outside CLAUDE.md §3.6's 35–50; ADR 0008 says why.

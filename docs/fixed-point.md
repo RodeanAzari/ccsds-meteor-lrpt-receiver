@@ -91,7 +91,9 @@ Bit-true model: `model/viterbi_fixed.py`. ADRs 0005 (width) and 0006 (path metri
 **Measured.** With modulo metrics the integer decoder matches the float decoder bit for bit on the same quantized input
 (`model/tests/test_viterbi_fixed.py`). BER: `data/results/soft_width_ber.csv`.
 
+| Survivors | decisions | 64 bits per step, BRAM rows | — | ADR 0007 |
+| Traceback | state | u6, starts at 0, walks back 96 rows per output bit | — | ADR 0008: equals full-block BER (`data/results/traceback_depth.csv`) |
+
 ## Later stages
 
-Survivor memory and traceback depth (Phase D ADRs), derandomizer and RS: `[TBD]`. The bit-true model above still
-traces back over the whole block.
+Derandomizer and RS: `[TBD]`.
