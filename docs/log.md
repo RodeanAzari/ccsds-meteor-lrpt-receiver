@@ -109,3 +109,31 @@
 
 - The AGC (the float chain's `normalize_rails()`) and the loops are not bit-true yet.
 - Still no real recording.
+
+## 2026-11-04: bit-true sync loops
+
+**Done**
+
+- RF kit ordered (arrives about 2026-11-25). The tb/common rule now follows coord.py: P2's `tb/common/` by path until
+  `tb-common-v0.1`, then the pinned tag (CLAUDE.md).
+- `model/sync_fixed.py`: AGC (power detector, target rail rms 4096), Costas (shares the DDC NCO table, 48-bit
+  frequency integrator), Farrow cubic in Horner form, per-rail Gardner, all integer. Per ADR 0002 the host's coarse
+  estimate goes into the DDC NCO word.
+- With the whole demodulator bit-true, the receiver decodes the same frames as float at every Eb/N0 from 2 to 8 dB at
+  1 and 3.4 kHz offsets, 30 Hz/s ramp. Tracking error is 1.7–4.0 Hz rms. AGC settles in 60–104 ms.
+  Source: `data/results/sync_fixed_chain.csv`, `data/results/sync_agc_settle.csv`.
+- Four tests, checked by three planted bugs: AGC target ×2, Costas ki without fraction bits, a Farrow coefficient sign.
+
+**Bugs**
+
+1. Symptom: the Farrow test failed by 2,252 LSB. Root cause: the test drew samples up to full scale, and the cubic's
+   overshoot saturated s16 as designed. Fix: draw within ±4× rail rms, the AGC's working range.
+2. Symptom: the Farrow error reached 1.13 LSB against a 1-LSB assertion. Root cause: the assertion was wrong. Three
+   internal roundings plus the output rounding bound the error at 1.25 LSB. Fix: assert the derived bound.
+3. `docs/fixed-point.md` said the AGC settles near a gain of 4. Measured: 5.9–9.8. Fixed from the CSV.
+
+**Not done**
+
+- At 3.4 kHz, bit-true soft SNR is 0.04–0.18 dB better than float. Likely cause: the coarse correction comes before
+  the RRC. Not established.
+- Soft-symbol quantization, bit-true Viterbi. Still no real recording.

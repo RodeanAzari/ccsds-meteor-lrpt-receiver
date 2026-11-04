@@ -1,6 +1,6 @@
 # sync_fixed_chain
 
-- **Commit:** `efe48b532851e3fd30a8d1ec21baebb8cdbd1964`
+- **Commit:** `48cd29bacd9c5921022c0a03aafab778a815553f`
 - **Command:** `python -m sync_fixed_study` (module in `analysis/`)
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1
 - **Input:** synthetic, 2026; ramp 30.0 Hz/s, 0.37-symbol timing offset, 20 ppm clock; float arm is the float chain. No real recording.

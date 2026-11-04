@@ -59,9 +59,9 @@ the same `RxConfig` values as the float loops (`loop_gains()`); `test_sync_fixed
 | Stage | Signal | Format | Rounding / saturation | Why this width |
 |---|---|---|---|---|
 | Coarse frequency | — | host float, added to the DDC NCO word | — | ADR 0002: no FFT in hardware. Moves the signal to the centre of the RRC |
-| AGC | gain | u20, 12 fraction bits (1/4096 to 256) | clamped to [1, 2²⁰−1] | The synthetic recording settles at 5.9 (8 dB) to 9.7 (2 dB), far inside the range. A real recording's level is `[TBD]` |
+| AGC | gain | u20, 12 fraction bits (1/4096 to 256) | clamped to [1, 2²⁰−1] | The synthetic recording settles at 5.9 (8 dB) to 9.8 (2 dB), far inside the range (`data/results/sync_agc_settle.csv`). A real recording's level is `[TBD]` |
 | AGC | output I, Q | s16, rms target `ONE` | `x·g >> 12` rounded, saturated | Saturates only beyond 8× rms |
-| AGC | detector, update | I² + Q² (s33) vs. 2·ONE²; `g += (target − p) >> 24` rounded | — | Power detector: steady state is exactly unit rail power, what the float `normalize_rails()` gives. Linearized time constant ≈ 1,024·g samples (g = gain), so it slows for weaker signals. Measured from g = 1 to 90% of the settled gain: 15,024 samples (59 ms) at 8 dB, 26,489 (103 ms) at 2 dB. One-off check during the session, not in `data/results/` |
+| AGC | detector, update | I² + Q² (s33) vs. 2·ONE²; `g += (target − p) >> 24` rounded | — | Power detector: steady state is exactly unit rail power, what the float `normalize_rails()` gives. Linearized time constant ≈ 1,024·g samples (g = gain), so it slows for weaker signals. Measured from g = 1 to 90% of the settled gain: 60 ms at 8 dB to 104 ms at 2 dB (`data/results/sync_agc_settle.csv`) |
 | Costas | phase | u32, wraps | top 12 bits index the DDC's NCO table | Phase truncation ≤ 2π/4096 = 0.09° |
 | Costas | cos, sin | s16 (the DDC NCO table) | — | Shared table |
 | Costas | rotator output | s16 | `>> 15` rounded, saturated | Rotation keeps magnitude; clips only beyond 8× rms |

@@ -21,7 +21,10 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   formats in `docs/fixed-point.md`; ADRs 0003 (NCO) and 0004 (CIC).
 - Bit-true RRC (`model/rrc_fixed.py`): same frames and soft SNR as the float RRC, SQNR 63–68 dB
   (`data/results/rrc_fixed_chain.csv`). 47 tests passing.
-- Not done: a real recording, bit-true model from the sync loops on (AGC, Costas, timing).
+- Bit-true sync (`model/sync_fixed.py`: AGC, Costas, Farrow + Gardner): everything from cu8 to soft symbols is now
+  integer. Same frames as float at 2–8 dB, 1 and 3.4 kHz offsets with a 30 Hz/s ramp; tracking error 1.7–4.0 Hz rms
+  (`data/results/sync_fixed_chain.csv`). 51 tests passing.
+- Not done: a real recording; soft-symbol quantization (soft-width ADR) and the bit-true Viterbi.
 
 ## Next steps
 
@@ -30,7 +33,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 2. Decode it with SatDump and list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
-4. Bit-true AGC + Costas + timing; soft-width ADR. Phase B DDC RTL can start from `model/ddc_fixed.py` (BRAM ROM
+4. Soft-width ADR (3 vs 4 bits) and bit-true Viterbi; or Phase B DDC RTL from the BRAM ROM. Phase B DDC RTL can start from `model/ddc_fixed.py` (BRAM ROM
    only until `eth-core-v0.1`).
 
 ## Key decisions
@@ -42,6 +45,8 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 | Search {0°, 90°} × swap on absolute correlation | NRZ-M makes 180° irrelevant | `docs/signal-spec.md` |
 | `gs-diff` compares the 892 data bytes only | SatDump leaves channel errors in parity and ASM | `docs/signal-spec.md` |
 | Carrier before timing; coarse fourth-power estimate first | Timing first fails on OQPSK; narrow loops pull in too slowly | ADR 0002 |
+| Bit-true chain: host coarse estimate goes into the DDC NCO word | No FFT hardware; the RRC sees a centred signal | ADR 0002, `docs/fixed-point.md` |
+| AGC on I²+Q² power, target rail rms 4096 | Steady state equals the float chain's unit-power normalization | `docs/fixed-point.md` |
 | Costas 0.001 rad/sample, timing kp 0.02 | Measured sweeps | `data/results/sync_*.csv` |
 | Work in WSL at `~/CCSDS`; board USB through usbipd-win | Toolchain lives in WSL; /mnt/c is slow | This file |
 | Sync threshold 0.75; frames under the flywheel held until the lock is confirmed | Fixes false locks and duplicate frames | `model/receiver.py` |
