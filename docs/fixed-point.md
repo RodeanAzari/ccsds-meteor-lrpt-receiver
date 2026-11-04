@@ -50,7 +50,34 @@ RRC: same frames, soft SNR within 0.01 dB (`data/results/rrc_fixed_chain.csv`).
 **Normalization.** The float chain scales the RRC output to unit rail power (`normalize_rails()`); in hardware that is
 the AGC's job, which is not yet bit-true.
 
+## Synchronization (Phase C)
+
+Bit-true model: `model/sync_fixed.py`, order per ADR 0002: AGC → Costas → Farrow + per-rail Gardner. **Sync unit:**
+`ONE` = 4096, the AGC's target rail rms, so s16 leaves 8× rms headroom. Loop gains are integer registers computed from
+the same `RxConfig` values as the float loops (`loop_gains()`); `test_sync_fixed.py` holds each within 1% of float.
+
+| Stage | Signal | Format | Rounding / saturation | Why this width |
+|---|---|---|---|---|
+| Coarse frequency | — | host float, added to the DDC NCO word | — | ADR 0002: no FFT in hardware. Moves the signal to the centre of the RRC |
+| AGC | gain | u20, 12 fraction bits (1/4096 to 256) | clamped to [1, 2²⁰−1] | Covers a 48 dB input range around a gain of 4 for the synthetic level |
+| AGC | output I, Q | s16, rms target `ONE` | `x·g >> 12` rounded, saturated | Saturates only beyond 8× rms |
+| AGC | detector, update | I² + Q² (s33) vs. 2·ONE²; `g += (target − p) >> 24` rounded | — | Power detector: steady state is exactly unit rail power, what the float `normalize_rails()` gives. Loop time constant ≈ 4,096 samples (16 ms) at gain 4, longer for weaker signals |
+| Costas | phase | u32, wraps | top 12 bits index the DDC's NCO table | Phase truncation ≤ 2π/4096 = 0.09° |
+| Costas | cos, sin | s16 (the DDC NCO table) | — | Shared table |
+| Costas | rotator output | s16 | `>> 15` rounded, saturated | Rotation keeps magnitude; clips only beyond 8× rms |
+| Costas | phase error | ONE-scaled | clamped to ±ONE | Same clamp as the float loop (±1) |
+| Costas | frequency integrator | 32 + 16 fraction bits | clamped to ±15 kHz | ki is 0.67 phase LSB per ONE of error: without the 16 fraction bits it rounds to 1, a 50% gain error |
+| Farrow | μ | u16 fraction | top 16 of 24 position fraction bits, truncated | Interpolation error from μ ≤ 2⁻¹⁶ of a sample |
+| Farrow | output | s16 | three rounded Horner steps + rounded halving, saturated | Error ≤ 1.25 LSB against the float cubic, −72 dB under rms (`test_sync_fixed.py`) |
+| Gardner | error | ONE-scaled | product `>> 12` rounded, clamped to ±ONE | Same clamp as float |
+| Timing | position | 24 fraction bits | — | Nominal step 1.777… samples to 2⁻²⁴ |
+| Timing | integrator | 24 + 16 fraction bits | clamped to ±1% of nominal | ki would round to 0 without the 16 fraction bits |
+
+**Measured.** With everything up to the soft symbols bit-true, the receiver decodes the same frames as the float chain
+at every Eb/N0 from 2 to 8 dB and at 1 kHz and 3.4 kHz offsets with a 30 Hz/s ramp. Frequency tracking error is
+1.7–4.0 Hz rms (`data/results/sync_fixed_chain.csv`).
+
 ## Later stages
 
-Timing, carrier, AGC, soft-symbol quantization, Viterbi and RS: `[TBD]`. Added as each block's bit-true model
-is written.
+Soft-symbol quantization, Viterbi and RS: `[TBD]`. Added as each block's bit-true model is written. The serial
+soft stream is s16 in ONE units until the soft-width ADR.
