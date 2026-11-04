@@ -5,3 +5,6 @@ pytest==9.2.0
 ruff==0.17.3
 scipy==1.18.1
 scipy-stubs==1.18.1.1
+cocotb==2.1.0
+# P2 shared testbench helpers, at a release tag only (fpga-coord gate tb-common-v0.1)
+tb-common @ git+https://github.com/RodeanAzari/tb-common.git@tb-common-v0.1

@@ -1,7 +1,9 @@
 PY := .venv/bin/python
+RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' | sort)
+RTL_DIRS := $(sort $(dir $(RTL)))
 
-.PHONY: setup model-test check-spec lint-py ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq ci clean \
-        lint sim sim-full cov formal gs gs-test fuzz synth impl prog reports
+.PHONY: setup model-test check-spec lint lint-py sim ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq ci clean \
+        sim-full cov formal gs gs-test fuzz synth impl prog reports
 
 setup:
 	python3 -m venv .venv
@@ -14,7 +16,7 @@ model-test: check-spec
 	$(PY) -m pytest -q
 
 lint-py:
-	$(PY) -m ruff check model analysis scripts
+	$(PY) -m ruff check model analysis scripts tb
 	$(PY) -m mypy
 
 ber:
@@ -38,6 +40,14 @@ soft-width-study:
 traceback-study:
 	$(PY) -m analysis.traceback_study
 
+# Zero Verilator -Wall warnings, each module linted as its own top (CLAUDE.md §5.1).
+lint:
+	@for f in $(RTL); do echo "lint $$f"; verilator --lint-only -Wall $(addprefix -y ,$(RTL_DIRS)) $$f || exit 1; done
+
+# cocotb regression, bit-exact against the bit-true model (CLAUDE.md §8.2).
+sim:
+	$(PY) tb/cocotb/run.py
+
 plots:
 	$(PY) -m analysis.plots
 
@@ -45,11 +55,11 @@ synthetic-iq:
 	PYTHONPATH=. $(PY) scripts/make_synthetic_iq.py
 
 # Only what exists so far. Grows with each phase.
-ci: lint-py model-test
+ci: lint-py lint model-test sim
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build sim_build
 
 # Fail loudly instead of pretending these work.
-lint sim sim-full cov formal gs gs-test fuzz synth impl prog reports:
+sim-full cov formal gs gs-test fuzz synth impl prog reports:
 	@echo "make $@: not implemented yet (needs RTL or C++ from a later phase)" >&2; exit 1
