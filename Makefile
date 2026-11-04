@@ -2,7 +2,7 @@ PY := .venv/bin/python
 RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' | sort)
 RTL_DIRS := $(sort $(dir $(RTL)))
 
-.PHONY: setup model-test check-spec lint lint-py sim ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq ci clean \
+.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq ci clean \
         sim-full cov formal gs gs-test fuzz synth impl prog reports
 
 setup:
@@ -48,6 +48,10 @@ lint:
 # cocotb regression, bit-exact against the bit-true model (CLAUDE.md §8.2).
 sim:
 	$(PY) tb/cocotb/run.py
+
+# Record the DDC RTL's bit-exactness and throughput in data/results/ddc_rtl_sim.csv.
+ddc-rtl-results:
+	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_ddc_top
 
 plots:
 	$(PY) -m analysis.plots

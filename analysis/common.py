@@ -20,12 +20,20 @@ NOTES = Path(__file__).parent / "interpretations"
 def _commit() -> str:
     run = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True)
     dirty = subprocess.run(
-        ["git", "status", "--porcelain", "model", "analysis"], cwd=ROOT, capture_output=True, text=True
+        ["git", "status", "--porcelain", "model", "analysis", "rtl", "tb"], cwd=ROOT, capture_output=True, text=True
     )
     return run.stdout.strip() + (" (with uncommitted changes)" if dirty.stdout.strip() else "")
 
 
-def write_result(name: str, header: Sequence[str], rows: Sequence[Sequence[object]], seed: str) -> Path:
+def write_result(
+    name: str,
+    header: Sequence[str],
+    rows: Sequence[Sequence[object]],
+    seed: str,
+    command: str | None = None,
+    tools: str = "",
+) -> Path:
+    """`command` overrides the analysis-module command line (e.g. for a cocotb run); `tools` adds to the versions."""
     RESULTS.mkdir(parents=True, exist_ok=True)
     path = RESULTS / f"{name}.csv"
     with path.open("w", newline="") as f:
@@ -35,11 +43,16 @@ def write_result(name: str, header: Sequence[str], rows: Sequence[Sequence[objec
     note = NOTES / f"{name}.md"
     interpretation = note.read_text(encoding="utf-8").strip() if note.exists() else "[TBD]"
     versions = f"Python {platform.python_version()}, NumPy {np.__version__}, SciPy {scipy.__version__}"
-    command = " ".join(["python", "-m", Path(sys.argv[0]).stem, *sys.argv[1:]])
+    if tools:
+        versions += f", {tools}"
+    if command is None:
+        command = " ".join(["python", "-m", Path(sys.argv[0]).stem, *sys.argv[1:]]) + "` (module in `analysis/`)"
+    else:
+        command += "`"
     path.with_suffix(".md").write_text(
         f"# {name}\n\n"
         f"- **Commit:** `{_commit()}`\n"
-        f"- **Command:** `{command}` (module in `analysis/`)\n"
+        f"- **Command:** `{command}\n"
         f"- **Tools:** {versions}\n"
         f"- **Input:** synthetic, {seed}. No real recording.\n\n"
         f"{interpretation}\n"

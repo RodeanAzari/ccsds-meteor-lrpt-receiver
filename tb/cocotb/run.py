@@ -21,6 +21,14 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
         ["rtl/ddc/ddc_comp_fir.sv"],
         [{"TAP_FILE": f'"{ROOT / "rtl/ddc/comp_fir_taps.mem"}"'}],
     ),
+    "test_ddc_top": (
+        "ddc_top",
+        [f"rtl/ddc/{f}.sv" for f in ("ddc_ingest", "ddc_nco_mixer", "ddc_cic", "ddc_comp_fir", "ddc_top")],
+        [{
+            "NCO_LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"',
+            "COMP_TAP_FILE": f'"{ROOT / "rtl/ddc/comp_fir_taps.mem"}"',
+        }],
+    ),
 }
 
 
