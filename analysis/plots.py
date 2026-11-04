@@ -137,12 +137,32 @@ def constellation_plot() -> None:
     plt.close(fig)
 
 
+def soft_width_plot() -> None:
+    curves: dict[int, list[tuple[float, float]]] = defaultdict(list)
+    for r in _rows("soft_width_ber"):
+        if r["upper_bound"] == "False":
+            curves[int(r["soft_bits"])].append((float(r["ebn0_db"]), float(r["ber"])))
+    fig, ax = plt.subplots(figsize=(8, 5.5))
+    for bits, label, colour in ((0, "Unquantized soft", BLUE), (4, "4-bit soft", ORANGE), (3, "3-bit soft", AQUA)):
+        pts = sorted(curves[bits])
+        ax.semilogy([p[0] for p in pts], [p[1] for p in pts], "o-", color=colour, label=label)
+    ax.axhline(1e-5, color=MUTED, linewidth=1, linestyle="--")
+    ax.set_xlabel("Eb/N0 (dB)")
+    ax.set_ylabel("Bit error rate after Viterbi (before NRZ-M)")
+    ax.set_title("Soft-decision width, K=7 r=1/2, quantizer step 1/4 of rail rms", color=INK, loc="left")
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(MEDIA / "2026-11-04_phase-a_soft-width-ber.png", dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     _style()
     MEDIA.mkdir(parents=True, exist_ok=True)
     ber_plot()
     fer_plot()
     constellation_plot()
+    soft_width_plot()
 
 
 if __name__ == "__main__":
