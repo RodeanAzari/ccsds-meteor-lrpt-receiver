@@ -2,7 +2,7 @@ PY := .venv/bin/python
 RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' | sort)
 RTL_DIRS := $(sort $(dir $(RTL)))
 
-.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq ci clean \
+.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results synth-ooc ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq ci clean \
         sim-full cov formal gs gs-test fuzz synth impl prog reports
 
 setup:
@@ -52,6 +52,14 @@ sim:
 # Record the DDC RTL's bit-exactness and throughput in data/results/ddc_rtl_sim.csv.
 ddc-rtl-results:
 	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_ddc_top
+
+# Out-of-context synth + place + route of one block at 100 MHz (CLAUDE.md §6). Reports: docs/reports/ooc/$(TOP)/.
+TOP ?= ddc_top
+synth-ooc:
+	mkdir -p build/syn && cd build/syn && ../../scripts/vivado.sh -mode batch -source ../../syn/synth_ooc.tcl \
+		-tclargs $(TOP) > $(TOP).log 2>&1 || { tail -30 $(TOP).log; exit 1; }
+	@grep "^OOC " build/syn/$(TOP).log
+	$(PY) -m analysis.synth_report $(TOP)
 
 plots:
 	$(PY) -m analysis.plots
