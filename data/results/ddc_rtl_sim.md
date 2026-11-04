@@ -1,6 +1,6 @@
 # ddc_rtl_sim
 
-- **Commit:** `309d3927b9e07075e58f3efd1ab7e1674d040188`
+- **Commit:** `41efc488a5eeb5a692c24cf2c7e12f103fe2d959`
 - **Command:** `make ddc-rtl-results`
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Verilator 5.050, cocotb 2.1.0
 - **Input:** synthetic, seeds 8 and 9 in tb/cocotb/test_ddc_top.py (OQPSK, 151 kHz carrier, 30 Hz/s ramp, 6 dB Eb/N0, DC offset). No real recording.

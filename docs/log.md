@@ -209,7 +209,34 @@
 
 **Not done**
 
-- Synthesis: DSP inference, utilization and timing at 100 MHz are `[TBD]`. Vivado 2025.2 is installed at
-  `~/Xilinx/2025.2/Vivado` but not on PATH and has no Tcl flow yet.
 - Board: a BRAM-ROM IQ snippet top with UART/ILA readout (`eth-core-v0.1` not tagged). `gs-replay`.
 - Phase B media: spectrum before/after DDC, ILA capture of baseband I/Q.
+
+## 2026-11-04 (continued): Vivado flow and DDC timing closure
+
+**Done**
+
+- `scripts/vivado.sh` runs Vivado 2025.2 in batch with this machine's workarounds (a user-local en_US.UTF-8 locale,
+  ncurses compat libraries), without sourcing `settings64.sh` into the shell. `syn/synth_ooc.tcl` synthesizes,
+  places and routes one block out of context; `make synth-ooc TOP=<top>` runs it and writes
+  `data/results/synth_<top>.csv` from the reports in `docs/reports/ooc/<top>/`.
+- `ddc_top` at 100 MHz on xc7a100t-1, post-route: WNS +0.661 ns, WHS +0.112 ns, 0 failing endpoints. 1,036 LUTs,
+  1,659 FFs, 1 RAMB18 (NCO table), 6 DSP48E1 (4 mixer, 2 FIR): every multiplier inferred into a DSP
+  (`data/results/synth_ddc_top.csv`).
+
+**Bugs**
+
+1. Symptom: Vivado aborted at start-up with `locale::facet::_S_create_c_locale name not valid`. Root cause:
+   `rdiArgs.sh` forces `LC_ALL=en_US.UTF-8`, which this WSL install doesn't generate. Fix: `LOCPATH=~/.locale`
+   (already built for another project) in `scripts/vivado.sh`. The wrapper's own first version also exited silently:
+   an unmatched install glob made `ls` fail under `pipefail`.
+2. Symptom: first OOC run missed 100 MHz by 3.262 ns on 64 endpoints. Root cause: `ddc_cic` did three integrator
+   adds, three comb subtracts, rounding and saturation in one cycle. Fix: pipeline the combs one stage each; a
+   decimation instant is accepted only when the comb pipe and output register are free. Outputs and throughput
+   unchanged (all CIC and top tests bit-exact, still 9.0 cycles per sample).
+
+**Not done**
+
+- Worst path is now the DC-block accumulator (8.73 ns). Thin margin for the integrated build; pipelining its
+  rounding is the first fix if needed.
+- Board top with the BRAM-ROM snippet, `gs-replay`, Phase B media.

@@ -1,0 +1,33 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
+| Date         : Wed Nov  4 15:17:06 2026
+| Host         : RodeanStation running 64-bit Ubuntu 26.04 LTS
+| Command      : report_utilization -hierarchical -file /home/rodea/CCSDS/docs/reports/ooc/ddc_top/utilization_hier.rpt
+| Design       : ddc_top
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++------------+---------------+------------+------------+---------+------+------+--------+--------+------------+
+|  Instance  |     Module    | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++------------+---------------+------------+------------+---------+------+------+--------+--------+------------+
+| ddc_top    |         (top) |       1036 |       1036 |       0 |    0 | 1659 |      0 |      1 |          6 |
+|   u_cic    |       ddc_cic |        279 |        279 |       0 |    0 |  434 |      0 |      0 |          0 |
+|   u_fir    |  ddc_comp_fir |        379 |        379 |       0 |    0 | 1033 |      0 |      0 |          2 |
+|   u_ingest |    ddc_ingest |        185 |        185 |       0 |    0 |   86 |      0 |      0 |          0 |
+|   u_mixer  | ddc_nco_mixer |        196 |        196 |       0 |    0 |  106 |      0 |      1 |          4 |
++------------+---------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

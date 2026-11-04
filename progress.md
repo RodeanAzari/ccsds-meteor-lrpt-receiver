@@ -38,7 +38,9 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   match `model/ddc_fixed.py` bit for bit under backpressure. 9.0 cycles per input sample, 10.8× real time at
   100 MHz (`data/results/ddc_rtl_sim.csv`). 13 cocotb tests; `make ci` runs lint and sim.
 - tb-common pinned at `tb-common-v0.1` (pip from git) with cocotb 2.1.0.
-- Not done: synthesis (DSP inference, timing, utilization), BRAM-ROM board top, `gs-replay`, Phase B media.
+- Out-of-context at 100 MHz: WNS +0.661 ns, 1,036 LUTs, 6 DSP48E1, 1 RAMB18 (`data/results/synth_ddc_top.csv`).
+  Vivado via `scripts/vivado.sh`; `make synth-ooc TOP=<top>`.
+- Not done: BRAM-ROM board top, `gs-replay`, Phase B media.
 
 ## Next steps
 
@@ -47,9 +49,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 2. Decode it with SatDump and list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
-4. Phase B: Vivado batch Tcl flow (`syn/`) and out-of-context synthesis of `ddc_top` at 100 MHz: check the
-   multipliers land in DSP48E1s; record timing and utilization.
-5. Phase B: board top with a BRAM-ROM IQ snippet and UART/ILA readout (no Ethernet until `eth-core-v0.1`); `gs-replay`.
+4. Phase B: board top with a BRAM-ROM IQ snippet and UART/ILA readout (no Ethernet until `eth-core-v0.1`); `gs-replay`.
 
 ## Key decisions
 
@@ -77,4 +77,4 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 - P2 gates (2026-11-04): `tb-common-v0.1` tagged and in use. `eth-core-v0.1` and `v0.2` not tagged: hardware
   testing from a BRAM ROM only, results over UART/ILA (CLAUDE.md, Dependencies on Project 2).
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
-- Board timing: 100 MHz core clock is planned, not yet synthesized.
+- DDC worst path is the DC-block accumulator (0.66 ns slack out of context); watch it in the board build.
