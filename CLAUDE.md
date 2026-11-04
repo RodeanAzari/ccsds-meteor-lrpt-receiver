@@ -94,7 +94,7 @@ host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + 
 - TI DP83848J 10/100 PHY over MII.
 - **No RF front end.** RF is captured on the host.
 
-**RF capture kit (bought Nov 2026):**
+**RF capture kit (chosen Nov 2026, not yet bought):**
 
 | Item | Notes |
 |---|---|

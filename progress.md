@@ -7,7 +7,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 **Phase 0: blocked on a real recording.**
 
 - Done: `docs/signal-spec.md`, written from SatDump 1.2.2 source. Nothing in it is confirmed on a real signal yet.
-- Kit: RTL-SDR Blog V3 + Nooelec SAWbird+ NOAA (CLAUDE.md §1).
+- Kit: RTL-SDR Blog V3 (or V4) + Nooelec SAWbird+ NOAA chosen (CLAUDE.md §1), **not yet bought** (2026-11-03).
 - Not done: decode a real recording with SatDump, capture your own pass.
 
 **Phase A: float model working on synthetic signals.**
