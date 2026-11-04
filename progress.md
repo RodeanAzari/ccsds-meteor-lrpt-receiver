@@ -24,7 +24,10 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 - Bit-true sync (`model/sync_fixed.py`: AGC, Costas, Farrow + Gardner): everything from cu8 to soft symbols is now
   integer. Same frames as float at 2–8 dB, 1 and 3.4 kHz offsets with a 30 Hz/s ramp; tracking error 1.7–4.0 Hz rms
   (`data/results/sync_fixed_chain.csv`). 51 tests passing.
-- Not done: a real recording; soft-symbol quantization (soft-width ADR) and the bit-true Viterbi.
+- Soft decisions: 4-bit, step ONE/4 (ADR 0005). Loss at BER 1e-5: 0.13 dB (3-bit: 0.24 dB)
+  (`data/results/soft_width_ber.csv`). Bit-true Viterbi ACS with 9-bit modulo path metrics (ADR 0006) matches the
+  float decoder bit for bit. 54 tests passing.
+- Not done: a real recording; survivor/traceback-depth ADRs and sweep; `docs/design.md` (ADR summary) doesn't exist yet.
 
 ## Next steps
 
@@ -33,7 +36,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 2. Decode it with SatDump and list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
-4. Soft-width ADR (3 vs 4 bits) and bit-true Viterbi; or Phase B DDC RTL from the BRAM ROM. Phase B DDC RTL can start from `model/ddc_fixed.py` (BRAM ROM
+4. Traceback depth sweep + survivor ADR (finishes the Viterbi model); or Phase B DDC RTL from the BRAM ROM. Phase B DDC RTL can start from `model/ddc_fixed.py` (BRAM ROM
    only until `eth-core-v0.1`).
 
 ## Key decisions
@@ -47,6 +50,8 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 | Carrier before timing; coarse fourth-power estimate first | Timing first fails on OQPSK; narrow loops pull in too slowly | ADR 0002 |
 | Bit-true chain: host coarse estimate goes into the DDC NCO word | No FFT hardware; the RRC sees a centred signal | ADR 0002, `docs/fixed-point.md` |
 | AGC on I²+Q² power, target rail rms 4096 | Steady state equals the float chain's unit-power normalization | `docs/fixed-point.md` |
+| 4-bit soft, step ONE/4 | 0.11 dB better than 3-bit at 1e-5 for one bit per metric | ADR 0005 |
+| Modulo path metrics, 9 bits | No normalization logic in the ACS loop | ADR 0006 |
 | Costas 0.001 rad/sample, timing kp 0.02 | Measured sweeps | `data/results/sync_*.csv` |
 | Work in WSL at `~/CCSDS`; board USB through usbipd-win | Toolchain lives in WSL; /mnt/c is slow | This file |
 | Sync threshold 0.75; frames under the flywheel held until the lock is confirmed | Fixes false locks and duplicate frames | `model/receiver.py` |

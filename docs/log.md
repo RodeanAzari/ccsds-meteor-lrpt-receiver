@@ -137,3 +137,28 @@
 - At 3.4 kHz, bit-true soft SNR is 0.04–0.18 dB better than float. Likely cause: the coarse correction comes before
   the RRC. Not established.
 - Soft-symbol quantization, bit-true Viterbi. Still no real recording.
+
+## 2026-11-04 (continued): soft-decision width and Viterbi ACS
+
+**Done**
+
+- `model/viterbi_fixed.py`: midrise power-of-two quantizer, distance branch metrics, modulo path metrics. On the same
+  quantized input it matches the float decoder bit for bit; per symbol the float correlation is a constant minus
+  this distance, so that is expected and now shown.
+- Soft width (ADR 0005): best step ONE/4 for both widths. Eb/N0 at BER 1e-5: unquantized 4.15 dB, 4-bit 4.28 dB,
+  3-bit 4.39 dB. Chose 4-bit. Source: `data/results/soft_width_ber.csv`, plot
+  `docs/media/2026-11-04_phase-a_soft-width-ber.png`.
+- Path metrics (ADR 0006): modulo, width from the spread bound (7·BMmax). Largest spread seen at σ = 1.0: 48 (3-bit,
+  bound 84), 104 (4-bit, bound 180).
+- Three tests, checked by two planted bugs: a plain compare on wrapped metrics, and a quantizer offset off by one.
+
+**Bugs**
+
+1. Symptom: the first step sweep picked the largest step tried for 4 bits. Root cause: the sweep range stopped at the
+   optimum's edge. Fix: sweep shift 7–12 for both widths; the optimum is now inside.
+2. Symptom: no 1e-5 crossing for the unquantized curve. Root cause: the 4.5 dB point stopped at the 30 M-bit cap with
+   75 errors (an upper bound, excluded). Fix: 60 M-bit cap.
+
+**Not done**
+
+- Area per width is `[TBD]` until Phase D synthesis. Traceback depth and survivor scheme. `docs/design.md`.

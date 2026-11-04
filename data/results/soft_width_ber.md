@@ -1,0 +1,8 @@
+# soft_width_ber
+
+- **Commit:** `34e431c1304fee45882ac49aeadf49f980839aba`
+- **Command:** `python -m soft_width_study` (module in `analysis/`)
+- **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1
+- **Input:** synthetic, noise seed from Eb/N0, identical across widths; soft_bits 0 = unquantized float. No real recording.
+
+Viterbi BER before NRZ-M against Eb/N0 for unquantized soft symbols (soft_bits 0) and 3- and 4-bit soft symbols at their best step (ONE/4), with the same noise for every width. Interpolated at BER 1e-5: unquantized 4.15 dB, 4-bit 4.28 dB (0.13 dB loss), 3-bit 4.39 dB (0.24 dB loss), in line with the usual 0.1 / 0.2 dB figures for 4- and 3-bit soft Viterbi. Every point has at least 100 errors (±20% on BER, about ±0.05 dB on a crossing). The 4-bit decoder uses 9-bit modulo path metrics (ADR 0006). AWGN symbol channel; synthetic only. Decision: ADR 0005.

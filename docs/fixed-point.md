@@ -77,7 +77,21 @@ the same `RxConfig` values as the float loops (`loop_gains()`); `test_sync_fixed
 at every Eb/N0 from 2 to 8 dB and at 1 kHz and 3.4 kHz offsets with a 30 Hz/s ramp. Frequency tracking error is
 1.7–4.0 Hz rms (`data/results/sync_fixed_chain.csv`).
 
+## Soft decisions and Viterbi (Phase D)
+
+Bit-true model: `model/viterbi_fixed.py`. ADRs 0005 (width) and 0006 (path metrics).
+
+| Stage | Signal | Format | Rounding / saturation | Why this width |
+|---|---|---|---|---|
+| Soft quantizer | input | s16 serial soft stream, ONE units | — | Chain soft rms is 1.04–1.06 ONE at the strobes |
+| Soft quantizer | output | u4 offset binary; level u means (u − 8 + ½)·ONE/4 | `soft >> 10` (floor, midrise), + 8, clamped to [0, 15] | ADR 0005: 0.13 dB from unquantized at 10⁻⁵; levels symmetric about zero |
+| Branch metric | per branch | u5, 0–30 | none (exact) | Distance: 15 − u for an expected 1, u for an expected 0, summed over G1 and G2 |
+| Path metric | per state | u9, modulo 2⁹ | wraps by design; compare by the sign of the 9-bit difference | ADR 0006: candidate spread ≤ 7·30 = 210 < 256. Ties keep branch 0, as the float decoder does |
+
+**Measured.** With modulo metrics the integer decoder matches the float decoder bit for bit on the same quantized input
+(`model/tests/test_viterbi_fixed.py`). BER: `data/results/soft_width_ber.csv`.
+
 ## Later stages
 
-Soft-symbol quantization, Viterbi and RS: `[TBD]`. Added as each block's bit-true model is written. The serial
-soft stream is s16 in ONE units until the soft-width ADR.
+Survivor memory and traceback depth (Phase D ADRs), derandomizer and RS: `[TBD]`. The bit-true model above still
+traces back over the whole block.
