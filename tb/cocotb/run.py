@@ -15,6 +15,7 @@ NCO_LUT = {"LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"'}
 TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_ddc_ingest": ("ddc_ingest", ["rtl/ddc/ddc_ingest.sv"], [{}]),
     "test_ddc_nco_mixer": ("ddc_nco_mixer", ["rtl/ddc/ddc_nco_mixer.sv"], [NCO_LUT]),
+    "test_ddc_cic": ("ddc_cic", ["rtl/ddc/ddc_cic.sv"], [{}]),
 }
 
 

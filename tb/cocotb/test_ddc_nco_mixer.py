@@ -9,49 +9,24 @@ under stalls, at the default tuning word and at arbitrary words that visit every
 from __future__ import annotations
 
 import numpy as np
-from cocotb import start_soon, test
-from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles, RisingEdge
-from tb_common import InOrderScoreboard, get_rng
-from tb_common.axis import AxisBeat, AxisSink, AxisSource
+from cocotb import test
+from stream_tb import pack_iq, run_stream, unpack_iq
 
 from model import ddc_fixed as m
 
 IN_W, OUT_W = 10, 16
 
 
-def signed(v: int, bits: int) -> int:
-    return v - (1 << bits) if v >> (bits - 1) else v
-
-
 async def run(dut, i: np.ndarray, q: np.ndarray, word: int, name: str, p_valid: float, p_ready: float) -> None:
-    start_soon(Clock(dut.clk_i, 10, unit="ns").start())
-    rng = get_rng(name)
-    dut.rst_i.value = 1
-    dut.s_tvalid_i.value = 0
-    dut.freq_word_i.value = word
-    await ClockCycles(dut.clk_i, 3)
-    dut.rst_i.value = 0
+    exp_i, exp_q = m.mix(i, q, *m.nco(i.size, word))
+    expected = list(zip(exp_i.tolist(), exp_q.tolist(), strict=True))
 
-    cos, sin = m.nco(i.size, word)
-    exp_i, exp_q = m.mix(i, q, cos, sin)
-    sb = InOrderScoreboard(name)
-    for a, b in zip(exp_i.tolist(), exp_q.tolist(), strict=True):
-        sb.expect((a, b))
+    def setup(dut) -> None:
+        dut.freq_word_i.value = word
 
-    def on_beat(frame: list[AxisBeat]) -> None:
-        d = frame[0].data
-        sb.observe((signed(d & 0xFFFF, OUT_W), signed(d >> OUT_W, OUT_W)))
-
-    AxisSink(dut, dut.clk_i, "m_", rng=rng, p_ready=p_ready, callback=on_beat)
-    src = AxisSource(dut, dut.clk_i, "s_", rng=rng, p_valid=p_valid)
-    mask = (1 << IN_W) - 1
-    await src.send(AxisBeat((int(a) & mask) | ((int(b) & mask) << IN_W)) for a, b in zip(i, q, strict=True))
-    for _ in range(50):
-        if sb.pending == 0:
-            break
-        await RisingEdge(dut.clk_i)
-    sb.check_done()
+    await run_stream(
+        dut, name, pack_iq(i, q, IN_W), expected, lambda d: unpack_iq(d, OUT_W), p_valid, p_ready, setup
+    )
 
 
 @test()

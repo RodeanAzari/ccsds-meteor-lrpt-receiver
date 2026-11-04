@@ -9,54 +9,19 @@ were sized for (a full-scale DC step, output +-510), so an undersized accumulato
 from __future__ import annotations
 
 import numpy as np
-from cocotb import start_soon, test
-from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles, RisingEdge
-from tb_common import InOrderScoreboard, get_rng
-from tb_common.axis import AxisBeat, AxisSink, AxisSource
+from cocotb import test
+from stream_tb import run_stream, unpack_iq
 
 from model import ddc_fixed as m
 
 OUT_W = 10
 
 
-def signed(v: int, bits: int) -> int:
-    return v - (1 << bits) if v >> (bits - 1) else v
-
-
 async def run(dut, raw: np.ndarray, name: str, p_valid: float, p_ready: float) -> list[tuple[int, int]]:
-    """Stream interleaved cu8 `raw` through the DUT; check every output against the model; return the outputs."""
-    start_soon(Clock(dut.clk_i, 10, unit="ns").start())
-    rng = get_rng(name)
-    dut.rst_i.value = 1
-    dut.s_tvalid_i.value = 0
-    await ClockCycles(dut.clk_i, 3)
-    dut.rst_i.value = 0
-
     i, q = m.ingest(raw)
-    exp_i, exp_q = m.dc_block(i), m.dc_block(q)
-    sb = InOrderScoreboard(name)
-    for a, b in zip(exp_i.tolist(), exp_q.tolist(), strict=True):
-        sb.expect((a, b))
-
-    got: list[tuple[int, int]] = []
-
-    def on_beat(frame: list[AxisBeat]) -> None:
-        d = frame[0].data
-        item = (signed(d & ((1 << OUT_W) - 1), OUT_W), signed(d >> OUT_W, OUT_W))
-        got.append(item)
-        sb.observe(item)
-
-    AxisSink(dut, dut.clk_i, "m_", rng=rng, p_ready=p_ready, callback=on_beat)
-    src = AxisSource(dut, dut.clk_i, "s_", rng=rng, p_valid=p_valid)
-    words = (raw[0::2].astype(int) | (raw[1::2].astype(int) << 8)).tolist()
-    await src.send(AxisBeat(w) for w in words)
-    for _ in range(50):
-        if sb.pending == 0:
-            break
-        await RisingEdge(dut.clk_i)
-    sb.check_done()
-    return got
+    expected = list(zip(m.dc_block(i).tolist(), m.dc_block(q).tolist(), strict=True))
+    words = (raw[0::2].astype(int) | (raw[1::2].astype(int) << 8)).tolist()  # {Q_u8, I_u8}
+    return await run_stream(dut, name, words, expected, lambda d: unpack_iq(d, OUT_W), p_valid, p_ready)
 
 
 @test()
