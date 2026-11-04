@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from model import ddc_fixed as m
+from model.receiver import RxConfig
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -22,6 +23,8 @@ def hex_lines(values: list[int], bits: int) -> str:
 def tables() -> dict[Path, str]:
     return {
         ROOT / "rtl/ddc/nco_lut.mem": hex_lines(m.nco_lut().tolist(), m.NCO_BITS),
+        # s18 taps at the default RxConfig (1.024 MS/s, /4); the RTL's NTAPS must equal RxConfig.comp_taps
+        ROOT / "rtl/ddc/comp_fir_taps.mem": hex_lines(m.comp_taps(RxConfig()).tolist(), m.COMP_FRAC + 1),
     }
 
 
