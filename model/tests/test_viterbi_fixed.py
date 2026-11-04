@@ -54,3 +54,26 @@ def test_the_exactness_check_is_not_vacuous() -> None:
     narrow = (spread // 2).bit_length() + 1  # half-range 2^(narrow-1) <= spread / 2
     bad, _ = viterbi_fixed(u, 3, narrow)
     assert not np.array_equal(bad, good)
+
+
+def test_sliding_traceback_decides_the_right_bit_at_the_right_time() -> None:
+    # An off-by-one in the traceback shifts every output bit by one step. On a clean signal every depth and both
+    # start rules must return the data exactly (state 0 needs enough depth for the paths to merge first).
+    rng = np.random.default_rng(SEED)
+    data, soft = _noisy_soft(rng, sigma=0.0, blocks=4, n=1024)
+    u = quantize(soft, 4, 10)
+    for start, depth in (("best", 6), ("best", 48), ("zero", 48)):
+        got, _ = viterbi_fixed(u, 4, path_metric_bits(4), depth=depth, start=start)
+        assert np.array_equal(got, data)
+
+
+def test_long_traceback_reproduces_full_block_decisions() -> None:
+    # The RTL decides each bit after a finite traceback; that is only safe if, at a depth well past the survivors'
+    # merge length, it agrees with the maximum-likelihood (full-block) decision on every bit.
+    rng = np.random.default_rng(SEED)
+    _, soft = _noisy_soft(rng, sigma=np.sqrt(1 / 10 ** (3.0 / 10)), blocks=32, n=4096)
+    u = quantize(soft, 4, 10)
+    full, _ = viterbi_fixed(u, 4, path_metric_bits(4))
+    for start in ("best", "zero"):
+        sliding, _ = viterbi_fixed(u, 4, path_metric_bits(4), depth=120, start=start)
+        assert np.array_equal(sliding[:, :-120], full[:, :-120])

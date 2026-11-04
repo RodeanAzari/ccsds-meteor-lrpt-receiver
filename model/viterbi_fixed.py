@@ -5,13 +5,15 @@ the RTL just selects bits. The decoder minimizes a distance metric on unsigned o
 path metrics (no normalization step). For the same quantized input it decides exactly as the float
 coding.viterbi_decode() does, because per symbol the float correlation equals a constant minus this distance.
 
-Traceback here is full-block from the best end state, as in the float model. The survivor scheme and traceback
-depth are separate Phase D decisions.
+Survivors: one decision bit per state per step (a BRAM row in the RTL). With `depth` set, every bit is decided by
+tracing back `depth` steps from the state chosen at the newest step: the best state, or state 0 (ADR 0007). Without
+it, traceback is full-block from the best end state, as in the float model.
 """
 
 from __future__ import annotations
 
 import numpy as np
+import numpy.typing as npt
 
 from model.coding import _PRED, _SIGN_G1, _SIGN_G2, Bits
 from model.ddc_fixed import Ints
@@ -44,11 +46,26 @@ def path_metric_bits(soft_bits: int) -> int:
     return ((MEMORY + 1) * max_branch_metric(soft_bits)).bit_length() + 1
 
 
-def viterbi_fixed(u: Ints, soft_bits: int, pm_bits: int) -> tuple[Bits, int]:
-    """Decode a batch, shape (blocks, 2*n). Returns (bits, largest path-metric spread seen, in unwrapped units)."""
+def viterbi_fixed(
+    u: Ints, soft_bits: int, pm_bits: int, depth: int | None = None, start: str = "best"
+) -> tuple[Bits, int]:
+    """Decode a batch, shape (blocks, 2*n). Returns (bits, largest path-metric spread seen, in unwrapped units).
+
+    With `depth`, bits 0 .. n-1-depth come from sliding traceback; the last `depth` bits from the block end.
+    """
     if u.ndim == 1:
-        bits, spread = viterbi_fixed(u[np.newaxis, :], soft_bits, pm_bits)
+        bits, spread = viterbi_fixed(u[np.newaxis, :], soft_bits, pm_bits, depth, start)
         return bits[0], spread
+    decisions, best, spread = acs(u, soft_bits, pm_bits)
+    out = traceback_block(decisions, best[-1])
+    if depth is not None:
+        starts = best if start == "best" else np.zeros_like(best)
+        out[:, : out.shape[1] - depth] = traceback_sliding(decisions, starts, depth)
+    return out, spread
+
+
+def acs(u: Ints, soft_bits: int, pm_bits: int) -> tuple[npt.NDArray[np.bool_], Ints, int]:
+    """Run the ACS over a batch. Returns (decisions (n, blocks, 64), best state after each step (n, blocks), spread)."""
     top = (1 << soft_bits) - 1
     mask = (1 << pm_bits) - 1
     half = 1 << (pm_bits - 1)
@@ -57,6 +74,7 @@ def viterbi_fixed(u: Ints, soft_bits: int, pm_bits: int) -> tuple[Bits, int]:
     pm = np.zeros((blocks, 64), dtype=np.int64)  # modulo 2^pm_bits, as the registers hold them
     exact = np.zeros((blocks, 64), dtype=np.int64)  # unwrapped, only to report the spread
     decisions = np.zeros((n, blocks, 64), dtype=bool)
+    best = np.zeros((n, blocks), dtype=np.int64)
     p0, p1 = _PRED[:, 0], _PRED[:, 1]
     # Distance to an expected 1 is top - u, to an expected 0 is u.
     one10, one11 = _SIGN_G1[:, 0] > 0, _SIGN_G1[:, 1] > 0
@@ -76,11 +94,33 @@ def viterbi_fixed(u: Ints, soft_bits: int, pm_bits: int) -> tuple[Bits, int]:
         exact = np.where(choose1, e1, e0)
         exact -= exact.min(axis=1, keepdims=True)
         spread = max(spread, int(exact.max()))
+        # Best state: smallest metric, by the same modulo comparison relative to state 0. Ties: lowest index.
+        best[t] = np.argmin((pm - pm[:, :1] + half) & mask, axis=1)
+    return decisions, best, spread
+
+
+def traceback_block(decisions: npt.NDArray[np.bool_], end_state: Ints) -> Bits:
+    """Full-block traceback from `end_state` (blocks,)."""
+    n, blocks, _ = decisions.shape
     out = np.zeros((blocks, n), dtype=np.uint8)
-    # Best end state: smallest metric, found with the same modulo comparison relative to state 0.
-    state = np.argmin((pm - pm[:, :1] + half) & mask, axis=1)
+    state = end_state.copy()
     rows = np.arange(blocks)
     for t in range(n - 1, -1, -1):
         out[:, t] = state & 1
         state = (state >> 1) | (decisions[t, rows, state].astype(np.int64) << 5)
-    return out, spread
+    return out
+
+
+def traceback_sliding(decisions: npt.NDArray[np.bool_], starts: Ints, depth: int) -> Bits:
+    """For each step t >= depth, trace back `depth` steps from starts[t]; the state reached decides bit t - depth.
+
+    Returns bits 0 .. n-1-depth, shape (blocks, n - depth). This is what the RTL's per-bit BRAM traceback produces.
+    """
+    n, blocks, _ = decisions.shape
+    t = np.arange(depth, n)
+    state = starts[depth:].T.copy()  # (blocks, n - depth)
+    rows = np.arange(blocks)[:, np.newaxis]
+    for d in range(depth):
+        state = (state >> 1) | (decisions[t - d, rows, state].astype(np.int64) << 5)
+    out: Bits = (state & 1).astype(np.uint8)
+    return out
