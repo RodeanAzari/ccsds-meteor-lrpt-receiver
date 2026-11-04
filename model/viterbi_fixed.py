@@ -20,6 +20,8 @@ from model.ddc_fixed import Ints
 
 K = 7  # constraint length, signal-spec.md
 MEMORY = K - 1
+TRACEBACK_DEPTH = 96  # ADR 0008: equals full-block BER from state 0 (data/results/traceback_depth.csv)
+TRACEBACK_START = "zero"  # ADR 0008: no 64-way minimum tree
 
 
 def quantize(soft: Ints, bits: int, shift: int) -> Ints:

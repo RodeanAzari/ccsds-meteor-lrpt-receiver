@@ -156,6 +156,25 @@ def soft_width_plot() -> None:
     plt.close(fig)
 
 
+def traceback_plot() -> None:
+    rows = _rows("traceback_depth")
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.8), sharey=False)
+    for ax, ebn0 in zip(axes, ("3.0", "4.0"), strict=True):
+        pts = [r for r in rows if r["ebn0_db"] == ebn0]
+        full = next(float(r["ber"]) for r in pts if r["start"] == "block")
+        for start, label, colour in (("best", "From best state", BLUE), ("zero", "From state 0", ORANGE)):
+            curve = sorted((int(r["depth"]), float(r["ber"])) for r in pts if r["start"] == start)
+            ax.semilogy([c[0] for c in curve], [c[1] for c in curve], "o-", color=colour, label=label)
+        ax.axhline(full, color=MUTED, linewidth=1, linestyle="--", label="Full-block traceback")
+        ax.set_xlabel("Traceback depth (bits)")
+        ax.set_ylabel("BER after Viterbi")
+        ax.set_title(f"Eb/N0 = {ebn0} dB, 4-bit soft", color=INK, loc="left")
+        ax.legend()
+    fig.tight_layout()
+    fig.savefig(MEDIA / "2026-11-04_phase-a_traceback-depth.png", dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     _style()
     MEDIA.mkdir(parents=True, exist_ok=True)
@@ -163,6 +182,7 @@ def main() -> None:
     fer_plot()
     constellation_plot()
     soft_width_plot()
+    traceback_plot()
 
 
 if __name__ == "__main__":

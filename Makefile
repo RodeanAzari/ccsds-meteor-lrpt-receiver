@@ -1,6 +1,6 @@
 PY := .venv/bin/python
 
-.PHONY: setup model-test check-spec lint-py ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study plots synthetic-iq ci clean \
+.PHONY: setup model-test check-spec lint-py ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq ci clean \
         lint sim sim-full cov formal gs gs-test fuzz synth impl prog reports
 
 setup:
@@ -34,6 +34,9 @@ sync-fixed-study:
 
 soft-width-study:
 	$(PY) -m analysis.soft_width_study
+
+traceback-study:
+	$(PY) -m analysis.traceback_study
 
 plots:
 	$(PY) -m analysis.plots
