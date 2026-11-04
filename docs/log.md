@@ -180,3 +180,36 @@
 - Throughput (≈ 1 Mbit/s at 100 MHz, 14× real time) is derived, not measured. It would cap an RRC-injection BER
   campaign near 14× real time. Chunked traceback is the fallback.
 - Depth 96 is outside CLAUDE.md §3.6's 35–50; ADR 0008 says why.
+
+## 2026-11-04 (continued): Phase B DDC RTL
+
+**Done**
+
+- `tb-common-v0.1` was tagged by P2 (fpga-coord soft gate met). Pinned in `requirements.txt` as a pip install from
+  git at the tag, with cocotb 2.1.0. `make lint` and `make sim` now work; `make ci` runs both.
+- RTL in `rtl/ddc/`, each block bit-exact against `model/ddc_fixed.py` under random tvalid gaps and tready stalls:
+  `ddc_ingest` (cu8 → s9 → DC block, s10), `ddc_nco_mixer` (5-stage, global stall), `ddc_cic` (÷4, order 3, 22-bit
+  wrapping registers), `ddc_comp_fir` (31 taps, one time-shared multiplier per rail), `ddc_top`.
+- ROM/coefficient files (`nco_lut.mem`, `comp_fir_taps.mem`) are generated from the model by
+  `scripts/gen_rtl_tables.py`; `make model-test` fails if a committed file is stale.
+- Whole chain on a modulated signal (151 kHz carrier, 30 Hz/s ramp, 6 dB, DC offset): 6,000 outputs, 0 mismatches.
+  Throughput 9.0 cycles per input sample against 97.7 at 100 MHz: 10.8× real-time headroom
+  (`data/results/ddc_rtl_sim.csv`). 13 cocotb tests passing.
+- Planted bugs, each caught: DC accumulator 20 bits instead of 24; a sign error in one NCO quadrant; CIC registers one
+  bit short (caught only by the full-scale tests: at the mixer's real level, ≤ 11,563, 21 bits suffice); the FIR
+  dropping its last tap.
+
+**Bugs**
+
+1. Symptom: the full-scale DC-step test peaked at 496, not 510. Root cause: the test, not the RTL; 3,000-sample
+   segments are 2.9 time constants, so the previous step had not settled (255·e^−2.93 ≈ 14). Fix: 16,000-sample
+   segments. The RTL matched the model throughout.
+2. Symptom: cocotb could not import `model`. Root cause: the cocotb runner overwrites PYTHONPATH with `sys.path`.
+   Fix: put the repo root on `sys.path` in `tb/cocotb/run.py`.
+
+**Not done**
+
+- Synthesis: DSP inference, utilization and timing at 100 MHz are `[TBD]`. Vivado 2025.2 is installed at
+  `~/Xilinx/2025.2/Vivado` but not on PATH and has no Tcl flow yet.
+- Board: a BRAM-ROM IQ snippet top with UART/ILA readout (`eth-core-v0.1` not tagged). `gs-replay`.
+- Phase B media: spectrum before/after DDC, ILA capture of baseband I/Q.

@@ -20,6 +20,14 @@ Still required (CLAUDE.md §5.5): interpolator type, Berlekamp–Massey variant,
 strategy, IQ transport format. The interpolator (Catmull-Rom cubic) and phase-ambiguity strategy (4 hypotheses on the
 encoded ASM, `signal-spec.md`) are implemented in the model but have no ADR yet.
 
+## Stream conventions (RTL)
+
+- Every block is AXI4-Stream with `s_tdata_i/s_tvalid_i/s_tready_o` in and `m_tdata_o/m_tvalid_o/m_tready_i` out.
+- I/Q travel together in one beat: `tdata = {Q, I}`, each rail at its `docs/fixed-point.md` width. The cu8 input is
+  `{Q_u8, I_u8}`, the replay byte order (I, then Q) read as a little-endian 16-bit word.
+- Blocks with internal pipelines advance all stages together on `ce = !m_tvalid || m_tready`; nothing is dropped.
+- DDC chain (`rtl/ddc/ddc_top.sv`): `ddc_ingest` → `ddc_nco_mixer` → `ddc_cic` → `ddc_comp_fir`.
+
 ## Clock-domain crossings
 
-None yet: no RTL. Every crossing gets a row here and an XDC constraint when it is written.
+None yet: the DDC is single-clock. Every crossing gets a row here and an XDC constraint when it is written.

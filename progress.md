@@ -32,6 +32,14 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   `docs/design.md` summarizes ADRs 0001–0008. 56 tests passing.
 - Not done: a real recording. Phase A's model work is otherwise complete through the Viterbi.
 
+**Phase B: DDC RTL written and bit-exact in simulation.**
+
+- `rtl/ddc/`: ingest + DC block, NCO + mixer, CIC ÷4, 31-tap comp FIR, `ddc_top`. Each block and the whole chain
+  match `model/ddc_fixed.py` bit for bit under backpressure. 9.0 cycles per input sample, 10.8× real time at
+  100 MHz (`data/results/ddc_rtl_sim.csv`). 13 cocotb tests; `make ci` runs lint and sim.
+- tb-common pinned at `tb-common-v0.1` (pip from git) with cocotb 2.1.0.
+- Not done: synthesis (DSP inference, timing, utilization), BRAM-ROM board top, `gs-replay`, Phase B media.
+
 ## Next steps
 
 1. **You:** capture a pass with the V3 + SAWbird+ (bias tee on, gain raised from low while watching the waterfall),
@@ -39,8 +47,9 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 2. Decode it with SatDump and list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
-4. Phase B: DDC RTL from `model/ddc_fixed.py`, BRAM ROM only until `eth-core-v0.1`; `gs-replay`. Phase B DDC RTL can start from `model/ddc_fixed.py` (BRAM ROM
-   only until `eth-core-v0.1`).
+4. Phase B: Vivado batch Tcl flow (`syn/`) and out-of-context synthesis of `ddc_top` at 100 MHz: check the
+   multipliers land in DSP48E1s; record timing and utilization.
+5. Phase B: board top with a BRAM-ROM IQ snippet and UART/ILA readout (no Ethernet until `eth-core-v0.1`); `gs-replay`.
 
 ## Key decisions
 
@@ -58,14 +67,14 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 | Traceback 96 deep from state 0, BRAM | Matches full-block BER; no 64-way minimum; ~14x real-time throughput | ADRs 0007, 0008 |
 | Costas 0.001 rad/sample, timing kp 0.02 | Measured sweeps | `data/results/sync_*.csv` |
 | Work in WSL at `~/CCSDS`; board USB through usbipd-win | Toolchain lives in WSL; /mnt/c is slow | This file |
+| RTL streams carry `{Q, I}` in one beat; pipelines stall as a whole | One handshake per sample; no rail skew | `docs/design.md` |
+| RTL tables generated from the model, checked for staleness | One source of truth for NCO and FIR coefficients | `scripts/gen_rtl_tables.py` |
 | Sync threshold 0.75; frames under the flywheel held until the lock is confirmed | Fixes false locks and duplicate frames | `model/receiver.py` |
 
 ## Open questions
 
 - Board Ethernet from WSL2: UDP multicast may need mirrored networking mode. Test before Phase B.
-- Project 2 is `~/OrderBook` (github.com/RodeanAzari/OrderBook), at Phase A awaiting sign-off. `fpga-eth-core` is
-  created in its Phase B, and it has no `tb/common/` and no `eth-core` tags yet. Until `eth-core v0.1`: hardware
-  testing from a BRAM ROM only; until `v0.2`: results over UART/ILA (CLAUDE.md, Dependencies on Project 2).
+- P2 gates (2026-11-04): `tb-common-v0.1` tagged and in use. `eth-core-v0.1` and `v0.2` not tagged: hardware
+  testing from a BRAM ROM only, results over UART/ILA (CLAUDE.md, Dependencies on Project 2).
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
-- tb/common: follow coord.py (decided 2026-11-03). Import P2's `tb/common/` by path until `tb-common-v0.1`, then the
-  pinned tag. P2 has no `tb/common/` yet, so cocotb benches start with plain cocotb.
+- Board timing: 100 MHz core clock is planned, not yet synthesized.
