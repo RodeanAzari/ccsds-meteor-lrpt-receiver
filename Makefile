@@ -13,6 +13,7 @@ check-spec:
 	$(PY) scripts/verify_signal_spec.py
 
 model-test: check-spec
+	PYTHONPATH=. $(PY) scripts/gen_rtl_tables.py --check
 	$(PY) -m pytest -q
 
 lint-py:

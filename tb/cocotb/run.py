@@ -10,8 +10,11 @@ from cocotb_tools.runner import get_results, get_runner
 ROOT = Path(__file__).resolve().parents[2]
 
 # test module -> (toplevel, sources, parameter sets)
-TESTS: dict[str, tuple[str, list[str], list[dict[str, int]]]] = {
+NCO_LUT = {"LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"'}
+
+TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_ddc_ingest": ("ddc_ingest", ["rtl/ddc/ddc_ingest.sv"], [{}]),
+    "test_ddc_nco_mixer": ("ddc_nco_mixer", ["rtl/ddc/ddc_nco_mixer.sv"], [NCO_LUT]),
 }
 
 
@@ -23,7 +26,7 @@ def main(names: list[str]) -> int:
     for name in names or list(TESTS):
         top, srcs, param_sets = TESTS[name]
         for params in param_sets:
-            tag = "_".join(f"{k}{v}" for k, v in params.items()) or "default"
+            tag = "_".join(f"{k}{v}" for k, v in params.items() if isinstance(v, int)) or "default"
             build_dir = ROOT / "build" / "sim" / f"{name}_{tag}"
             runner = get_runner("verilator")
             runner.build(
