@@ -16,7 +16,8 @@
       (`docs/media/2026-11-04_phase-b_ila-waveform.png`). Checked: sample 15 reads I = −81, Q = −185, as in the
       model. From `build/board/ila_ddc.ila` (`make ila-capture`); trigger settings in
       `docs/reports/board/arty_ddc_rom_top_ila/ila_capture_settings.txt`.
-- [ ] Photo: the Arty running the bring-up design, LD4–LD6 lit (heartbeat, snippet played, capture full), USB cable
+- [x] Screenshot: terminal running `make prog board-check` ending in "16384 outputs, 0 mismatches"
+      (`docs/media/2026-11-05_phase-b_board-check-terminal.png`)
+- [ ] Deferred by the user on 2026-11-05 (not needed for now): Photo: the Arty running the bring-up design, LD4–LD6 lit (heartbeat, snippet played, capture full), USB cable
       to the host visible
-- [ ] Screen recording or screenshot: terminal running `make prog board-check` ending in
-      "16384 outputs, 0 mismatches"
+
