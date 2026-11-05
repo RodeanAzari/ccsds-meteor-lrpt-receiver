@@ -60,9 +60,19 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 Architecture, ADR summary and clock-domain crossings: [docs/design.md](docs/design.md). Lab notebook with every
 measurement and bug: [docs/log.md](docs/log.md). Current state and next steps: [progress.md](progress.md).
 
-**Blocked on another project:** streaming full passes to the board needs the shared Ethernet core `fpga-eth-core`
-at tag `eth-core-v0.1`, and sending frames back needs `eth-core-v0.2`. Until then, hardware tests play IQ snippets
-from block RAM and read results over UART or the ILA.
+**Blocked on another project:** streaming full passes to the board needs the shared Ethernet core
+[`fpga-eth-core`](https://github.com/RodeanAzari/fpga-eth-core) at tag `eth-core-v0.1`, and sending frames back needs
+`eth-core-v0.2`. Until then, hardware tests play IQ snippets from block RAM and read results over UART or the ILA.
+
+### Shared components
+
+Two blocks come from companion repositories. Both are built and released by another project (an FPGA order book),
+and this repo uses them only at tagged releases, never copied in:
+
+| Repository | What it provides here | How it is pinned |
+|---|---|---|
+| [**fpga-eth-core**](https://github.com/RodeanAzari/fpga-eth-core) | 10/100 MII MAC, CRC-32, async FIFO, IPv4/UDP RX/TX: the link that carries IQ from `gs-replay` to the board and decoded CADUs back | Git submodule at `rtl/eth/`, checked out at a release tag. Not integrated yet: waiting on `eth-core-v0.1` (RX) and `v0.2` (TX) |
+| [**tb-common**](https://github.com/RodeanAzari/tb-common) | Shared cocotb helpers: AXI-Stream source and sink with random valid/ready backpressure, an in-order scoreboard, seeded per-test RNG. Every block-level cocotb test in `tb/cocotb/` drives and checks its block through them (the board-top test decodes the UART pin itself) | `pip install` from git at `tb-common-v0.1`, pinned in [`requirements.txt`](requirements.txt) |
 
 ## Architecture
 
@@ -406,7 +416,7 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 ## Build and reproduce
 
 Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
-- Python 3.11+ (3.14.4 used) with a venv from `make setup` (cocotb 2.1.0 and tb-common pinned in `requirements.txt`)
+- Python 3.11+ (3.14.4 used) with a venv from `make setup` (cocotb 2.1.0 and [tb-common](https://github.com/RodeanAzari/tb-common) pinned in `requirements.txt`)
 - Verilator 5.050
 - Vivado 2025.2, run in batch through `scripts/vivado.sh`
 - CMake ≥ 3.24 and a C++20 compiler (GoogleTest is fetched at a pinned hash)
