@@ -207,6 +207,40 @@ def ddc_spectrum_plot() -> None:
     plt.close(fig)
 
 
+def ddc_ila_plot() -> None:
+    """DDC output captured on the Arty by the ILA vs. the bit-true model: data/results/ddc_board_ila{,_iq}."""
+    rows = _rows("ddc_board_ila_iq")
+    summary = _rows("ddc_board_ila")[0]
+    t = np.array([float(r["t_us"]) for r in rows]) / 1e3
+    bi, bq, mi, mq = (np.array([int(r[k]) for r in rows]) for k in ("board_i", "board_q", "model_i", "model_q"))
+    fig, (ax, sc) = plt.subplots(1, 2, figsize=(11, 4.4), gridspec_kw={"width_ratios": [2.2, 1]})
+    w = t <= 0.5  # first 0.5 ms (128 outputs) in the trace; all rows in the scatter
+    ax.plot(t[w], bi[w], color=BLUE, linewidth=1.2, label="I, board (ILA)")
+    ax.plot(t[w], bq[w], color=ORANGE, linewidth=1.2, label="Q, board (ILA)")
+    ax.plot(t[w], mi[w], "o", color=INK, markersize=2.5, label="bit-true model")
+    ax.plot(t[w], mq[w], "o", color=INK, markersize=2.5)
+    ax.set_xlim(0, 0.5)
+    ax.set_xlabel("Time (ms) at 256 kS/s")
+    ax.set_ylabel("DDC output (s16 counts)")
+    ax.set_title(
+        f"ILA capture: {int(summary['outputs']):,} outputs, {int(summary['mismatches'])} differ from the model",
+        color=INK,
+        loc="left",
+    )
+    ax.legend(loc="upper right", fontsize=8, ncol=3)
+    sc.plot(bi, bq, ".", color=BLUE, markersize=2.5)
+    lim = 1.1 * max(np.abs(bi).max(), np.abs(bq).max())
+    sc.set_xlim(-lim, lim)
+    sc.set_ylim(-lim, lim)
+    sc.set_aspect("equal")
+    sc.set_xlabel("I")
+    sc.set_ylabel("Q")
+    sc.set_title(f"I/Q, first {len(t)} outputs (no sync yet)", color=INK, loc="left", fontsize=10)
+    fig.tight_layout()
+    fig.savefig(MEDIA / "2026-11-04_phase-b_ddc-ila-baseband.png", dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     _style()
     MEDIA.mkdir(parents=True, exist_ok=True)
@@ -216,6 +250,7 @@ def main() -> None:
     soft_width_plot()
     traceback_plot()
     ddc_spectrum_plot()
+    ddc_ila_plot()
 
 
 if __name__ == "__main__":

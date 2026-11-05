@@ -46,7 +46,10 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 - `gs-replay` (C++, `gs/`): 8-byte BE sequence + 512 cu8 samples per datagram (ADR 0009, `docs/protocol.md`).
   Loopback on the synthetic recording: 1× and 5× lossless and byte-exact (`data/results/gs_replay_loopback.csv`).
   `make gs gs-test`, in `make ci`. Not yet sent to the board (eth-core-v0.1).
-- Not done: ILA build (baseband I/Q capture), board photo; clang-tidy/cppcheck/clang-format/libFuzzer not installed.
+- ILA: `make board ILA=1` + `make ila-capture`. All 16,384 DDC outputs captured over JTAG, 0 mismatches vs. the model
+  (`data/results/ddc_board_ila.csv`); plot in `docs/media/`.
+- Not done: ILA GUI screenshot and board photo (you); clang-tidy/cppcheck/clang-format/libFuzzer not installed;
+  README (doesn't exist yet).
 
 ## Next steps
 
@@ -55,9 +58,9 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 2. Decode it with SatDump and list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
-4. Phase B: `make board ILA=1` and an ILA capture of baseband I/Q (media).
-5. **You:** install clang-format, clang-tidy, cppcheck and clang (libFuzzer), which need sudo, so C++ static analysis can run.
-6. **You:** board photo and terminal capture listed in `docs/portfolio-todo.md`.
+4. **You:** install clang-format, clang-tidy, cppcheck and clang (libFuzzer), which need sudo, so C++ static analysis can run.
+5. **You:** board photo, terminal capture and ILA GUI screenshot listed in `docs/portfolio-todo.md`.
+6. Phase B close-out: write the README (none exists yet) to the §11.4 standard with the Phase B results.
 
 ## Key decisions
 
@@ -79,6 +82,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 | Board readout: UART dump with CRC-32, host skips bad dumps | A cut-off dump must not read as a DDC error | `docs/design.md` |
 | RTL tables generated from the model, checked for staleness | One source of truth for NCO and FIR coefficients | `scripts/gen_rtl_tables.py` |
 | IQ replay: 8-byte BE seq + 512 raw cu8 per datagram | Matches eth-core `rx_stats`; no host conversion; ≤ 5.69× on 100 Mb/s | ADR 0009 |
+| ILA inserted in Tcl after synthesis, storage-qualified on the DDC handshake | RTL unchanged; 16,384 deep holds the whole snippet | `syn/impl_board.tcl` |
 | Sync threshold 0.75; frames under the flywheel held until the lock is confirmed | Fixes false locks and duplicate frames | `model/receiver.py` |
 
 ## Open questions

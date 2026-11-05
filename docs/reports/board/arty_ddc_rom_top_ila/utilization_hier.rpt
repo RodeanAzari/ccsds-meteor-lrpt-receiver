@@ -1,0 +1,74 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
+| Date         : Wed Nov  4 21:24:09 2026
+| Host         : RodeanStation running 64-bit Ubuntu 26.04 LTS
+| Command      : report_utilization -hierarchical -file /home/rodea/CCSDS/docs/reports/board/arty_ddc_rom_top_ila/utilization_hier.rpt
+| Design       : arty_ddc_rom_top
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-------------------------------------------------------------------------+------------------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|                                 Instance                                |                        Module                        | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++-------------------------------------------------------------------------+------------------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| arty_ddc_rom_top                                                        |                                                (top) |       2544 |       2377 |      24 |  143 | 4314 |     64 |      1 |          6 |
+|   (arty_ddc_rom_top)                                                    |                                                (top) |          1 |          1 |       0 |    0 |   28 |      0 |      0 |          0 |
+|   dbg_hub                                                               |                                              dbg_hub |        448 |        424 |      24 |    0 |  741 |      0 |      0 |          0 |
+|     inst                                                                |                           dbg_hub_xsdbm_v3_0_5_xsdbm |        448 |        424 |      24 |    0 |  741 |      0 |      0 |          0 |
+|       BSCANID.u_xsdbm_id                                                |                        dbg_hub_xsdbm_v3_0_5_xsdbm_id |        448 |        424 |      24 |    0 |  741 |      0 |      0 |          0 |
+|         SWITCH_N_EXT_BSCAN.bscan_switch                                 |                    dbg_hub_xsdbm_v3_0_5_bscan_switch |        124 |        124 |       0 |    0 |  125 |      0 |      0 |          0 |
+|         CORE_XSDB.UUT_MASTER                                            |                       dbg_hub_xsdbm_v3_0_5_icon2xsdb |        272 |        248 |      24 |    0 |  554 |      0 |      0 |          0 |
+|           U_ICON_INTERFACE                                              |                              dbg_hub_xsdbm_v3_0_5_if |        163 |        139 |      24 |    0 |  450 |      0 |      0 |          0 |
+|             U_CMD6_WR                                                   |                           dbg_hub_xsdbm_v3_0_5_wrreg |         46 |         34 |      12 |    0 |  110 |      0 |      0 |          0 |
+|               U_WR_FIFO                                                 |                          dbg_hub_xsdbm_v3_0_5_wrfifo |         44 |         32 |      12 |    0 |   90 |      0 |      0 |          0 |
+|                 SUBCORE_FIFO.xsdbm_v3_0_5_wrfifo_inst                   |                       dbg_hub_fifo_generator_v13_1_5 |         42 |         30 |      12 |    0 |   90 |      0 |      0 |          0 |
+|                   inst_fifo_gen                                         |                 dbg_hub_fifo_generator_v13_1_5_synth |         42 |         30 |      12 |    0 |   90 |      0 |      0 |          0 |
+|                     gconvfifo.rf                                        |                           dbg_hub_fifo_generator_top |         42 |         30 |      12 |    0 |   90 |      0 |      0 |          0 |
+|                       grf.rf                                            |                       dbg_hub_fifo_generator_ramfifo |         42 |         30 |      12 |    0 |   90 |      0 |      0 |          0 |
+|             U_CMD4                                                      |         dbg_hub_xsdbm_v3_0_5_ctl_reg__parameterized0 |          9 |          9 |       0 |    0 |   62 |      0 |      0 |          0 |
+|             U_CMD6_RD                                                   |                           dbg_hub_xsdbm_v3_0_5_rdreg |         67 |         55 |      12 |    0 |  134 |      0 |      0 |          0 |
+|               U_RD_FIFO                                                 |                          dbg_hub_xsdbm_v3_0_5_rdfifo |         65 |         53 |      12 |    0 |  114 |      0 |      0 |          0 |
+|                 SUBCORE_FIFO.xsdbm_v3_0_5_rdfifo_inst                   |       dbg_hub_fifo_generator_v13_1_5__parameterized0 |         47 |         35 |      12 |    0 |  114 |      0 |      0 |          0 |
+|                   inst_fifo_gen                                         | dbg_hub_fifo_generator_v13_1_5_synth__parameterized0 |         47 |         35 |      12 |    0 |  114 |      0 |      0 |          0 |
+|                     gconvfifo.rf                                        |           dbg_hub_fifo_generator_top__parameterized0 |         47 |         35 |      12 |    0 |  114 |      0 |      0 |          0 |
+|                       grf.rf                                            |       dbg_hub_fifo_generator_ramfifo__parameterized0 |         47 |         35 |      12 |    0 |  114 |      0 |      0 |          0 |
+|           U_XSDB_BUS_CONTROLLER                                         |                         dbg_hub_xsdbm_v3_0_5_bus_ctl |         69 |         69 |       0 |    0 |   48 |      0 |      0 |          0 |
+|   u_cap                                                                 |                                         capture_dump |        117 |        117 |       0 |    0 |   93 |     16 |      0 |          0 |
+|   u_ddc                                                                 |                                              ddc_top |        937 |        937 |       0 |    0 | 1651 |      0 |      1 |          6 |
+|     u_cic                                                               |                                              ddc_cic |        275 |        275 |       0 |    0 |  434 |      0 |      0 |          0 |
+|     u_fir                                                               |                                         ddc_comp_fir |        379 |        379 |       0 |    0 | 1033 |      0 |      0 |          2 |
+|     u_ingest                                                            |                                           ddc_ingest |        121 |        121 |       0 |    0 |  104 |      0 |      0 |          0 |
+|     u_mixer                                                             |                                        ddc_nco_mixer |        163 |        163 |       0 |    0 |   80 |      0 |      1 |          4 |
+|   u_ila                                                                 |                                                u_ila |        996 |        853 |       0 |  143 | 1720 |     16 |      0 |          0 |
+|     inst                                                                |                                u_ila_ila_v6_2_19_ila |        996 |        853 |       0 |  143 | 1720 |     16 |      0 |          0 |
+|       ila_core_inst                                                     |                           u_ila_ila_v6_2_19_ila_core |        995 |        852 |       0 |  143 | 1679 |     16 |      0 |          0 |
+|         (ila_core_inst)                                                 |                           u_ila_ila_v6_2_19_ila_core |         19 |          0 |       0 |   19 |   78 |      0 |      0 |          0 |
+|         u_ila_cap_ctrl                                                  |                u_ila_ila_v6_2_19_ila_cap_ctrl_legacy |         71 |         24 |       0 |   47 |  167 |      0 |      0 |          0 |
+|           u_cap_addrgen                                                 |                    u_ila_ila_v6_2_19_ila_cap_addrgen |         55 |         18 |       0 |   37 |  161 |      0 |      0 |          0 |
+|             (u_cap_addrgen)                                             |                    u_ila_ila_v6_2_19_ila_cap_addrgen |         15 |         14 |       0 |    1 |   88 |      0 |      0 |          0 |
+|         u_ila_regs                                                      |                       u_ila_ila_v6_2_19_ila_register |        716 |        715 |       0 |    1 | 1155 |      0 |      0 |          0 |
+|           (u_ila_regs)                                                  |                       u_ila_ila_v6_2_19_ila_register |        305 |        304 |       0 |    1 |  175 |      0 |      0 |          0 |
+|           U_XSDB_SLAVE                                                  |                             u_ila_xsdbs_v1_0_5_xsdbs |         76 |         76 |       0 |    0 |  213 |      0 |      0 |          0 |
+|         u_trig                                                          |                        u_ila_ila_v6_2_19_ila_trigger |         93 |         19 |       0 |   74 |  179 |      0 |      0 |          0 |
+|           U_TM                                                          |                     u_ila_ila_v6_2_19_ila_trig_match |         82 |         18 |       0 |   64 |  156 |      0 |      0 |          0 |
+|             N_DDR_MODE.G_NMU[1].U_M                                     |             u_ila_ltlib_v1_0_3_match__parameterized0 |         17 |          0 |       0 |   17 |   66 |      0 |      0 |          0 |
+|               (allx_typeA_match_detection.ltlib_v1_0_3_allx_typeA_inst) |        u_ila_ltlib_v1_0_3_allx_typeA__parameterized0 |          0 |          0 |       0 |    0 |   64 |      0 |      0 |          0 |
+|             N_DDR_MODE.G_NMU[0].U_M                                     |          u_ila_ltlib_v1_0_3_match__parameterized0__1 |         17 |          0 |       0 |   17 |   66 |      0 |      0 |          0 |
+|               (allx_typeA_match_detection.ltlib_v1_0_3_allx_typeA_inst) |     u_ila_ltlib_v1_0_3_allx_typeA__parameterized0_18 |          0 |          0 |       0 |    0 |   64 |      0 |      0 |          0 |
+|         xsdb_memory_read_inst                                           |                     u_ila_ltlib_v1_0_3_generic_memrd |         43 |         41 |       0 |    2 |   62 |      0 |      0 |          0 |
+|   u_rom                                                                 |                                        iq_rom_source |         19 |         19 |       0 |    0 |   53 |     32 |      0 |          0 |
++-------------------------------------------------------------------------+------------------------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+
