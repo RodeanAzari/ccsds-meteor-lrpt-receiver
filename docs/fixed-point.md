@@ -45,7 +45,8 @@ Bit-true model: `model/rrc_fixed.py`. Input is the comp FIR output above.
 | RRC | output → timing/carrier | s16 | `>> 17` rounded, saturated | Σ\|taps\| = 1.374, so the worst case is 22,900 · 1.374 = 31,465 < 32,767; checked by `test_rrc_fixed.py` |
 
 **Measured.** RRC SQNR is 63.3–67.6 dB, about 12 dB below the DDC's, and the decoder sees no difference from a float
-RRC: same frames, soft SNR within 0.01 dB (`data/results/rrc_fixed_chain.csv`).
+RRC: same frames, soft SNR within 0.01 dB (`data/results/rrc_fixed_chain.csv`). The RTL (`rtl/sync/sync_rrc.sv`)
+matches the model bit for bit (`data/results/rrc_rtl_sim.csv`).
 
 **Normalization.** The float chain scales the RRC output to unit rail power (`normalize_rails()`); in hardware that is
 the AGC's job, which is not yet bit-true.

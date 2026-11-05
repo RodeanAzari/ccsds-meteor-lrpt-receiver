@@ -1,0 +1,5 @@
+top sync_rrc
+part xc7a100tcsg324-1
+vivado 2025.2
+clk_mhz 100
+wns_ns 2.453

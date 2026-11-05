@@ -1,0 +1,3 @@
+instance,module,luts,ffs,ramb36,ramb18,dsp48e1,clk_mhz,wns_ns,whs_ns,failing_endpoints
+sync_rrc,sync_rrc,616,1874,0,0,2,100,2.453,0.107,0
+u_fir,ddc_comp_fir,616,1874,0,0,2,100,2.453,0.107,0

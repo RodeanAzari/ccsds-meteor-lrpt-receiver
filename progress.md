@@ -55,6 +55,13 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   First run green 2026-11-05 (17 min, including the Verilator build).
 - Not done: board photo (deferred by you); fuzzing (needs `gs-rx`'s parser, Phase F).
 
+**Phase C: RTL started.**
+
+- `rtl/sync/sync_rrc.sv`: the comp FIR reused with the 57 RRC taps (`rtl/sync/rrc_taps.mem`, generated from the
+  model). 4,000 / 4,000 outputs bit-exact under backpressure; 62 clocks/sample, 6.3× real time
+  (`data/results/rrc_rtl_sim.csv`). OOC 100 MHz WNS +2.453 ns, 616 LUT, 2 DSP (`data/results/synth_sync_rrc.csv`).
+- Next: AGC RTL against `model/sync_fixed.py`, then Costas, then Farrow + Gardner.
+
 ## Next steps
 
 1. **You:** capture a pass with the V3 + SAWbird+ (bias tee on, gain raised from low while watching the waterfall),
@@ -64,6 +71,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
    with SatDump's.
 4. **You:** install clang-format, clang-tidy, cppcheck and clang (libFuzzer), which need sudo, so C++ static analysis can run.
 5. Phase B can't close until `gs-replay` runs over Ethernet to the board (eth-core-v0.1).
+6. Phase C RTL: AGC → Costas → Farrow + Gardner, each bit-exact against `model/sync_fixed.py`.
 
 ## Key decisions
 

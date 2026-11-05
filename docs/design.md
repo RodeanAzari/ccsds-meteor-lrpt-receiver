@@ -28,6 +28,8 @@ encoded ASM, `signal-spec.md`) are implemented in the model but have no ADR yet.
   `{Q_u8, I_u8}`, the replay byte order (I, then Q) read as a little-endian 16-bit word.
 - Blocks with internal pipelines advance all stages together on `ce = !m_tvalid || m_tready`; nothing is dropped.
 - DDC chain (`rtl/ddc/ddc_top.sv`): `ddc_ingest` → `ddc_nco_mixer` → `ddc_cic` → `ddc_comp_fir`.
+- Sync chain (`rtl/sync/`, in progress): `sync_rrc`, which is `ddc_comp_fir` with the 57 RRC taps (same arithmetic;
+  one FIR to verify, not two). Next: AGC → Costas → Farrow + Gardner (ADR 0002).
 
 ## Clock-domain crossings
 

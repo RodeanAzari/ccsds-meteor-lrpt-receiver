@@ -408,3 +408,32 @@
 
 - GitHub annotation: `actions/checkout@v4` and `actions/cache@v4` target Node.js 20, which is deprecated; they run on
   Node.js 24 for now. Bump them when newer majors are confirmed.
+
+## 2026-11-05 (continued): Phase C, RRC matched filter RTL
+
+**Done**
+
+- `rtl/sync/sync_rrc.sv`: the RRC has the same arithmetic as the DDC's comp FIR (s18 taps, exact 40-bit
+  accumulator, `>> 17` rounded and saturated to s16), so it instantiates `ddc_comp_fir` with 57 taps instead of
+  adding a second FIR. Taps go to `rtl/sync/rrc_taps.mem` from `rrc_fixed.taps()` via `scripts/gen_rtl_tables.py`,
+  covered by the staleness check in `make model-test`.
+- `tb/cocotb/test_sync_rrc.py`, 4 tests: bit-true DDC output of 6 dB OQPSK (151 kHz, 30 Hz/s ramp) under random
+  backpressure, 4,000 / 4,000 bit-exact; impulse centred and symmetric; sign-matched full-scale input clips, not
+  wraps; throughput. `make sync-rtl-results` → `data/results/rrc_rtl_sim.csv`.
+- Measured: 62 clocks per sample, 6.3× real time at 100 MHz. OOC at 100 MHz: WNS +2.453 ns, WHS +0.107 ns,
+  616 LUT, 1,874 FF, 2 DSP48E1 (`data/results/synth_sync_rrc.csv`). Worst path: accumulator → round/saturate →
+  output register.
+- Planted bug: one tap in `rrc_taps.mem` changed; all four tests failed. Restored.
+- `make ci` passes: 63 pytest, 18 cocotb, 8 + 8 GoogleTest, 4 loopback, lint clean.
+
+**Found**
+
+- The header comment first claimed NTAPS + 3 = 60 clocks per sample; the measurement says 62 (two cycles of
+  output handshake). Corrected to the measured value.
+- My first interpretation note said 16,000 samples were checked; it was 16,000 cu8 inputs, 4,000 RRC samples after
+  the ÷4. Corrected before the result was committed.
+
+**Not done**
+
+- 6.3× real time caps the RRC-input injection mux for BER campaigns. That is about 220 s per 10⁻⁶ point, so it is
+  fine for now; folding the symmetric taps through the DSP pre-adder would halve it if needed.

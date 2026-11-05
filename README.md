@@ -31,7 +31,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | | |
 |---|---|
 | **Target signal** | Meteor-M N2-4 LRPT, 72k mode: OQPSK, 72 ksym/s, conv K=7 r½, NRZ-M, CCSDS randomizer, RS(255,223) interleave 4. Parameters read from SatDump 1.2.2's source ([signal-spec.md](docs/signal-spec.md)) |
-| **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → Costas + Farrow/Gardner → encoded-ASM sync → Viterbi → NRZ-M → derandomizer → RS×4. **In RTL: the DDC.** The rest is in the model |
+| **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → Costas + Farrow/Gardner → encoded-ASM sync → Viterbi → NRZ-M → derandomizer → RS×4. **In RTL: the DDC (on the board) and the RRC (simulation).** The rest is in the model |
 | **Real passes decoded** | 0. No recording yet; capture kit arrives about 2026-11-25 |
 | **CADU match vs. SatDump** | Synthetic recording: SatDump decoded 258 / 295 / 226 of 300 frames in three runs, **every decoded frame matching** ([satdump_crosscheck.csv](data/results/satdump_crosscheck.csv)). Real pass: `[TBD]` |
 | **DDC on the board** | **16,384 / 16,384 outputs bit-exact** vs. the model, over UART ([ddc_board.csv](data/results/ddc_board.csv)) and again over JTAG/ILA ([ddc_board_ila.csv](data/results/ddc_board_ila.csv)); 100 MHz, synthetic input |
@@ -41,9 +41,9 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Lock / Doppler** | Bit-true model tracks a **3.4 kHz offset (the Doppler maximum) with a 30 Hz/s ramp**, 1.7–4.0 Hz rms error ([sync_fixed_chain.csv](data/results/sync_fixed_chain.csv)). Lock time in hardware: `[TBD]` |
 | **Formal proofs** | None yet (`[TBD]`: Viterbi normalization, sync FSM, AXI-Stream, RS syndromes) |
 | **Bugs caught** | 15 written up as symptom → root cause → fix ([below](#bugs-found)); 15 planted bugs, all caught |
-| **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns ([synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv)) |
-| **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**; every multiplier in a DSP |
-| **Ground station + CI** | `gs-replay` (C++20): 68,266 / 68,266 datagrams in order and byte-exact at 1× and 5× on loopback ([gs_replay_loopback.csv](data/results/gs_replay_loopback.csv)). `make ci`, run by [GitHub Actions on every push](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml): ruff, mypy, Verilator lint, 63 pytest, 14 cocotb, 8 GoogleTest (Release + ASan/UBSan), 4 loopback, clang-format, clang-tidy, cppcheck |
+| **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC out of context WNS +2.453 ns ([synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv)) |
+| **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**. RRC: 616 LUT, 1,874 FF, 2 DSP48E1. Every multiplier in a DSP |
+| **Ground station + CI** | `gs-replay` (C++20): 68,266 / 68,266 datagrams in order and byte-exact at 1× and 5× on loopback ([gs_replay_loopback.csv](data/results/gs_replay_loopback.csv)). `make ci`, run by [GitHub Actions on every push](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml): ruff, mypy, Verilator lint, 63 pytest, 18 cocotb, 8 GoogleTest (Release + ASan/UBSan), 4 loopback, clang-format, clang-tidy, cppcheck |
 
 ## Status
 
@@ -52,7 +52,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | 0 — Signal spec + capture kit | **In progress** | [signal-spec.md](docs/signal-spec.md) from SatDump's source; not yet confirmed on a real signal |
 | A — Python golden model | **In progress** | Float and bit-true chains decode synthetic signals; real recording pending |
 | B — Digital downconverter | **In progress** | Bit-exact on the board; Ethernet replay waits on `eth-core-v0.1` |
-| C — Synchronization | Not started (RTL) | Bit-true model done |
+| C — Synchronization | **In progress** | RRC RTL bit-exact in simulation; AGC, Costas, Farrow/Gardner RTL next |
 | D — Viterbi + frame sync | Not started (RTL) | Bit-true model done |
 | E — Reed-Solomon + real decode | Not started | — |
 | F — C++ ground station | Not started (`gs-replay` done in B) | — |
@@ -214,7 +214,12 @@ the other rail half a symbol off, which scales its error by cos 2θ, so it avera
 - **Measured (model):** at 3.4 kHz with a 30 Hz/s ramp, the bit-true chain decodes the same frames as float from 2
   to 8 dB, and tracks frequency with 1.7–4.0 Hz rms error. AGC settles in 60–104 ms
   ([sync_fixed_chain.csv](data/results/sync_fixed_chain.csv), [sync_agc_settle.csv](data/results/sync_agc_settle.csv)).
-- **RTL, lock time on hardware, Doppler-tracking plot, constellation GIF:** `[TBD]` (Phase C).
+- **RTL so far:** the RRC (`rtl/sync/sync_rrc.sv`) reuses the DDC's time-shared FIR with the 57 RRC taps, since the
+  arithmetic is identical. 4,000 / 4,000 outputs bit-exact against the model under random backpressure, 62 clocks per
+  sample (6.3× real time), WNS +2.453 ns at 100 MHz out of context ([rrc_rtl_sim.csv](data/results/rrc_rtl_sim.csv),
+  [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv)).
+- **AGC, Costas, Farrow/Gardner RTL, lock time on hardware, Doppler-tracking plot, constellation GIF:** `[TBD]`
+  (Phase C).
 
 ## Frame sync and phase ambiguity
 
@@ -341,6 +346,8 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 | Frequency tracking error | 1.7–4.0 Hz rms | Bit-true, 1 and 3.4 kHz offsets, 30 Hz/s ramp | [sync_fixed_chain.csv](data/results/sync_fixed_chain.csv) |
 | DDC RTL vs. model | 6,000 / 6,000 outputs bit-exact | Verilator, random backpressure, 6 dB OQPSK | [ddc_rtl_sim.csv](data/results/ddc_rtl_sim.csv) |
 | DDC throughput | 9.0 clocks/sample, 10.8× real time | RTL simulation, 100 MHz | [ddc_rtl_sim.csv](data/results/ddc_rtl_sim.csv) |
+| RRC RTL vs. model | 4,000 / 4,000 outputs bit-exact | Verilator, random backpressure, bit-true DDC output of 6 dB OQPSK | [rrc_rtl_sim.csv](data/results/rrc_rtl_sim.csv) |
+| RRC throughput | 62 clocks/sample, 6.3× real time | RTL simulation, 100 MHz | [rrc_rtl_sim.csv](data/results/rrc_rtl_sim.csv) |
 | DDC on the board (UART) | 16,384 / 16,384 bit-exact | 65,536-sample snippet, 8 dB | [ddc_board.csv](data/results/ddc_board.csv) |
 | DDC on the board (ILA) | 16,384 / 16,384 bit-exact | Same snippet, JTAG | [ddc_board_ila.csv](data/results/ddc_board_ila.csv) |
 | `gs-replay` on loopback | 68,266 / 68,266 in order, byte-exact at 1× and 5× | 34 s synthetic recording, WSL2 | [gs_replay_loopback.csv](data/results/gs_replay_loopback.csv) |
@@ -418,7 +425,7 @@ pretending.
 
 1. **A real recording:** capture a pass (or find a public 72k recording), decode it with SatDump, and confirm the
    spec and the model on it (Phases 0 and A).
-2. **Phase C:** RRC, AGC, Costas and Farrow/Gardner in RTL. Lock-time and Doppler-tracking plots, and the
+2. **Phase C:** AGC, Costas and Farrow/Gardner in RTL (the RRC is done in simulation). Lock-time and Doppler-tracking plots, and the
    constellation-locking GIF.
 3. **Phase D:** the Viterbi decoder and frame sync, a formal proof of path-metric overflow, and hardware BER.
 4. **Phase E:** a Reed-Solomon decoder shared with another project, and a real pass decoded on the FPGA bit-for-bit
