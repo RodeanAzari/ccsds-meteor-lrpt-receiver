@@ -3,7 +3,9 @@
     PYTHONPATH=. python scripts/ddc_board.py rom <out.mem> [n_samples]     # BRAM init file ({Q_u8, I_u8} hex words)
     PYTHONPATH=. python scripts/ddc_board.py check [/dev/ttyUSB1] [n_samples]
 
-`check` waits for the board's UART dump ("DDC1" | u32 n | n x u32 {Q, I} s16, little-endian), compares every
+`check` waits for the board's UART dump ("DDC1" | u32 n | n x u32 {Q, I} s16 | u32 CRC-32, little-endian; saved
+to build/board/ddc_dump.bin), skips any dump whose CRC fails (opening the port resets the board, so a cut-off
+dump can precede the real one), compares every
 output with the bit-true model on the same snippet, and writes data/results/ddc_board.csv plus the before/after
 spectrum data/results/ddc_board_spectrum.csv. Press BTN0 (or RESET) on the board to start a dump.
 """
@@ -13,6 +15,7 @@ from __future__ import annotations
 import struct
 import sys
 import time
+import zlib
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +34,7 @@ CARRIER_HZ = 151_000.0  # 1 kHz above the 150 kHz NCO, like a Doppler residual
 DC_OFFSET = 0.25  # of sigma, per rail: an RTL-SDR-like DC offset for the DC block to remove
 CFG = RxConfig(fs=1_024_000.0, tune_offset_hz=150_000.0)
 BAUD = 115_200
+DUMP = Path("build/board/ddc_dump.bin")
 
 
 def snippet(n: int = N_SAMPLES) -> npt.NDArray[np.uint8]:
@@ -55,35 +59,59 @@ def expected(n: int = N_SAMPLES) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.
     return m.ddc_fixed_rails(snippet(n), CFG)
 
 
+def dump_size(n: int) -> int:
+    return 8 + 4 * n + 4
+
+
 def parse_dump(data: bytes) -> npt.NDArray[np.int16]:
-    """Board dump -> (n, 2) array of (I, Q). Raises on a bad header or a short read."""
+    """Board dump -> (n, 2) array of (I, Q). Raises on a bad header, a short read or a CRC mismatch."""
     if data[:4] != b"DDC1":
         raise ValueError(f"bad magic {data[:4]!r}")
     (n,) = struct.unpack_from("<I", data, 4)
-    if len(data) < 8 + 4 * n:
+    if len(data) < dump_size(n):
         raise ValueError(f"short dump: {len(data)} bytes for {n} words")
+    (crc,) = struct.unpack_from("<I", data, 8 + 4 * n)
+    if zlib.crc32(data[: 8 + 4 * n]) != crc:
+        raise ValueError(f"CRC mismatch: dump says {crc:08x}, bytes give {zlib.crc32(data[: 8 + 4 * n]):08x}")
     return np.frombuffer(data, dtype="<i2", count=2 * n, offset=8).reshape(n, 2)
+
+
+def find_dump(buf: bytes, n: int, start: int = 0) -> tuple[bytes | None, int]:
+    """First valid n-word dump in buf at or after `start`. Returns (dump or None, where to resume scanning).
+
+    A header whose dump fails its CRC (e.g. cut off by a reset, with the next dump's bytes after it) is skipped.
+    """
+    need = dump_size(n)
+    while (k := buf.find(b"DDC1", start)) >= 0 and len(buf) - k >= need:
+        try:
+            parse_dump(buf[k : k + need])
+            return buf[k : k + need], k
+        except ValueError as e:
+            print(f"skipping dump at byte {k}: {e}", flush=True)
+            start = k + 1
+    return None, start
 
 
 def read_dump(port: str, n: int, timeout_s: float) -> bytes:
     import serial  # pyserial; only the hardware path needs it
 
-    need = 8 + 4 * n
     with serial.Serial(port, BAUD, timeout=1.0) as s:
         s.reset_input_buffer()
         print(f"waiting for a dump on {port} (press BTN0 on the board)...", flush=True)
         buf = b""
+        start = 0  # first byte not yet ruled out as the start of a dump
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
             buf += s.read(4096)
-            k = buf.find(b"DDC1")
-            if k >= 0 and len(buf) - k >= need:
-                return buf[k : k + need]
-    raise TimeoutError(f"no complete dump within {timeout_s} s ({len(buf)} bytes seen)")
+            dump, start = find_dump(buf, n, start)
+            if dump is not None:
+                return dump
+    raise TimeoutError(f"no valid dump within {timeout_s} s ({len(buf)} bytes seen)")
 
 
 def spectrum(x: npt.NDArray[np.complex128], fs: float) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    f, p = signal.welch(x, fs=fs, nperseg=1024, return_onesided=False, scaling="density")
+    # detrend=False: the default removes each segment's mean, which would hide the DC offset the DDC must remove
+    f, p = signal.welch(x, fs=fs, nperseg=1024, return_onesided=False, scaling="density", detrend=False)
     order = np.argsort(f)
     return f[order], 10 * np.log10(p[order] + 1e-30)
 
@@ -91,7 +119,10 @@ def spectrum(x: npt.NDArray[np.complex128], fs: float) -> tuple[npt.NDArray[np.f
 def check(port: str, n: int) -> int:
     from analysis.common import write_result
 
-    got = parse_dump(read_dump(port, n // 4, timeout_s=60.0))
+    dump = read_dump(port, n // 4, timeout_s=60.0)
+    DUMP.parent.mkdir(parents=True, exist_ok=True)
+    DUMP.write_bytes(dump)  # raw board output, kept for re-analysis without the board
+    got = parse_dump(dump)
     exp_i, exp_q = expected(n)
     exp = np.stack([exp_i, exp_q], axis=1)
     bad = np.flatnonzero(np.any(got != exp, axis=1))
@@ -117,7 +148,7 @@ def check(port: str, n: int) -> int:
         ["stage", "freq_hz", "psd_db_per_hz"],
         rows,
         f"before: the ROM snippet (cu8 - 127.5, 1.024 MS/s); after: the board's DDC output (s16, 256 kS/s); "
-        f"Welch, 1024-point segments; seed {SEED}",
+        f"Welch, 1024-point segments, no detrending; seed {SEED}",
         command=f"PYTHONPATH=. python scripts/ddc_board.py check {port}",
     )
     return 1 if bad.size else 0

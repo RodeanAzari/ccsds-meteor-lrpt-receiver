@@ -2,7 +2,8 @@
 
 Why it matters: on the board the only evidence is the bytes on the serial line. This test decodes that line
 exactly as the host will and compares every DDC output with the bit-true model, so a failure on hardware points at
-the board (clock, pins, UART link), not at the design. It runs a short snippet with a fast UART to stay quick, keeps
+the board (clock, pins, UART link), not at the design. parse_dump also checks the dump's CRC-32 trailer.
+It runs a short snippet with a fast UART to stay quick, keeps
 the top's default NCO word (a wrong default would fail here), and presses BTN0 to check the repeat dump matches.
 """
 
@@ -13,7 +14,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge
 from ddc_board import N_SIM, expected_sim
 
-from scripts.ddc_board import parse_dump
+from scripts.ddc_board import dump_size, parse_dump
 
 CLKS_PER_BIT = 8  # set in tb/cocotb/run.py
 
@@ -45,7 +46,7 @@ async def dump_matches_model_and_repeats(dut) -> None:
 
     n_out = N_SIM // 4
     exp_i, exp_q = expected_sim()
-    first = parse_dump(await uart_bytes(dut, 8 + 4 * n_out))
+    first = parse_dump(await uart_bytes(dut, dump_size(n_out)))
     assert first[:, 0].tolist() == exp_i.tolist() and first[:, 1].tolist() == exp_q.tolist(), (
         "board-path output differs from the bit-true model"
     )
@@ -54,6 +55,6 @@ async def dump_matches_model_and_repeats(dut) -> None:
     for _ in range(20):
         await RisingEdge(dut.clk100_i)
     dut.btn0_i.value = 1  # held: one rising edge, one repeat dump
-    second = parse_dump(await uart_bytes(dut, 8 + 4 * n_out))
+    second = parse_dump(await uart_bytes(dut, dump_size(n_out)))
     dut.btn0_i.value = 0
     assert (second == first).all(), "repeat dump differs from the first"

@@ -1,0 +1,10 @@
+instance,module,luts,ffs,ramb36,ramb18,dsp48e1,clk_mhz,wns_ns,whs_ns,failing_endpoints
+arty_ddc_rom_top,arty_ddc_rom_top,1036,1821,48,1,6,100,1.403,0.045,0
+(arty_ddc_rom_top),arty_ddc_rom_top,1,28,0,0,0,100,1.403,0.045,0
+u_cap,capture_dump,59,61,16,0,0,100,1.403,0.045,0
+u_ddc,ddc_top,936,1651,0,1,6,100,1.403,0.045,0
+u_cic,ddc_cic,270,434,0,0,0,100,1.403,0.045,0
+u_fir,ddc_comp_fir,378,1033,0,0,2,100,1.403,0.045,0
+u_ingest,ddc_ingest,122,104,0,0,0,100,1.403,0.045,0
+u_mixer,ddc_nco_mixer,169,80,0,1,4,100,1.403,0.045,0
+u_rom,iq_rom_source,19,53,32,0,0,100,1.403,0.045,0

@@ -1,0 +1,37 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
+| Date         : Wed Nov  4 19:26:33 2026
+| Host         : RodeanStation running 64-bit Ubuntu 26.04 LTS
+| Command      : report_utilization -hierarchical -file /home/rodea/CCSDS/docs/reports/board/arty_ddc_rom_top/utilization_hier.rpt
+| Design       : arty_ddc_rom_top
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++----------------------+---------------+------------+------------+---------+------+------+--------+--------+------------+
+|       Instance       |     Module    | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++----------------------+---------------+------------+------------+---------+------+------+--------+--------+------------+
+| arty_ddc_rom_top     |         (top) |       1036 |       1036 |       0 |    0 | 1821 |     48 |      1 |          6 |
+|   (arty_ddc_rom_top) |         (top) |          1 |          1 |       0 |    0 |   28 |      0 |      0 |          0 |
+|   u_cap              |  capture_dump |         59 |         59 |       0 |    0 |   61 |     16 |      0 |          0 |
+|   u_ddc              |       ddc_top |        936 |        936 |       0 |    0 | 1651 |      0 |      1 |          6 |
+|     u_cic            |       ddc_cic |        270 |        270 |       0 |    0 |  434 |      0 |      0 |          0 |
+|     u_fir            |  ddc_comp_fir |        378 |        378 |       0 |    0 | 1033 |      0 |      0 |          2 |
+|     u_ingest         |    ddc_ingest |        122 |        122 |       0 |    0 |  104 |      0 |      0 |          0 |
+|     u_mixer          | ddc_nco_mixer |        169 |        169 |       0 |    0 |   80 |      0 |      1 |          4 |
+|   u_rom              | iq_rom_source |         19 |         19 |       0 |    0 |   53 |     32 |      0 |          0 |
++----------------------+---------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

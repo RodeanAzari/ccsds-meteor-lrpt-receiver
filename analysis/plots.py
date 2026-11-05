@@ -175,6 +175,38 @@ def traceback_plot() -> None:
     plt.close(fig)
 
 
+def ddc_spectrum_plot() -> None:
+    """Board DDC input (ROM snippet) vs. output (captured from the Arty over UART): data/results/ddc_board_spectrum."""
+    rows = _rows("ddc_board_spectrum")
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
+    panels = (
+        ("before", "Before: cu8 snippet in BRAM, 1.024 MS/s", BLUE),
+        ("after", "After: DDC output read back from the Arty, 256 kS/s", ORANGE),
+    )
+    for ax, (stage, title, colour) in zip(axes, panels, strict=True):
+        f = np.array([float(r["freq_hz"]) for r in rows if r["stage"] == stage]) / 1e3
+        p = np.array([float(r["psd_db_per_hz"]) for r in rows if r["stage"] == stage])
+        ax.plot(f, p - p.max(), color=colour, linewidth=1.2)
+        ax.set_xlim(f.min(), f.max())
+        ax.set_ylim(-70, 5)
+        ax.set_xlabel("Frequency (kHz)")
+        ax.set_ylabel("PSD (dB relative to peak)")
+        ax.set_title(title, color=INK, loc="left")
+    for ax, stage, labels in (
+        (axes[0], "before", ((151e3, "signal, +151 kHz"), (0.0, "DC offset"))),
+        (axes[1], "after", ((1e3, "signal, +1 kHz\n(DC offset removed)"),)),
+    ):
+        f = np.array([float(r["freq_hz"]) for r in rows if r["stage"] == stage])
+        p = np.array([float(r["psd_db_per_hz"]) for r in rows if r["stage"] == stage])
+        p -= p.max()
+        for f0, text in labels:
+            k = int(np.argmin(np.abs(f - f0)))
+            ax.annotate(text, xy=(f[k] / 1e3, p[k]), xytext=(8, 10), textcoords="offset points", color=MUTED)
+    fig.tight_layout()
+    fig.savefig(MEDIA / "2026-11-04_phase-b_ddc-spectrum-board.png", dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     _style()
     MEDIA.mkdir(parents=True, exist_ok=True)
@@ -183,6 +215,7 @@ def main() -> None:
     constellation_plot()
     soft_width_plot()
     traceback_plot()
+    ddc_spectrum_plot()
 
 
 if __name__ == "__main__":
