@@ -465,3 +465,30 @@
 - My first version of that test also asserted the gain reaches its lower clamp of 1. It can't from s16 input: a
   saturated output moves the gain by at most −128 per sample and the loop settles at ~512. The upper clamp needs
   ~2¹⁹ silent samples. Neither clamp is exercised in RTL simulation.
+
+## 2026-11-05 (continued): Phase C, Costas loop RTL
+
+**Done**
+
+- `rtl/sync/sync_costas.sv`: per-sample loop, one sample in flight: table read | mirror | rotate | round, saturate,
+  output | detector terms | error, clamped | ki·e, kp·e | frequency | phase. 10 clocks per sample (39× real time).
+  Gains are input ports (host control registers, CLAUDE.md §3.1). Its own copy of the DDC's quarter-wave table.
+- `tb/cocotb/test_sync_costas.py`, 3 tests: 16,000 samples of bit-true AGC output with a 50 Hz residual (what is left
+  after the host's coarse estimate, ADR 0002) and a 30 Hz/s ramp under random backpressure, where the loop pulls in
+  and ends at 52.0 Hz; 8,000 samples with the frequency clamp at 20 Hz; throughput. 26,000 outputs bit-exact
+  (`data/results/costas_rtl_sim.csv`).
+- OOC at 100 MHz: WNS +2.360 ns, 469 LUT, 153 FF, 7 DSP48E1, 1 RAMB18 (`data/results/synth_sync_costas.csv`).
+- Planted bugs: phase updated with the previous frequency, sgn(0) = +1 in the detector (each fails all three tests),
+  upper frequency clamp removed (fails the clamp test). The first two were re-run after the detector split.
+- `make ci` passes: 63 pytest, 24 cocotb.
+
+**Found**
+
+- The output register was loaded one stage before the rotator products were ready (`st_q[3]` instead of `[4]`).
+  Caught by tracing the stage timing by hand before the first simulation.
+- First synthesis met timing by only 0.512 ns: the phase detector (two conditional negations, subtract, clamp) in
+  one cycle. Split over two stages: +2.360 ns, one more clock per sample, outputs unchanged.
+- Choosing the test input showed how slow pull-in is at costas_bw 0.001: from a 1 kHz residual the loop does not
+  lock within 20,000 samples; 50 Hz locks after ~5,000 samples (20 ms), 100–400 Hz do not within 16,000. This is
+  the ADR 0002 reason for the coarse estimate, now with numbers from the bit-true model. A proper lock-range and
+  lock-time sweep is a Phase C deliverable still to do.

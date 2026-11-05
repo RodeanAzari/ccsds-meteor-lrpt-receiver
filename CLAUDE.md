@@ -60,7 +60,7 @@ host ◀── C++ gs-rx / gs-diff / gs-view ◀──UDP── decoded CADUs + 
 | 0 — Signal spec + capture kit | IN PROGRESS | `docs/signal-spec.md` written from source, not yet confirmed on a recording |
 | A — Python golden model | IN PROGRESS | Float model decodes synthetic signals end to end; not yet run on a real recording |
 | B — Digital downconverter | IN PROGRESS | DDC bit-exact on the Arty (UART and ILA, 16,384 outputs); Ethernet replay waits on eth-core-v0.1 |
-| C — Synchronization | IN PROGRESS | RRC and AGC RTL bit-exact in simulation (`data/results/rrc_rtl_sim.csv`, `agc_rtl_sim.csv`) |
+| C — Synchronization | IN PROGRESS | RRC, AGC and Costas RTL bit-exact in simulation (`data/results/{rrc,agc,costas}_rtl_sim.csv`) |
 | D — Viterbi + frame sync | NOT STARTED | — |
 | E — Reed-Solomon + integration + real decode | NOT STARTED | — |
 | F — C++ ground station | NOT STARTED | — |

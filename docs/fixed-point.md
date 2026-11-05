@@ -80,7 +80,7 @@ square-wave burst settles at 1.117·ONE (`tb/cocotb/test_sync_agc.py`). Noise di
 the chain measurements below show no loss from it. Scaling the update by a smaller shift with more gain fraction bits
 would narrow it if a strong, clean real recording ever needs that. The gain's lower clamp (1) is unreachable from s16
 input: a saturated output moves the gain by at most −128 per sample. RTL: `rtl/sync/sync_agc.sv`, bit-exact
-(`data/results/agc_rtl_sim.csv`).
+(`data/results/agc_rtl_sim.csv`). Costas RTL: `rtl/sync/sync_costas.sv`, bit-exact (`data/results/costas_rtl_sim.csv`).
 
 **Measured.** With everything up to the soft symbols bit-true, the receiver decodes the same frames as the float chain
 at every Eb/N0 from 2 to 8 dB and at 1 kHz and 3.4 kHz offsets with a 30 Hz/s ramp. Frequency tracking error is

@@ -62,7 +62,10 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   (`data/results/rrc_rtl_sim.csv`). OOC 100 MHz WNS +2.453 ns, 616 LUT, 2 DSP (`data/results/synth_sync_rrc.csv`).
 - `rtl/sync/sync_agc.sv`: 16,500 outputs bit-exact incl. saturation; 6 clocks/sample; OOC WNS +2.344 ns, 4 DSP
   (`data/results/agc_rtl_sim.csv`, `synth_sync_agc.csv`). The model's AGC has a ±25% power dead zone (fixed-point.md).
-- Next: Costas RTL against `model/sync_fixed.py`, then Farrow + Gardner.
+- `rtl/sync/sync_costas.sv`: 26,000 outputs bit-exact, locks to a 50 Hz residual, clamp exercised; 10 clocks/sample;
+  OOC WNS +2.360 ns, 7 DSP, 1 RAMB18 (`data/results/costas_rtl_sim.csv`, `synth_sync_costas.csv`).
+- Model pull-in is slow: 50 Hz locks in ~5,000 samples, 100–400 Hz not within 16,000. Lock range/time still to measure.
+- Next: Farrow + Gardner RTL against `model/sync_fixed.py` timing(), then a `sync_top` chain test.
 
 ## Next steps
 
@@ -73,7 +76,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
    with SatDump's.
 4. **You:** install clang-format, clang-tidy, cppcheck and clang (libFuzzer), which need sudo, so C++ static analysis can run.
 5. Phase B can't close until `gs-replay` runs over Ethernet to the board (eth-core-v0.1).
-6. Phase C RTL: Costas → Farrow + Gardner, each bit-exact against `model/sync_fixed.py`.
+6. Phase C RTL: Farrow + Gardner, then the chain, each bit-exact against `model/sync_fixed.py`.
 
 ## Key decisions
 
