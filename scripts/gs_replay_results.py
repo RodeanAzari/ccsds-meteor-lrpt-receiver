@@ -2,16 +2,15 @@
 """Measure gs-replay over UDP loopback on a whole recording: real time and flat out.
 
 For each run: packets received vs. sent, sequence errors, whether the received IQ is
-byte-identical to the file, and the achieved rate gs-replay logs. Writes
-data/results/gs_replay_loopback.csv. Loopback says nothing about the Ethernet link to the
-Arty; it shows the host side paces correctly and loses nothing on its own.
+byte-identical to the file, and the achieved rate gs-replay logs. Writes data/results/gs_replay_loopback.csv
+(sidecar from analysis/interpretations/). Loopback says nothing about the Ethernet link to the Arty; it shows the
+host side paces correctly and loses nothing on its own.
 
 Run: PYTHONPATH=. python scripts/gs_replay_results.py [RECORDING.cu8]
 """
 
 from __future__ import annotations
 
-import csv
 import hashlib
 import re
 import socket
@@ -22,7 +21,6 @@ from pathlib import Path
 
 BINARY = Path("build/gs-Release/gs-replay")
 DEFAULT_IN = Path("data/synthetic/synthetic_seed2026_1024000SPS.cu8")
-OUT = Path("data/results/gs_replay_loopback.csv")
 SEQ_BYTES, IQ_BYTES = 8, 1024
 
 
@@ -80,13 +78,17 @@ def main() -> None:
     if not recording.is_file():
         sys.exit(f"{recording} missing; run `make synthetic-iq` first")
     rows = [run(recording, []), run(recording, ["--speed", "5"]), run(recording, ["--flat-out"])]
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    with OUT.open("w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["recording", *rows[0].keys()])
-        w.writeheader()
-        for r in rows:
-            w.writerow({"recording": recording.name, **r})
-    print(OUT.read_text())
+    from analysis.common import write_result
+
+    gxx = subprocess.run(["g++", "--version"], capture_output=True, text=True).stdout.splitlines()[0]
+    write_result(
+        "gs_replay_loopback",
+        ["recording", *rows[0].keys()],
+        [[recording.name, *r.values()] for r in rows],
+        f"recording {recording} (make synthetic-iq, seed 2026), replayed over UDP loopback",
+        command=f"PYTHONPATH=. python scripts/gs_replay_results.py {recording}",
+        tools=f"{gxx}, gs-replay Release build",
+    )
 
 
 if __name__ == "__main__":

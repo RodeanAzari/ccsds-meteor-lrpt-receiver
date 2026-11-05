@@ -36,5 +36,5 @@ fixed length rejects anything else.
 ## Measured evidence
 
 `data/results/gs_replay_loopback.csv` (`make gs-replay-results`): host loopback only, synthetic recording. At 1× and
-5×, all 68,266 datagrams arrived in order and the payload was byte-identical to the file. Flat-out (124× on loopback)
+5×, all 68,266 datagrams arrived in order and the payload was byte-identical to the file. Flat-out (61–124× on loopback across runs)
 overran the Python receiver used to measure it. The link to the Arty is unmeasured until eth-core-v0.1.
