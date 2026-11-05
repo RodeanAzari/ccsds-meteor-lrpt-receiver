@@ -2,7 +2,7 @@ PY := .venv/bin/python
 RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' | sort)
 RTL_DIRS := $(sort $(dir $(RTL)))
 
-.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results synth-ooc board prog board-check ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq gs-replay-results ci clean \
+.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results synth-ooc board prog board-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq gs-replay-results ci clean \
         sim-full cov formal gs gs-test fuzz synth impl reports
 
 setup:
@@ -64,12 +64,15 @@ synth-ooc:
 # Phase B board bring-up: ROM snippet -> DDC -> UART (rtl/top/arty_ddc_rom_top.sv). `make board prog board-check`.
 BOARD_TOP := arty_ddc_rom_top
 SERIAL ?= /dev/ttyUSB1
+ILA ?= 0
+BOARD_NAME := $(BOARD_TOP)$(if $(filter 1,$(ILA)),_ila)
 board:
-	PYTHONPATH=. $(PY) scripts/ddc_board.py rom build/board/iq_rom.mem
+	PYTHONPATH=. $(PY) scripts/ddc_board.py rom build/board/rom/iq_rom.mem
 	cd build/board && ../../scripts/vivado.sh -mode batch -source ../../syn/impl_board.tcl \
-		-tclargs $(BOARD_TOP) iq_rom.mem > $(BOARD_TOP).log 2>&1 || { tail -30 $(BOARD_TOP).log; exit 1; }
-	@grep "^BOARD " build/board/$(BOARD_TOP).log
-	$(PY) -m analysis.synth_report $(BOARD_TOP) board
+		-tclargs $(BOARD_TOP) rom/iq_rom.mem $(if $(filter 1,$(ILA)),ila) > $(BOARD_NAME).log 2>&1 \
+		|| { tail -30 $(BOARD_NAME).log; exit 1; }
+	@grep "^BOARD " build/board/$(BOARD_NAME).log
+	$(PY) -m analysis.synth_report $(BOARD_NAME) board
 
 # Claim the shared board first: python3 ~/fpga-coord/coord.py board claim P3 "<reason>" (fpga-coord PROTOCOL §6)
 prog:
@@ -77,6 +80,14 @@ prog:
 
 board-check:
 	PYTHONPATH=. $(PY) scripts/ddc_board.py check $(SERIAL)
+
+# After `make board ILA=1` (and the board claim): program, capture every DDC output with the ILA, compare.
+ila-capture:
+	cd build/board && ../../scripts/vivado.sh -mode batch -source ../../syn/ila_capture.tcl -tclargs \
+		$(CURDIR)/build/board/$(BOARD_TOP)_ila.bit $(CURDIR)/build/board/$(BOARD_TOP)_ila.ltx \
+		$(CURDIR)/build/board/ila_ddc.csv $(SERIAL) $(CURDIR)/$(PY) > ila_capture.log 2>&1 \
+		|| { tail -30 ila_capture.log; exit 1; }
+	PYTHONPATH=. $(PY) scripts/ddc_board.py ila-check build/board/ila_ddc.csv
 
 plots:
 	$(PY) -m analysis.plots

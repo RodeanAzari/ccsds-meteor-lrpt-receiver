@@ -2,12 +2,17 @@
 
     PYTHONPATH=. python scripts/ddc_board.py rom <out.mem> [n_samples]     # BRAM init file ({Q_u8, I_u8} hex words)
     PYTHONPATH=. python scripts/ddc_board.py check [/dev/ttyUSB1] [n_samples]
+    PYTHONPATH=. python scripts/ddc_board.py ila-check <ila.csv> [n_samples]  # ILA capture (make ila-capture)
 
 `check` waits for the board's UART dump ("DDC1" | u32 n | n x u32 {Q, I} s16 | u32 CRC-32, little-endian; saved
 to build/board/ddc_dump.bin), skips any dump whose CRC fails (opening the port resets the board, so a cut-off
 dump can precede the real one), compares every
 output with the bit-true model on the same snippet, and writes data/results/ddc_board.csv plus the before/after
 spectrum data/results/ddc_board_spectrum.csv. Press BTN0 (or RESET) on the board to start a dump.
+
+`ila-check` does the same comparison on an ILA capture of the DDC output handshake (`make board ILA=1`,
+syn/ila_capture.tcl), written by Vivado as CSV, and writes data/results/ddc_board_ila.csv plus the first
+ILA_PLOT_SAMPLES outputs, board and model, for the plot (data/results/ddc_board_ila_iq.csv).
 """
 
 from __future__ import annotations
@@ -35,6 +40,7 @@ DC_OFFSET = 0.25  # of sigma, per rail: an RTL-SDR-like DC offset for the DC blo
 CFG = RxConfig(fs=1_024_000.0, tune_offset_hz=150_000.0)
 BAUD = 115_200
 DUMP = Path("build/board/ddc_dump.bin")
+ILA_PLOT_SAMPLES = 512  # 2 ms at 256 kS/s
 
 
 def snippet(n: int = N_SAMPLES) -> npt.NDArray[np.uint8]:
@@ -155,12 +161,71 @@ def check(port: str, n: int) -> int:
     return 1 if bad.size else 0
 
 
+def parse_ila_csv(text: str) -> npt.NDArray[np.int64]:
+    """Vivado ILA CSV -> (n, 2) array of (I, Q), in buffer order. Raises unless the window starts at the trigger
+    and every stored sample is a handshake (tvalid 1, full 0), i.e. the capture conditions really applied."""
+    lines = text.strip().splitlines()
+    header = lines[0].split(",")
+    if not lines[1].startswith("Radix"):
+        raise ValueError("not a Vivado ILA CSV")
+    col = {name.split("[")[0]: k for k, name in enumerate(header)}
+    rows = [line.split(",") for line in lines[2:]]
+    if int(rows[0][col["TRIGGER"]]) != 1 or int(rows[0][col["Sample in Window"]]) != 0:
+        raise ValueError("ILA window does not start at the trigger")
+    # probe order from impl_board.tcl: 0 bb_tdata, 1 bb_tvalid, 2 full (LD6), 3 rom_done (LD5)
+    valid = [int(r[4], 16) for r in rows]
+    full = [int(r[5], 16) for r in rows]
+    if any(v != 1 for v in valid) or any(f != 0 for f in full):
+        raise ValueError("ILA stored a sample that was not an output handshake")
+    words = np.array([int(r[3], 16) for r in rows], dtype=np.int64)
+    return np.stack([_s16(words), _s16(words >> 16)], axis=1)  # tdata = {Q, I}
+
+
+def _s16(w: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
+    return ((w & 0xFFFF) ^ 0x8000) - 0x8000
+
+
+def ila_check(csv_path: Path, n: int) -> int:
+    from analysis.common import write_result
+
+    got = parse_ila_csv(csv_path.read_text())
+    exp_i, exp_q = expected(n)
+    exp = np.stack([exp_i, exp_q], axis=1)
+    if got.shape != exp.shape:
+        print(f"ILA holds {got.shape[0]} outputs, model has {exp.shape[0]}")
+        return 1
+    bad = np.flatnonzero(np.any(got != exp, axis=1))
+    first = int(bad[0]) if bad.size else -1
+    print(f"ILA: {got.shape[0]} outputs, {bad.size} mismatches" + (f", first at {first}" if bad.size else ""))
+    cmd = f"PYTHONPATH=. python scripts/ddc_board.py ila-check {csv_path}"
+    src = (f"snippet seed {SEED}, {EBN0_DB} dB, carrier {CARRIER_HZ / 1e3:.0f} kHz (scripts/ddc_board.py), "
+           "played from BRAM on the Arty A7-100T, DDC output captured by the ILA")
+    write_result(
+        "ddc_board_ila",
+        ["outputs", "mismatches", "first_mismatch", "n_input_samples", "ila_depth", "clk_mhz"],
+        [[got.shape[0], bad.size, first, n, got.shape[0], 100]],
+        src,
+        command=cmd,
+    )
+    k = np.arange(ILA_PLOT_SAMPLES)
+    write_result(
+        "ddc_board_ila_iq",
+        ["sample", "t_us", "board_i", "board_q", "model_i", "model_q"],
+        [[int(j), f"{j / (CFG.fs / 4) * 1e6:.3f}", *got[j].tolist(), *exp[j].tolist()] for j in k],
+        src,
+        command=cmd,
+    )
+    return 1 if bad.size else 0
+
+
 def main(argv: list[str]) -> int:
     if argv[:1] == ["rom"]:
         write_rom(Path(argv[1]), int(argv[2]) if len(argv) > 2 else N_SAMPLES)
         return 0
     if argv[:1] == ["check"]:
         return check(argv[1] if len(argv) > 1 else "/dev/ttyUSB1", int(argv[2]) if len(argv) > 2 else N_SAMPLES)
+    if argv[:1] == ["ila-check"]:
+        return ila_check(Path(argv[1]), int(argv[2]) if len(argv) > 2 else N_SAMPLES)
     print(__doc__, file=sys.stderr)
     return 2
 

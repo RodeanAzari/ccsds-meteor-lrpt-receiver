@@ -43,3 +43,38 @@ def test_incomplete_stream_waits_for_more_bytes() -> None:
     good = make_dump(WORDS)
     dump, resume = find_dump(good[:-1], WORDS.shape[0])
     assert dump is None and resume == 0  # the header is still a candidate once the rest arrives
+
+
+# ILA capture (make ila-capture). The comparison is only meaningful if the window starts at the first output and
+# every stored row is a real handshake; a capture that silently ignored the storage qualifier would hold repeats.
+def make_ila_csv(words: np.ndarray, trigger_row: int = 0, valid: int = 1, full: int = 0) -> str:
+    lines = [
+        "Sample in Buffer,Sample in Window,TRIGGER,bb_tdata[31:0],bb_tvalid,led_o_OBUF_1[2:2],led_o_OBUF[1:1]",
+        "Radix - UNSIGNED,UNSIGNED,UNSIGNED,HEX,HEX,HEX,HEX",
+    ]
+    for k, (i, q) in enumerate(words.tolist()):
+        tdata = ((q & 0xFFFF) << 16) | (i & 0xFFFF)
+        lines.append(f"{k},{k - trigger_row},{int(k == trigger_row)},{tdata:08x},{valid},{full},0")
+    return "\n".join(lines) + "\n"
+
+
+def test_ila_csv_unpacks_q_high_i_low_with_sign() -> None:
+    from scripts.ddc_board import parse_ila_csv
+
+    words = np.array([[-1, 1], [-32768, 32767], [1234, -4321]])
+    assert np.array_equal(parse_ila_csv(make_ila_csv(words)), words)
+
+
+def test_ila_csv_rejects_window_not_at_trigger() -> None:
+    from scripts.ddc_board import parse_ila_csv
+
+    with pytest.raises(ValueError, match="trigger"):
+        parse_ila_csv(make_ila_csv(WORDS, trigger_row=3))
+
+
+@pytest.mark.parametrize(("valid", "full"), [(0, 0), (1, 1)])
+def test_ila_csv_rejects_rows_that_are_not_handshakes(valid: int, full: int) -> None:
+    from scripts.ddc_board import parse_ila_csv
+
+    with pytest.raises(ValueError, match="handshake"):
+        parse_ila_csv(make_ila_csv(WORDS, valid=valid, full=full))
