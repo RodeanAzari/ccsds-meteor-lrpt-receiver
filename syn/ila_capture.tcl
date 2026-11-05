@@ -43,6 +43,18 @@ run_hw_ila $ila
 puts "ILA armed; resetting the design through the serial port"
 exec env -u PYTHONHOME -u PYTHONPATH $python -c "import serial, time; s = serial.Serial('$serial'); time.sleep(0.3); s.close()"
 wait_on_hw_ila -timeout 1 $ila
-write_hw_ila_data -force -csv_file $csv [upload_hw_ila_data $ila]
+set data [upload_hw_ila_data $ila]
+write_hw_ila_data -force -csv_file $csv $data
+# Same capture in Vivado's format, for viewing offline: display_hw_ila_data [read_hw_ila_data <file>.ila]
+write_hw_ila_data -force [file rootname $csv].ila $data
+# The trigger/capture settings actually used, as evidence next to the data.
+set f [open [file rootname $csv]_settings.txt w]
+foreach p {CONTROL.DATA_DEPTH CONTROL.TRIGGER_POSITION CONTROL.CAPTURE_MODE CONTROL.TRIGGER_CONDITION
+           CONTROL.CAPTURE_CONDITION} { puts $f "$p [get_property $p $ila]" }
+foreach p [get_hw_probes -of_objects $ila] {
+    puts $f "probe $p [get_property MAP $p] trigger=[get_property TRIGGER_COMPARE_VALUE $p]\
+        capture=[get_property CAPTURE_COMPARE_VALUE $p]"
+}
+close $f
 puts "ILA_CAPTURE $csv"
 close_hw_target

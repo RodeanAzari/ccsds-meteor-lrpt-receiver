@@ -1,0 +1,9 @@
+CONTROL.DATA_DEPTH 16384
+CONTROL.TRIGGER_POSITION 0
+CONTROL.CAPTURE_MODE BASIC
+CONTROL.TRIGGER_CONDITION AND
+CONTROL.CAPTURE_CONDITION AND
+probe bb_tdata probe0[31:0] trigger=eq32'hXXXX_XXXX capture=eq32'hXXXX_XXXX
+probe bb_tvalid probe1[0] trigger=eq1'b1 capture=eq1'b1
+probe led_o_OBUF probe3[0] trigger=eq1'bX capture=eq1'bX
+probe led_o_OBUF_1 probe2[0] trigger=eq1'b0 capture=eq1'b0
