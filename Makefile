@@ -49,13 +49,19 @@ lint:
 sim:
 	$(PY) tb/cocotb/run.py
 
+# Long runs (CLAUDE.md §6): the sync chain's output decoded end to end. Results: make sync-rtl-results.
+sim-full:
+	$(PY) tb/cocotb/run.py --full
+
 # Record the DDC RTL's bit-exactness and throughput in data/results/ddc_rtl_sim.csv.
 ddc-rtl-results:
 	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_ddc_top
 
-# Record the sync RTL's bit-exactness and throughput in data/results/{rrc,agc,costas,timing}_rtl_sim.csv.
+# Record the sync RTL's bit-exactness and throughput in data/results/{rrc,agc,costas,timing,sync_top}_rtl_sim.csv
+# and the end-to-end decode in sync_chain_rtl_decode.csv (includes the sim-full run, ~4 min).
 sync-rtl-results:
-	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_sync_rrc test_sync_agc test_sync_costas test_sync_timing
+	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_sync_rrc test_sync_agc test_sync_costas test_sync_timing test_sync_top \
+		test_sync_top_full
 
 # Out-of-context synth + place + route of one block at 100 MHz (CLAUDE.md §6). Reports: docs/reports/ooc/$(TOP)/.
 TOP ?= ddc_top
@@ -131,5 +137,5 @@ clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build sim_build
 
 # Fail loudly instead of pretending these work.
-sim-full cov formal fuzz synth impl reports:
+cov formal fuzz synth impl reports:
 	@echo "make $@: not implemented yet (needs RTL or C++ from a later phase)" >&2; exit 1

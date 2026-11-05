@@ -1,4 +1,6 @@
-"""Build and run the cocotb regression with Verilator: python tb/cocotb/run.py [test_module ...]"""
+"""Build and run the cocotb regression with Verilator: python tb/cocotb/run.py [--full | test_module ...]
+
+No arguments runs TESTS (make sim, < 5 min). --full runs FULL_TESTS, the long runs (make sim-full)."""
 
 from __future__ import annotations
 
@@ -8,6 +10,13 @@ from pathlib import Path
 from cocotb_tools.runner import get_results, get_runner
 
 ROOT = Path(__file__).resolve().parents[2]
+
+SYNC_TOP_SRCS = ["rtl/ddc/ddc_comp_fir.sv"] + [f"rtl/sync/{f}.sv" for f in ("sync_rrc", "sync_agc", "sync_costas",
+                                                                           "sync_timing", "sync_top")]
+SYNC_TOP_PARAMS: dict[str, int | str] = {
+    "RRC_TAP_FILE": f'"{ROOT / "rtl/sync/rrc_taps.mem"}"',
+    "NCO_LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"',
+}
 
 # test module -> (toplevel, sources, parameter sets)
 NCO_LUT = {"LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"'}
@@ -29,6 +38,7 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_sync_agc": ("sync_agc", ["rtl/sync/sync_agc.sv"], [{}]),
     "test_sync_costas": ("sync_costas", ["rtl/sync/sync_costas.sv"], [NCO_LUT]),
     "test_sync_timing": ("sync_timing", ["rtl/sync/sync_timing.sv"], [{}]),
+    "test_sync_top": ("sync_top", SYNC_TOP_SRCS, [SYNC_TOP_PARAMS]),
     "test_arty_ddc_rom_top": (
         "arty_ddc_rom_top",
         ["rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_rom_source.sv", "rtl/io/capture_dump.sv",
@@ -53,13 +63,21 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
 }
 
 
+# Long runs, make sim-full only (CLAUDE.md §6: make sim stays under 5 min)
+FULL_TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
+    "test_sync_top_full": ("sync_top", SYNC_TOP_SRCS, [SYNC_TOP_PARAMS]),
+}
+
+
 def main(names: list[str]) -> int:
     failed = 0
+    if names == ["--full"]:
+        names = list(FULL_TESTS)
     # The tests import the bit-true model from the repo root. The runner builds the simulator's PYTHONPATH from
     # sys.path, so the paths go there. results.xml goes into the build directory.
     sys.path[:0] = [str(ROOT), str(ROOT / "tb" / "cocotb")]
     for name in names or list(TESTS):
-        top, srcs, param_sets = TESTS[name]
+        top, srcs, param_sets = {**TESTS, **FULL_TESTS}[name]
         for params in param_sets:
             tag = "_".join(f"{k}{v}" for k, v in params.items() if isinstance(v, int)) or "default"
             build_dir = ROOT / "build" / "sim" / f"{name}_{tag}"
