@@ -53,9 +53,9 @@ sim:
 ddc-rtl-results:
 	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_ddc_top
 
-# Record the sync RTL's bit-exactness and throughput in data/results/{rrc,agc,costas}_rtl_sim.csv.
+# Record the sync RTL's bit-exactness and throughput in data/results/{rrc,agc,costas,timing}_rtl_sim.csv.
 sync-rtl-results:
-	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_sync_rrc test_sync_agc test_sync_costas
+	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_sync_rrc test_sync_agc test_sync_costas test_sync_timing
 
 # Out-of-context synth + place + route of one block at 100 MHz (CLAUDE.md §6). Reports: docs/reports/ooc/$(TOP)/.
 TOP ?= ddc_top
