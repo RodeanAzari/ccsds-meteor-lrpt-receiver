@@ -2,7 +2,7 @@ PY := .venv/bin/python
 RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' | sort)
 RTL_DIRS := $(sort $(dir $(RTL)))
 
-.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results synth-ooc board prog board-check ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq ci clean \
+.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results synth-ooc board prog board-check ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq gs-replay-results ci clean \
         sim-full cov formal gs gs-test fuzz synth impl reports
 
 setup:
@@ -17,7 +17,7 @@ model-test: check-spec
 	$(PY) -m pytest -q
 
 lint-py:
-	$(PY) -m ruff check model analysis scripts tb
+	$(PY) -m ruff check model analysis scripts tb gs/tests
 	$(PY) -m mypy
 
 ber:
@@ -84,12 +84,28 @@ plots:
 synthetic-iq:
 	PYTHONPATH=. $(PY) scripts/make_synthetic_iq.py
 
+# Ground station (CLAUDE.md §4): Release + Debug with ASan/UBSan.
+gs:
+	cmake -S gs -B build/gs-Release -DCMAKE_BUILD_TYPE=Release
+	cmake --build build/gs-Release -j
+	cmake -S gs -B build/gs-Debug -DCMAKE_BUILD_TYPE=Debug
+	cmake --build build/gs-Debug -j
+
+# GoogleTest in both builds, then the gs-replay loopback test against the sanitized binary.
+gs-test: gs
+	cd build/gs-Release && ctest --output-on-failure
+	cd build/gs-Debug && ctest --output-on-failure
+	GS_REPLAY=build/gs-Debug/gs-replay $(PY) -m pytest -q gs/tests
+
+gs-replay-results: gs
+	PYTHONPATH=. $(PY) scripts/gs_replay_results.py
+
 # Only what exists so far. Grows with each phase.
-ci: lint-py lint model-test sim
+ci: lint-py lint model-test sim gs-test
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build sim_build
 
 # Fail loudly instead of pretending these work.
-sim-full cov formal gs gs-test fuzz synth impl reports:
+sim-full cov formal fuzz synth impl reports:
 	@echo "make $@: not implemented yet (needs RTL or C++ from a later phase)" >&2; exit 1
