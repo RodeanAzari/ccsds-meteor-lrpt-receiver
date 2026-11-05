@@ -55,7 +55,7 @@ async def modulated_signal_backpressure(dut) -> None:
 
 
 @test()
-async def strong_input_saturates_and_clamps(dut) -> None:
+async def strong_input_saturates(dut) -> None:
     """Silence lets the gain climb above 1.0; a full-scale burst then overflows s16, so the output must clip (not
     wrap). The loop must then pull the output rms back into its dead zone around ONE: the update
     round((2*ONE^2 - p) >> 24) is zero for p within +-2^23 of 2*ONE^2, i.e. rail rms 0.87-1.12 ONE. On a
@@ -77,7 +77,7 @@ async def strong_input_saturates_and_clamps(dut) -> None:
     rms = float(np.sqrt(np.mean(settled**2)))
     lo, hi = np.sqrt(0.75) * sync_fixed.ONE, np.sqrt(1.25) * sync_fixed.ONE
     assert lo < rms <= hi, f"output rail rms {rms:.0f} outside the AGC dead zone ({lo:.0f}, {hi:.0f}]"
-    ROWS.append(["saturation_and_clamp", i.size, len(got), 0, "", "", ""])
+    ROWS.append(["saturation", i.size, len(got), 0, "", "", ""])
 
 
 @test()
