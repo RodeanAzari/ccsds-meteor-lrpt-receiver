@@ -15,6 +15,7 @@ Versions marked "installed" were read from the machine on 2026-11-02. `[TBD]` me
 | CMake | 4.2.3 | WSL Ubuntu 26.04 | Installed; `make gs` |
 | g++ | 15.2.0 (C++20) | WSL Ubuntu 26.04 | Installed; `make gs` |
 | GoogleTest | v1.15.2, fetched by CMake at a pinned SHA-256 (`gs/CMakeLists.txt`) | `build/gs-*/_deps` | Working 2026-11-04 |
-| clang-format, clang-tidy, cppcheck, libFuzzer (clang) | `[TBD]` | — | Not installed; no sudo in this session. Needed for CLAUDE.md §5.3 |
+| clang, clang-format, clang-tidy (libFuzzer ships with clang) | 21.1.8 (Ubuntu 21.1.8-6ubuntu1) | WSL Ubuntu 26.04, apt | Installed 2026-11-05; `make gs-lint`. libFuzzer unused until `gs-rx` |
+| cppcheck | 2.19.0 | WSL Ubuntu 26.04, apt | Installed 2026-11-05; `make gs-lint` |
 | SymbiYosys | `[TBD]` | — | Not checked |
 | rtl_sdr | `[TBD]` | — | Not installed |

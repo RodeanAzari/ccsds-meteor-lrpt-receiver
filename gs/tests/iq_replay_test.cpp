@@ -16,22 +16,30 @@ TEST(BuildPacket, SequenceIsBigEndianInFirstEightBytes) {
     std::array<std::uint8_t, gs::kPacketBytes> pkt{};
     gs::build_packet(0x0102030405060708ULL, iq, pkt);
     const std::array<std::uint8_t, 8> want{1, 2, 3, 4, 5, 6, 7, 8};
-    for (std::size_t i = 0; i < 8; ++i) EXPECT_EQ(pkt[i], want[i]) << "byte " << i;
+    for (std::size_t i = 0; i < 8; ++i) {
+        EXPECT_EQ(pkt[i], want[i]) << "byte " << i;
+    }
 }
 
 // The RTL ingest subtracts 127.5 from raw cu8 and pairs bytes as (I, Q); any conversion
 // or reordering on the host would break bit-exactness against the model.
 TEST(BuildPacket, IqBytesCopiedUnchangedAndInOrder) {
     std::array<std::uint8_t, gs::kIqBytes> iq{};
-    for (std::size_t i = 0; i < iq.size(); ++i) iq[i] = static_cast<std::uint8_t>(i * 7 + 3);
+    for (std::size_t i = 0; i < iq.size(); ++i) {
+        iq[i] = static_cast<std::uint8_t>((i * 7) + 3);
+    }
     std::array<std::uint8_t, gs::kPacketBytes> pkt{};
     gs::build_packet(0, iq, pkt);
-    for (std::size_t i = 0; i < iq.size(); ++i) ASSERT_EQ(pkt[gs::kSeqBytes + i], iq[i]) << "byte " << i;
+    for (std::size_t i = 0; i < iq.size(); ++i) {
+        ASSERT_EQ(pkt[gs::kSeqBytes + i], iq[i]) << "byte " << i;
+    }
 }
 
 // One datagram must fit an untagged Ethernet frame's 1472-byte UDP payload, or the IP
 // layer fragments it and fpga-eth-core's udp_rx drops fragments.
-TEST(BuildPacket, FitsOneEthernetFrame) { EXPECT_LE(gs::kPacketBytes, 1472U); }
+TEST(BuildPacket, FitsOneEthernetFrame) {
+    EXPECT_LE(gs::kPacketBytes, 1472U);
+}
 
 // Real time at 1.024 MS/s is exactly 500 us per 512-sample packet.
 TEST(Deadline, RealTimePeriodIs500us) {
@@ -67,8 +75,8 @@ TEST(Args, DefaultsAreRealTimeToTheRxStatsGroup) {
 
 TEST(Args, ParsesEveryOption) {
     std::string err;
-    const auto o = parse({"--dest", "127.0.0.1:5000", "--speed", "2.5", "--rate", "256000", "--count",
-                          "10", "--ttl", "4", "--iface", "10.0.0.2", "f.cu8"},
+    const auto o = parse({"--dest", "127.0.0.1:5000", "--speed", "2.5", "--rate", "256000", "--count", "10",
+                          "--ttl", "4", "--iface", "10.0.0.2", "f.cu8"},
                          err);
     ASSERT_TRUE(o) << err;
     EXPECT_EQ(o->dest_ip, "127.0.0.1");

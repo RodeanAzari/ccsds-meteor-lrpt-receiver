@@ -2,7 +2,7 @@ PY := .venv/bin/python
 RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' | sort)
 RTL_DIRS := $(sort $(dir $(RTL)))
 
-.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results synth-ooc board prog board-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq gs-replay-results ci clean \
+.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results synth-ooc board prog board-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq gs-replay-results gs-lint ci clean \
         sim-full cov formal gs gs-test fuzz synth impl reports
 
 setup:
@@ -108,11 +108,20 @@ gs-test: gs
 	cd build/gs-Debug && ctest --output-on-failure
 	GS_REPLAY=build/gs-Debug/gs-replay $(PY) -m pytest -q gs/tests
 
+# C++ static analysis (CLAUDE.md §5.3): format check, clang-tidy (gs/.clang-tidy, warnings are errors), cppcheck.
+# cppcheck skips gs/tests: clang-tidy covers them, and cppcheck misreads GoogleTest's macros.
+GS_SRC := $(wildcard gs/src/*.cpp gs/include/gs/*.hpp gs/tests/*.cpp)
+gs-lint: gs
+	clang-format --style=file:gs/.clang-format --dry-run -Werror $(GS_SRC)
+	clang-tidy -p build/gs-Release --quiet $(filter %.cpp,$(GS_SRC))
+	cppcheck --std=c++20 --enable=warning,style,performance,portability --inline-suppr --error-exitcode=1 \
+		--suppress=missingIncludeSystem -I gs/include --quiet gs/src gs/include
+
 gs-replay-results: gs
 	PYTHONPATH=. $(PY) scripts/gs_replay_results.py
 
 # Only what exists so far. Grows with each phase.
-ci: lint-py lint model-test sim gs-test
+ci: lint-py lint model-test sim gs-test gs-lint
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build sim_build

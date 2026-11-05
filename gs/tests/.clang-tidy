@@ -1,0 +1,5 @@
+# Tests inherit gs/.clang-tidy, minus two checks that don't understand GoogleTest:
+#   bugprone-unchecked-optional-access: ASSERT_TRUE(o) returns from the test before *o, but the check can't see it.
+#   cppcoreguidelines-pro-bounds-constant-array-index: tests index std::array in loops over their own size.
+InheritParentConfig: true
+Checks: '-bugprone-unchecked-optional-access,-cppcoreguidelines-pro-bounds-constant-array-index'

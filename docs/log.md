@@ -368,3 +368,26 @@
 - Corrected my own unverified claim that the serial port resets the board through DTR. The behaviour is observed;
   the mechanism is not established (`docs/design.md`).
 - CLAUDE.md status table: Phase B is now IN PROGRESS (it said NOT STARTED).
+
+## 2026-11-05 (continued): C++ static analysis
+
+**Done**
+
+- `gs/.clang-format` (Google, 4-space, 110 columns), `gs/.clang-tidy` (bugprone, cert, clang-analyzer, concurrency,
+  cppcoreguidelines, misc, modernize, performance, portability, readability; warnings are errors; 11 checks off, each
+  with its reason in the file), `gs/tests/.clang-tidy` (two more off for GoogleTest), cppcheck. `make gs-lint`, in
+  `make ci`. A planted unbraced `if` and a planted format error each fail it.
+- First run: 58 clang-tidy errors in 14 checks. Fixed in code: missing braces, ignored printf/fclose results
+  (cert-err33-c), precedence parentheses, `std::strerror` (not thread-safe) replaced by `std::system_category()`,
+  implicit integer-to-bool, a signed/unsigned compare (`std::cmp_not_equal`), include guard for `#pragma once`, a
+  missing const. The stdio file handle became POSIX `open`/`read` with an RAII `Fd` and a `read_full` loop that retries
+  short reads and EINTR; that cleared the analyzer's stream-state findings and the ownership warning. Two NOLINTs,
+  each with its reason: `deadline_ns`'s rate and speed are only used as a product, so swapping them is harmless;
+  `from_chars` takes a range, not a C string. cppcheck: one finding (a variable's scope), fixed.
+- `make ci` passes; the loopback tests re-ran against the new read path.
+
+**Found**
+
+- The README claimed "CI runs `make ci`", but there is no `.github/workflows/`. Corrected; hosted CI is a next step.
+- `data/results/gs_replay_loopback.csv` was measured with the stdio read path. The new read path passes the same
+  loopback tests (order, byte-exactness, tail, pacing), so the CSV wasn't re-run.

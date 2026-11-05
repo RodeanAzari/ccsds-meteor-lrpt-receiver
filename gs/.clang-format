@@ -1,0 +1,9 @@
+# CLAUDE.md §5.3: clang-format. Google style, 4-space indent, 110 columns (matches the code as written).
+BasedOnStyle: Google
+IndentWidth: 4
+ColumnLimit: 110
+AccessModifierOffset: -2
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortFunctionsOnASingleLine: Inline
+DerivePointerAlignment: false
+PointerAlignment: Left

@@ -1,0 +1,36 @@
+# CLAUDE.md §5.3: clang-tidy clean. Every disabled check has its reason here.
+Checks: >
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -misc-include-cleaner,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -misc-non-private-member-variables-in-classes,
+  -cppcoreguidelines-avoid-do-while,
+  -readability-function-cognitive-complexity
+# Why each is off:
+#   trailing-return-type: style only.
+#   identifier-length, magic-numbers: protocol constants are named where they matter (iq_replay.hpp);
+#     loop counters and unit conversions (1e9, 1000) are clearer inline.
+#   include-cleaner: flags the libc/POSIX headers sockets need, with no portable alternative.
+#   pro-type-reinterpret-cast: sendto() takes sockaddr*; the cast is the POSIX API.
+#   pro-type-vararg: printf/fprintf for the run log; no allocation, unlike iostream formatting.
+#   pro-bounds-pointer-arithmetic: argv indexing in main / parse_replay_args.
+#   non-private-member-variables: ReplayOptions is a plain aggregate.
+#   avoid-do-while: none in the code; GoogleTest macros expand to them.
+#   function-cognitive-complexity: GoogleTest's EXPECT_* macros inflate it in tests.
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*/gs/(include|src)/.*'

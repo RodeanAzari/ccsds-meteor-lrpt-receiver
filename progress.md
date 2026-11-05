@@ -49,7 +49,9 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 - ILA: `make board ILA=1` + `make ila-capture`. All 16,384 DDC outputs captured over JTAG, 0 mismatches vs. the model
   (`data/results/ddc_board_ila.csv`); plot in `docs/media/`.
 - README written to the §11.4 standard (2026-11-05); every number links to its CSV, unmeasured rows `[TBD]`.
-- Not done: board photo (deferred by you); clang-tidy/cppcheck/clang-format/libFuzzer (you're installing them).
+- C++ static analysis: `make gs-lint` (clang-format, clang-tidy with warnings as errors, cppcheck), in `make ci`;
+  `gs/` clean. No hosted CI workflow exists yet (`.github/workflows/`), so `make ci` is local only.
+- Not done: board photo (deferred by you); fuzzing (needs `gs-rx`'s parser, Phase F).
 
 ## Next steps
 
@@ -59,7 +61,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
 4. **You:** install clang-format, clang-tidy, cppcheck and clang (libFuzzer), which need sudo, so C++ static analysis can run.
-5. Once the C++ tools are installed: clang-format, clang-tidy and cppcheck on `gs/`, wired into `make ci`.
+5. Hosted CI (CLAUDE.md §6): a GitHub Actions workflow running `make ci` on every push.
 6. Phase B can't close until `gs-replay` runs over Ethernet to the board (eth-core-v0.1).
 
 ## Key decisions

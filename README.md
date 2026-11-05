@@ -41,7 +41,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Bugs caught** | 15 written up as symptom → root cause → fix ([below](#bugs-found)); 15 planted bugs, all caught |
 | **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns ([synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv)) |
 | **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**; every multiplier in a DSP |
-| **Ground station + CI** | `gs-replay` (C++20): 68,266 / 68,266 datagrams in order and byte-exact at 1× and 5× on loopback ([gs_replay_loopback.csv](data/results/gs_replay_loopback.csv)). `make ci`: ruff, mypy, Verilator lint, 63 pytest, 14 cocotb, 8 GoogleTest (Release + ASan/UBSan), 4 loopback |
+| **Ground station + CI** | `gs-replay` (C++20): 68,266 / 68,266 datagrams in order and byte-exact at 1× and 5× on loopback ([gs_replay_loopback.csv](data/results/gs_replay_loopback.csv)). `make ci` (local; no hosted CI yet): ruff, mypy, Verilator lint, 63 pytest, 14 cocotb, 8 GoogleTest (Release + ASan/UBSan), 4 loopback, clang-format, clang-tidy, cppcheck |
 
 ## Status
 
@@ -363,7 +363,8 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 - **Why opening the serial port resets the board design is not established.** The CRC on the UART dump makes the
   check immune to it.
 - **72k mode only.** If the satellite switches to 80k (interleaved) mode, this receiver won't decode it.
-- **No C++ static analysis or fuzzing in CI yet**, because the tools aren't installed.
+- **No hosted CI yet.** `make ci` runs locally only; there is no `.github/workflows/` yet.
+- **No fuzzing yet.** The fuzz target is the radio-packet parser in `gs-rx` (Phase F), which doesn't exist; `make fuzz` fails as not implemented.
 
 ## Build and reproduce
 
@@ -383,6 +384,7 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make model-test` | Signal-spec check, RTL-table staleness check, pytest |
 | `make sim` | cocotb regression on Verilator |
 | `make gs` / `make gs-test` | Ground station, Release + Debug (ASan/UBSan); GoogleTest + loopback |
+| `make gs-lint` | clang-format check, clang-tidy (warnings are errors, every disabled check justified in `gs/.clang-tidy`), cppcheck |
 | `make ci` | Everything above |
 | `make synthetic-iq` | Write the synthetic pass-like recording and its truth |
 | `make synth-ooc TOP=<top>` | Out-of-context synthesis and place & route, reports and CSV |
@@ -392,7 +394,7 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make ber`, `*-study` | Model campaigns that write `data/results/` |
 | `make plots` | Regenerate every plot from `data/results/` |
 
-CI runs `make ci`. Vivado and the board are local only, and their reports and CSVs are committed with the RTL that
+`make ci` runs everything that doesn't need Vivado or the board. There is no hosted CI workflow yet, so it runs locally. Vivado and the board are local only, and their reports and CSVs are committed with the RTL that
 produced them. `make sim-full`, `cov`, `formal` and `fuzz` print "not implemented yet" and fail, rather than
 pretending.
 
