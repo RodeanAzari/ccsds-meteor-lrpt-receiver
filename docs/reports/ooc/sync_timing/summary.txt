@@ -2,4 +2,4 @@ top sync_timing
 part xc7a100tcsg324-1
 vivado 2025.2
 clk_mhz 100
-wns_ns 0.745
+wns_ns 1.604

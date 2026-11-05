@@ -1,6 +1,6 @@
 # costas_rtl_sim
 
-- **Commit:** `0e449531d347843affa8ae0aae2dfa86b2ad3a6e`
+- **Commit:** `84859c45331e5afe8f0bab5fae9c0974dcaee50c`
 - **Command:** `make sync-rtl-results`
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Verilator 5.050, cocotb 2.1.0
 - **Input:** synthetic, seeds 16-18 in tb/cocotb/test_sync_costas.py (bit-true AGC output of OQPSK at 6 dB Eb/N0, 50 Hz residual carrier after the coarse estimate, 30 Hz/s ramp; 20 Hz clamp for the clamp test). No real recording.

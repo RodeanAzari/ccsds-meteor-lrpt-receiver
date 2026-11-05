@@ -5,7 +5,7 @@ Three of the four blocks hold one sample in flight and accept input only with th
 drops or repeats a beat when its neighbour stalls passes its own test and still corrupts the stream here. The input
 is what the receiver will see after the host's coarse estimate and the DDC (sync_chain.py). The AGC starts from gain
 1.0 as after reset, not pre-settled, so the loops start cold as they will on the board. The end-to-end decode of the
-chain's output is in test_sync_top_full.py (make sim-full); it needs ~60,000 samples, too long for make sim.
+chain's output is in test_sync_top_full.py (make sim-full); it needs 40,000-60,000 samples, too long for make sim.
 """
 
 from __future__ import annotations

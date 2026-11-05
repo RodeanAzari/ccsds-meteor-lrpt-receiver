@@ -526,3 +526,37 @@
   products, and ki·e is one DSP with the integrator add folded in. Corrected before committing.
 - The README's planted-bug count (15) didn't match its list (13 entries, without the Costas RTL's three). Added the
   sync RTL bugs to the list; the count is now 18, from the list.
+
+## 2026-11-05 (continued): Phase C, sync chain RTL and the first frames out of RTL
+
+**Done**
+
+- `rtl/sync/sync_top.sv`: `sync_rrc` → `sync_agc` → `sync_costas` → `sync_timing`, loop gains as ports.
+- `tb/cocotb/test_sync_top.py` (`make sim`): 12,000 bit-true DDC samples (6 dB OQPSK, 1 kHz + 30 Hz/s before the
+  coarse estimate, 0.37 symbol, 20 ppm), loops from reset. Random input gaps; output ready 0.8% of the time.
+  6,750 + 1,686 outputs bit-exact. 62 clocks/sample (6.3×, set by the RRC) (`data/results/sync_top_rtl_sim.csv`).
+- `tb/cocotb/test_sync_top_full.py` and `make sim-full` (was a placeholder): 3 frames, 87,388 samples from reset,
+  49,156 outputs bit-exact. The RTL's soft symbols decoded with `receiver.decode_soft()` give 1 CADU, which matches a
+  sent frame, and 0 wrong. **First frames out of RTL.** 3 min 40 s in Verilator. Recorded by
+  `make sync-rtl-results` (`data/results/sync_chain_rtl_decode.csv`).
+- OOC at 100 MHz: chain WNS +1.431 ns, 1,998 LUT, 2,659 FF, 22 DSP48E1, 1 RAMB18 (`synth_sync_top.csv`).
+- Planted bugs, all on the final RTL: each inner `tready` link of `sync_top` tied high (3, caught by the chain test
+  only), and the two timing bugs from before (still caught).
+- `make ci` passes: 63 pytest, 29 cocotb.
+
+**Found**
+
+- The first chain test had the sink ready half the time. A planted AGC ignoring the Costas loop's `tready` passed it.
+  The RRC makes a sample every 62 clocks and the stages behind it drain in a few, so no stall ever reached an inner
+  link. With the output ready 0.8% of the time (0.5 outputs per 62 clocks, against ~0.56 made), the output is the
+  bottleneck and all three link mutants fail.
+- The chain's first OOC build met timing by +0.525 ns, on the timing block's coefficient adders into the Horner DSP:
+  0.22 ns worse than that block alone. Split into partial sums, then coefficients: chain +1.431 ns, block +1.604 ns,
+  one more clock per output (9.42 clocks/sample), outputs unchanged. Vivado now puts the ×3 of c3 in a DSP pre-adder
+  (9 DSPs, up from 7, with 186 fewer LUTs).
+- After that change, the slow-sink chain test lost its last 2 of 6,750 outputs: `run_stream` waited a fixed 200
+  clocks after the input ended, at ~125 clocks per output. The drain window is now a parameter, scaled by the chain
+  test to the sink's rate. That's a harness bug; it had passed earlier only because of where the random stalls fell.
+- My first `timeout_time` on the long test was in "min", which cocotb rejects. It's simulated time anyway, and no
+  other test sets one, so it was removed.
+- The README's "15 written up" bug count had been stale since the last session (16 rows); it now comes from the table.

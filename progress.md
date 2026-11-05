@@ -55,7 +55,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   First run green 2026-11-05 (17 min, including the Verilator build).
 - Not done: board photo (deferred by you); fuzzing (needs `gs-rx`'s parser, Phase F).
 
-**Phase C: every sync block in RTL, bit-exact in simulation.**
+**Phase C: sync chain in RTL, bit-exact in simulation, output decodes.**
 
 - `rtl/sync/sync_rrc.sv`: the comp FIR reused with the 57 RRC taps (`rtl/sync/rrc_taps.mem`, generated from the
   model). 4,000 / 4,000 outputs bit-exact under backpressure; 62 clocks/sample, 6.3× real time
@@ -65,10 +65,16 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 - `rtl/sync/sync_costas.sv`: 26,000 outputs bit-exact, locks to a 50 Hz residual, clamp exercised; 10 clocks/sample;
   OOC WNS +2.360 ns, 7 DSP, 1 RAMB18 (`data/results/costas_rtl_sim.csv`, `synth_sync_costas.csv`).
 - `rtl/sync/sync_timing.sv` (Farrow + per-rail Gardner): 14,619 outputs bit-exact; pulls in from a half-symbol
-  offset (eye ratio 2.08 vs. 1.48 with no loop); integrator clamp exercised; 8.86 clocks/sample; OOC WNS +0.745 ns,
-  7 DSP, no BRAM (`data/results/timing_rtl_sim.csv`, `synth_sync_timing.csv`).
+  offset (eye ratio 2.08 vs. 1.48 with no loop); integrator clamp exercised; 9.42 clocks/sample; OOC WNS +1.604 ns,
+  9 DSP, no BRAM (`data/results/timing_rtl_sim.csv`, `synth_sync_timing.csv`).
+- `rtl/sync/sync_top.sv` (RRC → AGC → Costas → timing): 8,436 outputs bit-exact with stalls reaching every link,
+  loops from reset; 62 clocks/sample (6.3×); OOC WNS +1.431 ns, 1,998 LUT, 22 DSP, 1 RAMB18
+  (`sync_top_rtl_sim.csv`, `synth_sync_top.csv`).
+- `make sim-full` (new, local, ~4 min): the chain from reset on 3 frames; its output decodes through the model back
+  end to 1 CADU, matching, 0 wrong (`sync_chain_rtl_decode.csv`). First frames out of RTL.
 - Model pull-in is slow: 50 Hz locks in ~5,000 samples, 100–400 Hz not within 16,000. Lock range/time still to measure.
-- Next: `sync_top` (RRC → AGC → Costas → timing) chain test against `model/sync_fixed.py`, then lock-time/range sweeps.
+- Next: lock time and range on the RTL chain (sweep offsets; the model pulls in slowly, see Costas above), Doppler
+  tracking plot, constellation GIF from the chain's output. Then Phase D RTL (Viterbi).
 
 ## Next steps
 
@@ -79,7 +85,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
    with SatDump's.
 4. **You:** install clang-format, clang-tidy, cppcheck and clang (libFuzzer), which need sudo, so C++ static analysis can run.
 5. Phase B can't close until `gs-replay` runs over Ethernet to the board (eth-core-v0.1).
-6. Phase C RTL: `sync_top` chain bit-exact against `model/sync_fixed.py`; then lock-time/range and Doppler plots.
+6. Phase C: lock-time/range sweeps, Doppler-tracking plot, constellation GIF (from the RTL chain's output).
 
 ## Key decisions
 

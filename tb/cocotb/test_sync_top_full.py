@@ -4,9 +4,9 @@ Why it matters: bit-exactness against the model proves the RTL does what the mod
 usable. Here the RTL's own output goes through the model's frame sync, Viterbi, NRZ-M, derandomizer and RS
 (receiver.decode_soft()), and the frames that come out must be the ones sent. It is the first time frames come out
 of RTL. The loops start cold (AGC from gain 1.0, Costas and timing from zero) on the 1 kHz + 30 Hz/s, 0.37-symbol,
-20 ppm input of sync_chain.py, so the run must last past pull-in: in the model the first frame decodes after ~60,000
-of these samples. Three frames are sent; the model decodes the last one. Every output is also checked against the
-model. Too long for make sim (~4 minutes), so it runs in make sim-full.
+20 ppm input of sync_chain.py, so the run must last past pull-in: in a scratch model run, no frame had decoded by
+40,000 of these samples and one had by 60,000. Three frames are sent; the model decodes one of them. Every output is
+also checked against the model. Too long for make sim (~4 minutes), so it runs in make sim-full.
 """
 
 from __future__ import annotations

@@ -1,0 +1,8 @@
+# sync_chain_rtl_decode
+
+- **Commit:** `84859c45331e5afe8f0bab5fae9c0974dcaee50c`
+- **Command:** `make sync-rtl-results`
+- **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Verilator 5.050, cocotb 2.1.0
+- **Input:** synthetic, seed 20 in tb/cocotb/test_sync_top_full.py via sync_chain.py (bit-true DDC output of OQPSK at 6 dB Eb/N0, 1 kHz offset + 30 Hz/s before the coarse estimate, 0.37 symbol timing offset, 20 ppm clock; loops from reset); decoded by model/receiver.py decode_soft(). No real recording.
+
+These are the first CADUs out of RTL. The synchronization chain (`rtl/sync/sync_top.sv`) ran 87,388 DDC-rate samples (three CADUs of OQPSK at 6 dB Eb/N0, 1 kHz off with a 30 Hz/s ramp before the host's coarse estimate, 0.37 symbol late, 20 ppm clock), with every loop starting from reset. All 49,156 outputs matched the model. Its soft symbols then went through the model's back end (`receiver.decode_soft()`: frame sync, Viterbi, NRZ-M, derandomizer, RS), and the one CADU that came out matches a frame that was sent; none decoded wrong. One of three is what the model chain gives on the same input, as it must when the outputs are identical. From a cold start, the loops (the AGC from gain 1.0, then the Costas pull-in) use up the start of the run. In a scratch run of the model on this input before the test was written (not a committed result), no frame had decoded by 40,000 samples and one had by 60,000. This proves that the RTL chain's output decodes, not a frame-error rate; the frame-error rate belongs to a longer run or the hardware campaign. The back end is still the Python model (Phase D builds it in RTL). About 3–4 minutes in Verilator, so it runs in `make sim-full`, not `make sim`. Input is synthetic.

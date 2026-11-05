@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
-| Date         : Thu Nov  5 11:53:03 2026
+| Date         : Thu Nov  5 12:36:45 2026
 | Host         : RodeanStation running 64-bit Ubuntu 26.04 LTS
 | Command      : report_timing_summary -max_paths 10 -file /home/rodea/CCSDS/docs/reports/ooc/sync_timing/timing_summary.rpt
 | Design       : sync_timing
@@ -138,7 +138,7 @@ Table of Contents
 
     WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
     -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-      0.745        0.000                      0                 1318        0.108        0.000                      0                 1318        4.500        0.000                       0                   508  
+      1.604        0.000                      0                 1484        0.116        0.000                      0                 1484        4.500        0.000                       0                   569  
 
 
 All user specified timing constraints are met.
@@ -161,7 +161,7 @@ clk    {0.000 5.000}      10.000          100.000
 
 Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
 -----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-clk                 0.745        0.000                      0                 1318        0.108        0.000                      0                 1318        4.500        0.000                       0                   508  
+clk                 1.604        0.000                      0                 1484        0.116        0.000                      0                 1484        4.500        0.000                       0                   569  
 
 
 ------------------------------------------------------------------------------------------------
@@ -192,24 +192,24 @@ Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing 
 From Clock:  clk
   To Clock:  clk
 
-Setup :            0  Failing Endpoints,  Worst Slack        0.745ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.108ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack        1.604ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.116ns,  Total Violation        0.000ns
 PW    :            0  Failing Endpoints,  Worst Slack        4.500ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.745ns  (required time - arrival time)
-  Source:                 win_q_reg[1][2][2]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            m_q[1][37]_i_1_psdsp_7/D
+Slack (MET) :             1.604ns  (required time - arrival time)
+  Source:                 c3_q_reg[1]/CLK
+                            (rising edge-triggered cell DSP48E1 clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            m_q_reg[1][14]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (clk rise@10.000ns - clk rise@0.000ns)
-  Data Path Delay:        8.883ns  (logic 5.431ns (61.137%)  route 3.452ns (38.863%))
-  Logic Levels:           13  (CARRY4=8 LUT1=1 LUT2=4)
+  Data Path Delay:        8.025ns  (logic 4.424ns (55.125%)  route 3.601ns (44.875%))
+  Logic Levels:           2  (DSP48E1=1 LUT4=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -224,71 +224,43 @@ Slack (MET) :             0.745ns  (required time - arrival time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.973     0.973    clk_i
-    SLICE_X10Y93         FDRE                                         r  win_q_reg[1][2][2]/C
+                         net (fo=572, unset)          0.973     0.973    clk_i
+    DSP48_X1Y28          DSP48E1                                      r  c3_q_reg[1]/CLK
   -------------------------------------------------------------------    -------------------
-    SLICE_X10Y93         FDRE (Prop_fdre_C_Q)         0.518     1.491 f  win_q_reg[1][2][2]/Q
-                         net (fo=6, routed)           0.514     2.005    win_q_reg[1][2][2]
-    SLICE_X10Y91         LUT1 (Prop_lut1_I0_O)        0.124     2.129 r  p_0_out__0_i_144/O
-                         net (fo=1, routed)           0.000     2.129    p_0_out__0_i_144_n_0
-    SLICE_X10Y91         CARRY4 (Prop_carry4_S[1]_O[2])
-                                                      0.578     2.707 r  p_0_out__0_i_136/O[2]
-                         net (fo=1, routed)           0.454     3.161    p_0_out__0_i_136_n_5
-    SLICE_X11Y90         LUT2 (Prop_lut2_I1_O)        0.301     3.462 r  p_0_out__0_i_125/O
-                         net (fo=1, routed)           0.000     3.462    p_0_out__0_i_125_n_0
-    SLICE_X11Y90         CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     3.863 r  p_0_out__0_i_110/CO[3]
-                         net (fo=1, routed)           0.000     3.863    p_0_out__0_i_110_n_0
-    SLICE_X11Y91         CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334     4.197 r  p_0_out__0_i_101/O[1]
-                         net (fo=3, routed)           0.657     4.854    p_0_out__0_i_101_n_6
-    SLICE_X10Y97         LUT2 (Prop_lut2_I1_O)        0.303     5.157 r  p_0_out__0_i_113/O
-                         net (fo=1, routed)           0.000     5.157    p_0_out__0_i_113_n_0
-    SLICE_X10Y97         CARRY4 (Prop_carry4_S[1]_O[3])
-                                                      0.643     5.800 r  p_0_out__0_i_93/O[3]
-                         net (fo=1, routed)           0.456     6.256    p_0_out__0_i_93_n_4
-    SLICE_X9Y97          LUT2 (Prop_lut2_I1_O)        0.307     6.563 r  p_0_out__0_i_74/O
-                         net (fo=1, routed)           0.000     6.563    p_0_out__0_i_74_n_0
-    SLICE_X9Y97          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.964 r  p_0_out__0_i_57/CO[3]
-                         net (fo=1, routed)           0.000     6.964    p_0_out__0_i_57_n_0
-    SLICE_X9Y98          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334     7.298 r  p_0_out__0_i_51/O[1]
-                         net (fo=1, routed)           0.559     7.857    p_0_out__0_i_51_n_6
-    SLICE_X11Y97         LUT2 (Prop_lut2_I1_O)        0.303     8.160 r  p_0_out__0_i_22/O
-                         net (fo=1, routed)           0.000     8.160    p_0_out__0_i_22_n_0
-    SLICE_X11Y97         CARRY4 (Prop_carry4_S[1]_CO[3])
-                                                      0.550     8.710 r  p_0_out__0_i_4/CO[3]
-                         net (fo=1, routed)           0.000     8.710    p_0_out__0_i_4_n_0
-    SLICE_X11Y98         CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334     9.044 r  p_0_out__0_i_3/O[1]
-                         net (fo=1, routed)           0.812     9.856    p_0_out__0_i_3_n_6
-    SLICE_X11Y98         FDRE                                         r  m_q[1][37]_i_1_psdsp_7/D
+    DSP48_X1Y28          DSP48E1 (Prop_dsp48e1_CLK_P[20])
+                                                      0.434     1.407 r  c3_q_reg[1]/P[20]
+                         net (fo=10, routed)          0.926     2.333    c3_q_reg_n_85_[1]
+    DSP48_X1Y29          DSP48E1 (Prop_dsp48e1_A[20]_P[14])
+                                                      3.841     6.174 r  p_0_out__1/P[14]
+                         net (fo=1, routed)           2.017     8.192    p_0_out__1_n_91
+    SLICE_X14Y75         LUT4 (Prop_lut4_I3_O)        0.149     8.341 r  m_q[1][14]_i_1/O
+                         net (fo=1, routed)           0.658     8.998    m_q[14]
+    SLICE_X12Y75         FDRE                                         r  m_q_reg[1][14]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)       10.000    10.000 r  
                                                       0.000    10.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.924    10.924    clk_i
-    SLICE_X11Y98         FDRE                                         r  m_q[1][37]_i_1_psdsp_7/C
+                         net (fo=572, unset)          0.924    10.924    clk_i
+    SLICE_X12Y75         FDRE                                         r  m_q_reg[1][14]/C
                          clock pessimism              0.000    10.924    
                          clock uncertainty           -0.035    10.889    
-    SLICE_X11Y98         FDRE (Setup_fdre_C_D)       -0.288    10.601    m_q[1][37]_i_1_psdsp_7
+    SLICE_X12Y75         FDRE (Setup_fdre_C_D)       -0.287    10.602    m_q_reg[1][14]
   -------------------------------------------------------------------
-                         required time                         10.601    
-                         arrival time                          -9.856    
+                         required time                         10.602    
+                         arrival time                          -8.998    
   -------------------------------------------------------------------
-                         slack                                  0.745    
+                         slack                                  1.604    
 
-Slack (MET) :             0.761ns  (required time - arrival time)
-  Source:                 win_q_reg[0][2][0]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            p_0_out_i_39_psdsp_10/D
+Slack (MET) :             1.661ns  (required time - arrival time)
+  Source:                 p_0_out/CLK
+                            (rising edge-triggered cell DSP48E1 clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            m_q_reg[0][20]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (clk rise@10.000ns - clk rise@0.000ns)
-  Data Path Delay:        8.919ns  (logic 5.037ns (56.473%)  route 3.882ns (43.527%))
-  Logic Levels:           12  (CARRY4=7 LUT1=1 LUT2=4)
+  Data Path Delay:        8.330ns  (logic 5.981ns (71.804%)  route 2.349ns (28.196%))
+  Logic Levels:           2  (DSP48E1=1 LUT3=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -303,68 +275,43 @@ Slack (MET) :             0.761ns  (required time - arrival time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.973     0.973    clk_i
-    SLICE_X11Y81         FDRE                                         r  win_q_reg[0][2][0]/C
+                         net (fo=572, unset)          0.973     0.973    clk_i
+    DSP48_X0Y26          DSP48E1                                      r  p_0_out/CLK
   -------------------------------------------------------------------    -------------------
-    SLICE_X11Y81         FDRE (Prop_fdre_C_Q)         0.456     1.429 f  win_q_reg[0][2][0]/Q
-                         net (fo=7, routed)           0.328     1.757    win_q_reg_n_0_[0][2][0]
-    SLICE_X10Y80         LUT1 (Prop_lut1_I0_O)        0.124     1.881 r  m_q_reg[0]_i_144/O
-                         net (fo=1, routed)           0.353     2.235    m_q_reg[0]_i_144_n_0
-    SLICE_X9Y79          CARRY4 (Prop_carry4_CYINIT_O[2])
-                                                      0.584     2.819 r  m_q_reg[0]_i_139/O[2]
-                         net (fo=1, routed)           0.432     3.250    m_q_reg[0]_i_139_n_5
-    SLICE_X8Y80          LUT2 (Prop_lut2_I1_O)        0.302     3.552 r  m_q_reg[0]_i_128/O
-                         net (fo=1, routed)           0.000     3.552    m_q_reg[0]_i_128_n_0
-    SLICE_X8Y80          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.376     3.928 r  m_q_reg[0]_i_113/CO[3]
-                         net (fo=1, routed)           0.000     3.928    m_q_reg[0]_i_113_n_0
-    SLICE_X8Y81          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.323     4.251 r  m_q_reg[0]_i_104/O[1]
-                         net (fo=3, routed)           0.555     4.806    m_q_reg[0]_i_104_n_6
-    SLICE_X6Y81          LUT2 (Prop_lut2_I1_O)        0.306     5.112 r  m_q_reg[0]_i_116/O
-                         net (fo=1, routed)           0.000     5.112    m_q_reg[0]_i_116_n_0
-    SLICE_X6Y81          CARRY4 (Prop_carry4_S[1]_O[3])
-                                                      0.643     5.755 r  m_q_reg[0]_i_96/O[3]
-                         net (fo=1, routed)           0.583     6.338    m_q_reg[0]_i_96_n_4
-    SLICE_X7Y81          LUT2 (Prop_lut2_I1_O)        0.307     6.645 r  m_q_reg[0]_i_77/O
-                         net (fo=1, routed)           0.000     6.645    m_q_reg[0]_i_77_n_0
-    SLICE_X7Y81          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     7.046 r  m_q_reg[0]_i_60/CO[3]
-                         net (fo=1, routed)           0.000     7.046    m_q_reg[0]_i_60_n_0
-    SLICE_X7Y82          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334     7.380 r  m_q_reg[0]_i_54/O[1]
-                         net (fo=1, routed)           0.848     8.228    PCIN[9]
-    SLICE_X12Y82         LUT2 (Prop_lut2_I1_O)        0.303     8.531 r  m_q_reg[0]_i_25/O
-                         net (fo=1, routed)           0.000     8.531    m_q_reg[0]_i_25_n_0
-    SLICE_X12Y82         CARRY4 (Prop_carry4_S[1]_O[2])
-                                                      0.578     9.109 r  m_q_reg[0]_i_5/O[2]
-                         net (fo=1, routed)           0.783     9.892    p_1_out[10]
-    SLICE_X12Y82         FDRE                                         r  p_0_out_i_39_psdsp_10/D
+    DSP48_X0Y26          DSP48E1 (Prop_dsp48e1_CLK_P[38])
+                                                      4.009     4.982 r  p_0_out/P[38]
+                         net (fo=11, routed)          1.176     6.158    p_0_out_n_67
+    DSP48_X0Y27          DSP48E1 (Prop_dsp48e1_C[41]_P[20])
+                                                      1.820     7.978 r  p_0_out__0/P[20]
+                         net (fo=1, routed)           1.173     9.151    p_0_out__0_n_85
+    SLICE_X13Y65         LUT3 (Prop_lut3_I2_O)        0.152     9.303 r  m_q[0][20]_i_1/O
+                         net (fo=1, routed)           0.000     9.303    m_q[0][20]_i_1_n_0
+    SLICE_X13Y65         FDRE                                         r  m_q_reg[0][20]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)       10.000    10.000 r  
                                                       0.000    10.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.924    10.924    clk_i
-    SLICE_X12Y82         FDRE                                         r  p_0_out_i_39_psdsp_10/C
+                         net (fo=572, unset)          0.924    10.924    clk_i
+    SLICE_X13Y65         FDRE                                         r  m_q_reg[0][20]/C
                          clock pessimism              0.000    10.924    
                          clock uncertainty           -0.035    10.889    
-    SLICE_X12Y82         FDRE (Setup_fdre_C_D)       -0.236    10.653    p_0_out_i_39_psdsp_10
+    SLICE_X13Y65         FDRE (Setup_fdre_C_D)        0.075    10.964    m_q_reg[0][20]
   -------------------------------------------------------------------
-                         required time                         10.653    
-                         arrival time                          -9.892    
+                         required time                         10.964    
+                         arrival time                          -9.303    
   -------------------------------------------------------------------
-                         slack                                  0.761    
+                         slack                                  1.661    
 
-Slack (MET) :             0.762ns  (required time - arrival time)
-  Source:                 win_q_reg[0][2][0]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            p_0_out_i_39_psdsp_9/D
+Slack (MET) :             1.680ns  (required time - arrival time)
+  Source:                 p_0_out/CLK
+                            (rising edge-triggered cell DSP48E1 clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            m_q_reg[0][38]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (clk rise@10.000ns - clk rise@0.000ns)
-  Data Path Delay:        8.915ns  (logic 5.102ns (57.229%)  route 3.813ns (42.771%))
-  Logic Levels:           12  (CARRY4=7 LUT1=1 LUT2=4)
+  Data Path Delay:        8.311ns  (logic 5.981ns (71.966%)  route 2.330ns (28.034%))
+  Logic Levels:           2  (DSP48E1=1 LUT3=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -379,68 +326,43 @@ Slack (MET) :             0.762ns  (required time - arrival time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.973     0.973    clk_i
-    SLICE_X11Y81         FDRE                                         r  win_q_reg[0][2][0]/C
+                         net (fo=572, unset)          0.973     0.973    clk_i
+    DSP48_X0Y26          DSP48E1                                      r  p_0_out/CLK
   -------------------------------------------------------------------    -------------------
-    SLICE_X11Y81         FDRE (Prop_fdre_C_Q)         0.456     1.429 f  win_q_reg[0][2][0]/Q
-                         net (fo=7, routed)           0.328     1.757    win_q_reg_n_0_[0][2][0]
-    SLICE_X10Y80         LUT1 (Prop_lut1_I0_O)        0.124     1.881 r  m_q_reg[0]_i_144/O
-                         net (fo=1, routed)           0.353     2.235    m_q_reg[0]_i_144_n_0
-    SLICE_X9Y79          CARRY4 (Prop_carry4_CYINIT_O[2])
-                                                      0.584     2.819 r  m_q_reg[0]_i_139/O[2]
-                         net (fo=1, routed)           0.432     3.250    m_q_reg[0]_i_139_n_5
-    SLICE_X8Y80          LUT2 (Prop_lut2_I1_O)        0.302     3.552 r  m_q_reg[0]_i_128/O
-                         net (fo=1, routed)           0.000     3.552    m_q_reg[0]_i_128_n_0
-    SLICE_X8Y80          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.376     3.928 r  m_q_reg[0]_i_113/CO[3]
-                         net (fo=1, routed)           0.000     3.928    m_q_reg[0]_i_113_n_0
-    SLICE_X8Y81          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.323     4.251 r  m_q_reg[0]_i_104/O[1]
-                         net (fo=3, routed)           0.555     4.806    m_q_reg[0]_i_104_n_6
-    SLICE_X6Y81          LUT2 (Prop_lut2_I1_O)        0.306     5.112 r  m_q_reg[0]_i_116/O
-                         net (fo=1, routed)           0.000     5.112    m_q_reg[0]_i_116_n_0
-    SLICE_X6Y81          CARRY4 (Prop_carry4_S[1]_O[3])
-                                                      0.643     5.755 r  m_q_reg[0]_i_96/O[3]
-                         net (fo=1, routed)           0.583     6.338    m_q_reg[0]_i_96_n_4
-    SLICE_X7Y81          LUT2 (Prop_lut2_I1_O)        0.307     6.645 r  m_q_reg[0]_i_77/O
-                         net (fo=1, routed)           0.000     6.645    m_q_reg[0]_i_77_n_0
-    SLICE_X7Y81          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     7.046 r  m_q_reg[0]_i_60/CO[3]
-                         net (fo=1, routed)           0.000     7.046    m_q_reg[0]_i_60_n_0
-    SLICE_X7Y82          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334     7.380 r  m_q_reg[0]_i_54/O[1]
-                         net (fo=1, routed)           0.848     8.228    PCIN[9]
-    SLICE_X12Y82         LUT2 (Prop_lut2_I1_O)        0.303     8.531 r  m_q_reg[0]_i_25/O
-                         net (fo=1, routed)           0.000     8.531    m_q_reg[0]_i_25_n_0
-    SLICE_X12Y82         CARRY4 (Prop_carry4_S[1]_O[3])
-                                                      0.643     9.174 r  m_q_reg[0]_i_5/O[3]
-                         net (fo=1, routed)           0.714     9.888    p_1_out[11]
-    SLICE_X12Y82         FDRE                                         r  p_0_out_i_39_psdsp_9/D
+    DSP48_X0Y26          DSP48E1 (Prop_dsp48e1_CLK_P[38])
+                                                      4.009     4.982 r  p_0_out/P[38]
+                         net (fo=11, routed)          1.176     6.158    p_0_out_n_67
+    DSP48_X0Y27          DSP48E1 (Prop_dsp48e1_C[41]_P[38])
+                                                      1.820     7.978 r  p_0_out__0/P[38]
+                         net (fo=1, routed)           1.154     9.132    p_0_out__0_n_67
+    SLICE_X13Y69         LUT3 (Prop_lut3_I2_O)        0.152     9.284 r  m_q[0][38]_i_2/O
+                         net (fo=1, routed)           0.000     9.284    m_q[0][38]_i_2_n_0
+    SLICE_X13Y69         FDRE                                         r  m_q_reg[0][38]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)       10.000    10.000 r  
                                                       0.000    10.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.924    10.924    clk_i
-    SLICE_X12Y82         FDRE                                         r  p_0_out_i_39_psdsp_9/C
+                         net (fo=572, unset)          0.924    10.924    clk_i
+    SLICE_X13Y69         FDRE                                         r  m_q_reg[0][38]/C
                          clock pessimism              0.000    10.924    
                          clock uncertainty           -0.035    10.889    
-    SLICE_X12Y82         FDRE (Setup_fdre_C_D)       -0.239    10.650    p_0_out_i_39_psdsp_9
+    SLICE_X13Y69         FDRE (Setup_fdre_C_D)        0.075    10.964    m_q_reg[0][38]
   -------------------------------------------------------------------
-                         required time                         10.650    
-                         arrival time                          -9.888    
+                         required time                         10.964    
+                         arrival time                          -9.284    
   -------------------------------------------------------------------
-                         slack                                  0.762    
+                         slack                                  1.680    
 
-Slack (MET) :             0.806ns  (required time - arrival time)
-  Source:                 win_q_reg[1][2][0]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            m_q[1][37]_i_1_psdsp_6/D
+Slack (MET) :             1.789ns  (required time - arrival time)
+  Source:                 p_0_out/CLK
+                            (rising edge-triggered cell DSP48E1 clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            m_q_reg[0][30]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (clk rise@10.000ns - clk rise@0.000ns)
-  Data Path Delay:        8.829ns  (logic 5.407ns (61.240%)  route 3.422ns (38.760%))
-  Logic Levels:           13  (CARRY4=8 LUT1=1 LUT2=4)
+  Data Path Delay:        8.202ns  (logic 5.979ns (72.893%)  route 2.223ns (27.107%))
+  Logic Levels:           2  (DSP48E1=1 LUT3=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -455,71 +377,43 @@ Slack (MET) :             0.806ns  (required time - arrival time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.973     0.973    clk_i
-    SLICE_X9Y90          FDRE                                         r  win_q_reg[1][2][0]/C
+                         net (fo=572, unset)          0.973     0.973    clk_i
+    DSP48_X0Y26          DSP48E1                                      r  p_0_out/CLK
   -------------------------------------------------------------------    -------------------
-    SLICE_X9Y90          FDRE (Prop_fdre_C_Q)         0.456     1.429 f  win_q_reg[1][2][0]/Q
-                         net (fo=7, routed)           0.194     1.623    win_q_reg[1][2][0]
-    SLICE_X8Y90          LUT1 (Prop_lut1_I0_O)        0.124     1.747 r  p_0_out__0_i_141/O
-                         net (fo=1, routed)           0.339     2.086    p_0_out__0_i_141_n_0
-    SLICE_X10Y91         CARRY4 (Prop_carry4_CYINIT_CO[3])
-                                                      0.595     2.681 r  p_0_out__0_i_136/CO[3]
-                         net (fo=1, routed)           0.000     2.681    p_0_out__0_i_136_n_0
-    SLICE_X10Y92         CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.323     3.004 r  p_0_out__0_i_124/O[1]
-                         net (fo=1, routed)           0.436     3.440    p_0_out__0_i_124_n_6
-    SLICE_X11Y91         LUT2 (Prop_lut2_I1_O)        0.306     3.746 r  p_0_out__0_i_121/O
-                         net (fo=1, routed)           0.000     3.746    p_0_out__0_i_121_n_0
-    SLICE_X11Y91         CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398     4.144 r  p_0_out__0_i_101/CO[3]
-                         net (fo=1, routed)           0.000     4.144    p_0_out__0_i_101_n_0
-    SLICE_X11Y92         CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334     4.478 r  p_0_out__0_i_88/O[1]
-                         net (fo=3, routed)           0.673     5.151    p_0_out__0_i_88_n_6
-    SLICE_X10Y98         LUT2 (Prop_lut2_I1_O)        0.303     5.454 r  p_0_out__0_i_104/O
-                         net (fo=1, routed)           0.000     5.454    p_0_out__0_i_104_n_0
-    SLICE_X10Y98         CARRY4 (Prop_carry4_S[1]_O[3])
-                                                      0.643     6.097 r  p_0_out__0_i_87/O[3]
-                         net (fo=1, routed)           0.456     6.553    p_0_out__0_i_87_n_4
-    SLICE_X9Y98          LUT2 (Prop_lut2_I1_O)        0.307     6.860 r  p_0_out__0_i_70/O
-                         net (fo=1, routed)           0.000     6.860    p_0_out__0_i_70_n_0
-    SLICE_X9Y98          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     7.261 r  p_0_out__0_i_51/CO[3]
-                         net (fo=1, routed)           0.000     7.261    p_0_out__0_i_51_n_0
-    SLICE_X9Y99          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334     7.595 r  p_0_out__0_i_46/O[1]
-                         net (fo=1, routed)           0.559     8.154    p_0_out__0_i_46_n_6
-    SLICE_X11Y98         LUT2 (Prop_lut2_I1_O)        0.303     8.457 r  p_0_out__0_i_17/O
-                         net (fo=1, routed)           0.000     8.457    p_0_out__0_i_17_n_0
-    SLICE_X11Y98         CARRY4 (Prop_carry4_S[1]_O[2])
-                                                      0.580     9.037 r  p_0_out__0_i_3/O[2]
-                         net (fo=1, routed)           0.765     9.802    p_0_out__0_i_3_n_5
-    SLICE_X11Y98         FDRE                                         r  m_q[1][37]_i_1_psdsp_6/D
+    DSP48_X0Y26          DSP48E1 (Prop_dsp48e1_CLK_P[38])
+                                                      4.009     4.982 r  p_0_out/P[38]
+                         net (fo=11, routed)          1.176     6.158    p_0_out_n_67
+    DSP48_X0Y27          DSP48E1 (Prop_dsp48e1_C[41]_P[30])
+                                                      1.820     7.978 r  p_0_out__0/P[30]
+                         net (fo=1, routed)           1.048     9.025    p_0_out__0_n_75
+    SLICE_X13Y67         LUT3 (Prop_lut3_I2_O)        0.150     9.175 r  m_q[0][30]_i_1/O
+                         net (fo=1, routed)           0.000     9.175    m_q[0][30]_i_1_n_0
+    SLICE_X13Y67         FDRE                                         r  m_q_reg[0][30]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)       10.000    10.000 r  
                                                       0.000    10.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.924    10.924    clk_i
-    SLICE_X11Y98         FDRE                                         r  m_q[1][37]_i_1_psdsp_6/C
+                         net (fo=572, unset)          0.924    10.924    clk_i
+    SLICE_X13Y67         FDRE                                         r  m_q_reg[0][30]/C
                          clock pessimism              0.000    10.924    
                          clock uncertainty           -0.035    10.889    
-    SLICE_X11Y98         FDRE (Setup_fdre_C_D)       -0.281    10.608    m_q[1][37]_i_1_psdsp_6
+    SLICE_X13Y67         FDRE (Setup_fdre_C_D)        0.075    10.964    m_q_reg[0][30]
   -------------------------------------------------------------------
-                         required time                         10.608    
-                         arrival time                          -9.802    
+                         required time                         10.964    
+                         arrival time                          -9.175    
   -------------------------------------------------------------------
-                         slack                                  0.806    
+                         slack                                  1.789    
 
-Slack (MET) :             0.930ns  (required time - arrival time)
-  Source:                 win_q_reg[0][2][0]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            p_0_out_i_39_psdsp_11/D
+Slack (MET) :             1.801ns  (required time - arrival time)
+  Source:                 p_0_out/CLK
+                            (rising edge-triggered cell DSP48E1 clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            m_q_reg[0][21]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (clk rise@10.000ns - clk rise@0.000ns)
-  Data Path Delay:        8.741ns  (logic 4.770ns (54.571%)  route 3.971ns (45.429%))
-  Logic Levels:           12  (CARRY4=7 LUT1=1 LUT2=4)
+  Data Path Delay:        8.146ns  (logic 5.953ns (73.077%)  route 2.193ns (26.923%))
+  Logic Levels:           2  (DSP48E1=1 LUT3=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -534,68 +428,43 @@ Slack (MET) :             0.930ns  (required time - arrival time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.973     0.973    clk_i
-    SLICE_X11Y81         FDRE                                         r  win_q_reg[0][2][0]/C
+                         net (fo=572, unset)          0.973     0.973    clk_i
+    DSP48_X0Y26          DSP48E1                                      r  p_0_out/CLK
   -------------------------------------------------------------------    -------------------
-    SLICE_X11Y81         FDRE (Prop_fdre_C_Q)         0.456     1.429 f  win_q_reg[0][2][0]/Q
-                         net (fo=7, routed)           0.328     1.757    win_q_reg_n_0_[0][2][0]
-    SLICE_X10Y80         LUT1 (Prop_lut1_I0_O)        0.124     1.881 r  m_q_reg[0]_i_144/O
-                         net (fo=1, routed)           0.353     2.235    m_q_reg[0]_i_144_n_0
-    SLICE_X9Y79          CARRY4 (Prop_carry4_CYINIT_O[2])
-                                                      0.584     2.819 r  m_q_reg[0]_i_139/O[2]
-                         net (fo=1, routed)           0.432     3.250    m_q_reg[0]_i_139_n_5
-    SLICE_X8Y80          LUT2 (Prop_lut2_I1_O)        0.302     3.552 r  m_q_reg[0]_i_128/O
-                         net (fo=1, routed)           0.000     3.552    m_q_reg[0]_i_128_n_0
-    SLICE_X8Y80          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.376     3.928 r  m_q_reg[0]_i_113/CO[3]
-                         net (fo=1, routed)           0.000     3.928    m_q_reg[0]_i_113_n_0
-    SLICE_X8Y81          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.323     4.251 r  m_q_reg[0]_i_104/O[1]
-                         net (fo=3, routed)           0.555     4.806    m_q_reg[0]_i_104_n_6
-    SLICE_X6Y81          LUT2 (Prop_lut2_I1_O)        0.306     5.112 r  m_q_reg[0]_i_116/O
-                         net (fo=1, routed)           0.000     5.112    m_q_reg[0]_i_116_n_0
-    SLICE_X6Y81          CARRY4 (Prop_carry4_S[1]_O[3])
-                                                      0.643     5.755 r  m_q_reg[0]_i_96/O[3]
-                         net (fo=1, routed)           0.583     6.338    m_q_reg[0]_i_96_n_4
-    SLICE_X7Y81          LUT2 (Prop_lut2_I1_O)        0.307     6.645 r  m_q_reg[0]_i_77/O
-                         net (fo=1, routed)           0.000     6.645    m_q_reg[0]_i_77_n_0
-    SLICE_X7Y81          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     7.046 r  m_q_reg[0]_i_60/CO[3]
-                         net (fo=1, routed)           0.000     7.046    m_q_reg[0]_i_60_n_0
-    SLICE_X7Y82          CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.222     7.268 r  m_q_reg[0]_i_54/O[0]
-                         net (fo=1, routed)           0.872     8.140    PCIN[8]
-    SLICE_X12Y82         LUT2 (Prop_lut2_I1_O)        0.299     8.439 r  m_q_reg[0]_i_26/O
-                         net (fo=1, routed)           0.000     8.439    m_q_reg[0]_i_26_n_0
-    SLICE_X12Y82         CARRY4 (Prop_carry4_S[0]_O[1])
-                                                      0.427     8.866 r  m_q_reg[0]_i_5/O[1]
-                         net (fo=1, routed)           0.848     9.714    p_1_out[9]
-    SLICE_X12Y82         FDRE                                         r  p_0_out_i_39_psdsp_11/D
+    DSP48_X0Y26          DSP48E1 (Prop_dsp48e1_CLK_P[38])
+                                                      4.009     4.982 r  p_0_out/P[38]
+                         net (fo=11, routed)          1.176     6.158    p_0_out_n_67
+    DSP48_X0Y27          DSP48E1 (Prop_dsp48e1_C[41]_P[21])
+                                                      1.820     7.978 r  p_0_out__0/P[21]
+                         net (fo=1, routed)           1.017     8.995    p_0_out__0_n_84
+    SLICE_X13Y65         LUT3 (Prop_lut3_I2_O)        0.124     9.119 r  m_q[0][21]_i_1/O
+                         net (fo=1, routed)           0.000     9.119    m_q[0][21]_i_1_n_0
+    SLICE_X13Y65         FDRE                                         r  m_q_reg[0][21]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)       10.000    10.000 r  
                                                       0.000    10.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.924    10.924    clk_i
-    SLICE_X12Y82         FDRE                                         r  p_0_out_i_39_psdsp_11/C
+                         net (fo=572, unset)          0.924    10.924    clk_i
+    SLICE_X13Y65         FDRE                                         r  m_q_reg[0][21]/C
                          clock pessimism              0.000    10.924    
                          clock uncertainty           -0.035    10.889    
-    SLICE_X12Y82         FDRE (Setup_fdre_C_D)       -0.245    10.644    p_0_out_i_39_psdsp_11
+    SLICE_X13Y65         FDRE (Setup_fdre_C_D)        0.031    10.920    m_q_reg[0][21]
   -------------------------------------------------------------------
-                         required time                         10.644    
-                         arrival time                          -9.714    
+                         required time                         10.920    
+                         arrival time                          -9.119    
   -------------------------------------------------------------------
-                         slack                                  0.930    
+                         slack                                  1.801    
 
-Slack (MET) :             0.963ns  (required time - arrival time)
-  Source:                 win_q_reg[0][2][0]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            p_0_out_i_39_psdsp/D
+Slack (MET) :             1.801ns  (required time - arrival time)
+  Source:                 p_0_out/CLK
+                            (rising edge-triggered cell DSP48E1 clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            m_q_reg[0][29]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (clk rise@10.000ns - clk rise@0.000ns)
-  Data Path Delay:        9.062ns  (logic 5.652ns (62.370%)  route 3.410ns (37.630%))
-  Logic Levels:           15  (CARRY4=10 LUT1=1 LUT2=4)
+  Data Path Delay:        8.144ns  (logic 5.953ns (73.095%)  route 2.191ns (26.905%))
+  Logic Levels:           2  (DSP48E1=1 LUT3=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -610,77 +479,43 @@ Slack (MET) :             0.963ns  (required time - arrival time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.973     0.973    clk_i
-    SLICE_X11Y81         FDRE                                         r  win_q_reg[0][2][0]/C
+                         net (fo=572, unset)          0.973     0.973    clk_i
+    DSP48_X0Y26          DSP48E1                                      r  p_0_out/CLK
   -------------------------------------------------------------------    -------------------
-    SLICE_X11Y81         FDRE (Prop_fdre_C_Q)         0.456     1.429 f  win_q_reg[0][2][0]/Q
-                         net (fo=7, routed)           0.328     1.757    win_q_reg_n_0_[0][2][0]
-    SLICE_X10Y80         LUT1 (Prop_lut1_I0_O)        0.124     1.881 r  m_q_reg[0]_i_144/O
-                         net (fo=1, routed)           0.353     2.235    m_q_reg[0]_i_144_n_0
-    SLICE_X9Y79          CARRY4 (Prop_carry4_CYINIT_CO[3])
-                                                      0.580     2.815 r  m_q_reg[0]_i_139/CO[3]
-                         net (fo=1, routed)           0.000     2.815    m_q_reg[0]_i_139_n_0
-    SLICE_X9Y80          CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.222     3.037 r  m_q_reg[0]_i_127/O[0]
-                         net (fo=1, routed)           0.619     3.656    m_q_reg[0]_i_127_n_7
-    SLICE_X8Y81          LUT2 (Prop_lut2_I1_O)        0.299     3.955 r  m_q_reg[0]_i_125/O
-                         net (fo=1, routed)           0.000     3.955    m_q_reg[0]_i_125_n_0
-    SLICE_X8Y81          CARRY4 (Prop_carry4_S[1]_CO[3])
-                                                      0.533     4.488 r  m_q_reg[0]_i_104/CO[3]
-                         net (fo=1, routed)           0.000     4.488    m_q_reg[0]_i_104_n_0
-    SLICE_X8Y82          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.323     4.811 r  m_q_reg[0]_i_91/O[1]
-                         net (fo=3, routed)           0.698     5.509    m_q_reg[0]_i_91_n_6
-    SLICE_X6Y82          LUT2 (Prop_lut2_I1_O)        0.306     5.815 r  m_q_reg[0]_i_107/O
-                         net (fo=1, routed)           0.000     5.815    m_q_reg[0]_i_107_n_0
-    SLICE_X6Y82          CARRY4 (Prop_carry4_S[1]_CO[3])
-                                                      0.533     6.348 r  m_q_reg[0]_i_90/CO[3]
-                         net (fo=1, routed)           0.000     6.348    m_q_reg[0]_i_90_n_0
-    SLICE_X6Y83          CARRY4 (Prop_carry4_CI_O[3])
-                                                      0.315     6.663 r  m_q_reg[0]_i_63/O[3]
-                         net (fo=4, routed)           0.664     7.327    m_q_reg[0]_i_63_n_4
-    SLICE_X7Y83          LUT2 (Prop_lut2_I0_O)        0.307     7.634 r  m_q_reg[0]_i_69/O
-                         net (fo=1, routed)           0.000     7.634    m_q_reg[0]_i_69_n_0
-    SLICE_X7Y83          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     8.035 r  m_q_reg[0]_i_49/CO[3]
-                         net (fo=1, routed)           0.000     8.035    m_q_reg[0]_i_49_n_0
-    SLICE_X7Y84          CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.222     8.257 r  m_q_reg[0]_i_44/O[0]
-                         net (fo=1, routed)           0.747     9.004    PCIN[16]
-    SLICE_X12Y84         LUT2 (Prop_lut2_I1_O)        0.299     9.303 r  m_q_reg[0]_i_16/O
-                         net (fo=1, routed)           0.000     9.303    m_q_reg[0]_i_16_n_0
-    SLICE_X12Y84         CARRY4 (Prop_carry4_S[0]_CO[3])
-                                                      0.513     9.816 r  m_q_reg[0]_i_3/CO[3]
-                         net (fo=1, routed)           0.000     9.816    m_q_reg[0]_i_3_n_0
-    SLICE_X12Y85         CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.219    10.035 r  m_q_reg[0]_i_2/O[0]
-                         net (fo=1, routed)           0.000    10.035    p_1_out[20]
-    SLICE_X12Y85         FDRE                                         r  p_0_out_i_39_psdsp/D
+    DSP48_X0Y26          DSP48E1 (Prop_dsp48e1_CLK_P[38])
+                                                      4.009     4.982 r  p_0_out/P[38]
+                         net (fo=11, routed)          1.176     6.158    p_0_out_n_67
+    DSP48_X0Y27          DSP48E1 (Prop_dsp48e1_C[41]_P[29])
+                                                      1.820     7.978 r  p_0_out__0/P[29]
+                         net (fo=1, routed)           1.015     8.993    p_0_out__0_n_76
+    SLICE_X13Y67         LUT3 (Prop_lut3_I2_O)        0.124     9.117 r  m_q[0][29]_i_1/O
+                         net (fo=1, routed)           0.000     9.117    m_q[0][29]_i_1_n_0
+    SLICE_X13Y67         FDRE                                         r  m_q_reg[0][29]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)       10.000    10.000 r  
                                                       0.000    10.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.924    10.924    clk_i
-    SLICE_X12Y85         FDRE                                         r  p_0_out_i_39_psdsp/C
+                         net (fo=572, unset)          0.924    10.924    clk_i
+    SLICE_X13Y67         FDRE                                         r  m_q_reg[0][29]/C
                          clock pessimism              0.000    10.924    
                          clock uncertainty           -0.035    10.889    
-    SLICE_X12Y85         FDRE (Setup_fdre_C_D)        0.109    10.998    p_0_out_i_39_psdsp
+    SLICE_X13Y67         FDRE (Setup_fdre_C_D)        0.029    10.918    m_q_reg[0][29]
   -------------------------------------------------------------------
-                         required time                         10.998    
-                         arrival time                         -10.035    
+                         required time                         10.918    
+                         arrival time                          -9.117    
   -------------------------------------------------------------------
-                         slack                                  0.963    
+                         slack                                  1.801    
 
-Slack (MET) :             1.057ns  (required time - arrival time)
-  Source:                 win_q_reg[0][2][0]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            p_0_out_i_39_psdsp_12/D
+Slack (MET) :             1.801ns  (required time - arrival time)
+  Source:                 p_0_out/CLK
+                            (rising edge-triggered cell DSP48E1 clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            m_q_reg[0][33]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (clk rise@10.000ns - clk rise@0.000ns)
-  Data Path Delay:        8.617ns  (logic 4.637ns (53.811%)  route 3.980ns (46.189%))
-  Logic Levels:           12  (CARRY4=7 LUT1=2 LUT2=3)
+  Data Path Delay:        8.146ns  (logic 5.953ns (73.077%)  route 2.193ns (26.923%))
+  Logic Levels:           2  (DSP48E1=1 LUT3=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -695,68 +530,43 @@ Slack (MET) :             1.057ns  (required time - arrival time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.973     0.973    clk_i
-    SLICE_X11Y81         FDRE                                         r  win_q_reg[0][2][0]/C
+                         net (fo=572, unset)          0.973     0.973    clk_i
+    DSP48_X0Y26          DSP48E1                                      r  p_0_out/CLK
   -------------------------------------------------------------------    -------------------
-    SLICE_X11Y81         FDRE (Prop_fdre_C_Q)         0.456     1.429 f  win_q_reg[0][2][0]/Q
-                         net (fo=7, routed)           0.328     1.757    win_q_reg_n_0_[0][2][0]
-    SLICE_X10Y80         LUT1 (Prop_lut1_I0_O)        0.124     1.881 r  m_q_reg[0]_i_144/O
-                         net (fo=1, routed)           0.353     2.235    m_q_reg[0]_i_144_n_0
-    SLICE_X9Y79          CARRY4 (Prop_carry4_CYINIT_O[0])
-                                                      0.482     2.717 r  m_q_reg[0]_i_139/O[0]
-                         net (fo=1, routed)           0.307     3.023    m_q_reg[0]_i_139_n_7
-    SLICE_X8Y80          LUT2 (Prop_lut2_I1_O)        0.299     3.322 r  m_q_reg[0]_i_130/O
-                         net (fo=1, routed)           0.000     3.322    m_q_reg[0]_i_130_n_0
-    SLICE_X8Y80          CARRY4 (Prop_carry4_S[1]_O[1])
-                                                      0.230     3.552 f  m_q_reg[0]_i_113/O[1]
-                         net (fo=3, routed)           0.698     4.251    m_q_reg[0]_i_113_n_6
-    SLICE_X6Y80          LUT1 (Prop_lut1_I0_O)        0.306     4.557 r  m_q_reg[0]_i_120/O
-                         net (fo=1, routed)           0.000     4.557    m_q_reg[0]_i_120_n_0
-    SLICE_X6Y80          CARRY4 (Prop_carry4_S[1]_O[3])
-                                                      0.643     5.200 r  m_q_reg[0]_i_97/O[3]
-                         net (fo=1, routed)           0.583     5.783    m_q_reg[0]_i_97_n_4
-    SLICE_X7Y80          LUT2 (Prop_lut2_I1_O)        0.307     6.090 r  m_q_reg[0]_i_81/O
-                         net (fo=1, routed)           0.000     6.090    m_q_reg[0]_i_81_n_0
-    SLICE_X7Y80          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.491 r  m_q_reg[0]_i_61/CO[3]
-                         net (fo=1, routed)           0.000     6.491    m_q_reg[0]_i_61_n_0
-    SLICE_X7Y81          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334     6.825 r  m_q_reg[0]_i_60/O[1]
-                         net (fo=1, routed)           0.868     7.693    PCIN[5]
-    SLICE_X12Y81         LUT2 (Prop_lut2_I1_O)        0.303     7.996 r  m_q_reg[0]_i_30/O
-                         net (fo=1, routed)           0.000     7.996    m_q_reg[0]_i_30_n_0
-    SLICE_X12Y81         CARRY4 (Prop_carry4_S[1]_CO[3])
-                                                      0.533     8.529 r  m_q_reg[0]_i_6/CO[3]
-                         net (fo=1, routed)           0.000     8.529    m_q_reg[0]_i_6_n_0
-    SLICE_X12Y82         CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.219     8.748 r  m_q_reg[0]_i_5/O[0]
-                         net (fo=1, routed)           0.843     9.590    p_1_out[8]
-    SLICE_X12Y82         FDRE                                         r  p_0_out_i_39_psdsp_12/D
+    DSP48_X0Y26          DSP48E1 (Prop_dsp48e1_CLK_P[38])
+                                                      4.009     4.982 r  p_0_out/P[38]
+                         net (fo=11, routed)          1.176     6.158    p_0_out_n_67
+    DSP48_X0Y27          DSP48E1 (Prop_dsp48e1_C[41]_P[33])
+                                                      1.820     7.978 r  p_0_out__0/P[33]
+                         net (fo=1, routed)           1.017     8.995    p_0_out__0_n_72
+    SLICE_X13Y68         LUT3 (Prop_lut3_I2_O)        0.124     9.119 r  m_q[0][33]_i_1/O
+                         net (fo=1, routed)           0.000     9.119    m_q[0][33]_i_1_n_0
+    SLICE_X13Y68         FDRE                                         r  m_q_reg[0][33]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)       10.000    10.000 r  
                                                       0.000    10.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.924    10.924    clk_i
-    SLICE_X12Y82         FDRE                                         r  p_0_out_i_39_psdsp_12/C
+                         net (fo=572, unset)          0.924    10.924    clk_i
+    SLICE_X13Y68         FDRE                                         r  m_q_reg[0][33]/C
                          clock pessimism              0.000    10.924    
                          clock uncertainty           -0.035    10.889    
-    SLICE_X12Y82         FDRE (Setup_fdre_C_D)       -0.242    10.647    p_0_out_i_39_psdsp_12
+    SLICE_X13Y68         FDRE (Setup_fdre_C_D)        0.031    10.920    m_q_reg[0][33]
   -------------------------------------------------------------------
-                         required time                         10.647    
-                         arrival time                          -9.590    
+                         required time                         10.920    
+                         arrival time                          -9.119    
   -------------------------------------------------------------------
-                         slack                                  1.057    
+                         slack                                  1.801    
 
-Slack (MET) :             1.087ns  (required time - arrival time)
-  Source:                 win_q_reg[0][2][0]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            p_0_out_i_39_psdsp_1/D
+Slack (MET) :             1.802ns  (required time - arrival time)
+  Source:                 p_0_out/CLK
+                            (rising edge-triggered cell DSP48E1 clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            m_q_reg[0][28]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (clk rise@10.000ns - clk rise@0.000ns)
-  Data Path Delay:        8.938ns  (logic 5.528ns (61.848%)  route 3.410ns (38.152%))
-  Logic Levels:           14  (CARRY4=9 LUT1=1 LUT2=4)
+  Data Path Delay:        8.189ns  (logic 5.981ns (73.036%)  route 2.208ns (26.964%))
+  Logic Levels:           2  (DSP48E1=1 LUT3=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -771,74 +581,43 @@ Slack (MET) :             1.087ns  (required time - arrival time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.973     0.973    clk_i
-    SLICE_X11Y81         FDRE                                         r  win_q_reg[0][2][0]/C
+                         net (fo=572, unset)          0.973     0.973    clk_i
+    DSP48_X0Y26          DSP48E1                                      r  p_0_out/CLK
   -------------------------------------------------------------------    -------------------
-    SLICE_X11Y81         FDRE (Prop_fdre_C_Q)         0.456     1.429 f  win_q_reg[0][2][0]/Q
-                         net (fo=7, routed)           0.328     1.757    win_q_reg_n_0_[0][2][0]
-    SLICE_X10Y80         LUT1 (Prop_lut1_I0_O)        0.124     1.881 r  m_q_reg[0]_i_144/O
-                         net (fo=1, routed)           0.353     2.235    m_q_reg[0]_i_144_n_0
-    SLICE_X9Y79          CARRY4 (Prop_carry4_CYINIT_CO[3])
-                                                      0.580     2.815 r  m_q_reg[0]_i_139/CO[3]
-                         net (fo=1, routed)           0.000     2.815    m_q_reg[0]_i_139_n_0
-    SLICE_X9Y80          CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.222     3.037 r  m_q_reg[0]_i_127/O[0]
-                         net (fo=1, routed)           0.619     3.656    m_q_reg[0]_i_127_n_7
-    SLICE_X8Y81          LUT2 (Prop_lut2_I1_O)        0.299     3.955 r  m_q_reg[0]_i_125/O
-                         net (fo=1, routed)           0.000     3.955    m_q_reg[0]_i_125_n_0
-    SLICE_X8Y81          CARRY4 (Prop_carry4_S[1]_CO[3])
-                                                      0.533     4.488 r  m_q_reg[0]_i_104/CO[3]
-                         net (fo=1, routed)           0.000     4.488    m_q_reg[0]_i_104_n_0
-    SLICE_X8Y82          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.323     4.811 r  m_q_reg[0]_i_91/O[1]
-                         net (fo=3, routed)           0.698     5.509    m_q_reg[0]_i_91_n_6
-    SLICE_X6Y82          LUT2 (Prop_lut2_I1_O)        0.306     5.815 r  m_q_reg[0]_i_107/O
-                         net (fo=1, routed)           0.000     5.815    m_q_reg[0]_i_107_n_0
-    SLICE_X6Y82          CARRY4 (Prop_carry4_S[1]_CO[3])
-                                                      0.533     6.348 r  m_q_reg[0]_i_90/CO[3]
-                         net (fo=1, routed)           0.000     6.348    m_q_reg[0]_i_90_n_0
-    SLICE_X6Y83          CARRY4 (Prop_carry4_CI_O[3])
-                                                      0.315     6.663 r  m_q_reg[0]_i_63/O[3]
-                         net (fo=4, routed)           0.664     7.327    m_q_reg[0]_i_63_n_4
-    SLICE_X7Y83          LUT2 (Prop_lut2_I0_O)        0.307     7.634 r  m_q_reg[0]_i_69/O
-                         net (fo=1, routed)           0.000     7.634    m_q_reg[0]_i_69_n_0
-    SLICE_X7Y83          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     8.035 r  m_q_reg[0]_i_49/CO[3]
-                         net (fo=1, routed)           0.000     8.035    m_q_reg[0]_i_49_n_0
-    SLICE_X7Y84          CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.222     8.257 r  m_q_reg[0]_i_44/O[0]
-                         net (fo=1, routed)           0.747     9.004    PCIN[16]
-    SLICE_X12Y84         LUT2 (Prop_lut2_I1_O)        0.299     9.303 r  m_q_reg[0]_i_16/O
-                         net (fo=1, routed)           0.000     9.303    m_q_reg[0]_i_16_n_0
-    SLICE_X12Y84         CARRY4 (Prop_carry4_S[0]_O[3])
-                                                      0.608     9.911 r  m_q_reg[0]_i_3/O[3]
-                         net (fo=1, routed)           0.000     9.911    p_1_out[19]
-    SLICE_X12Y84         FDRE                                         r  p_0_out_i_39_psdsp_1/D
+    DSP48_X0Y26          DSP48E1 (Prop_dsp48e1_CLK_P[38])
+                                                      4.009     4.982 r  p_0_out/P[38]
+                         net (fo=11, routed)          1.176     6.158    p_0_out_n_67
+    DSP48_X0Y27          DSP48E1 (Prop_dsp48e1_C[41]_P[28])
+                                                      1.820     7.978 r  p_0_out__0/P[28]
+                         net (fo=1, routed)           1.032     9.010    p_0_out__0_n_77
+    SLICE_X13Y66         LUT3 (Prop_lut3_I2_O)        0.152     9.162 r  m_q[0][28]_i_1/O
+                         net (fo=1, routed)           0.000     9.162    m_q[0][28]_i_1_n_0
+    SLICE_X13Y66         FDRE                                         r  m_q_reg[0][28]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)       10.000    10.000 r  
                                                       0.000    10.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.924    10.924    clk_i
-    SLICE_X12Y84         FDRE                                         r  p_0_out_i_39_psdsp_1/C
+                         net (fo=572, unset)          0.924    10.924    clk_i
+    SLICE_X13Y66         FDRE                                         r  m_q_reg[0][28]/C
                          clock pessimism              0.000    10.924    
                          clock uncertainty           -0.035    10.889    
-    SLICE_X12Y84         FDRE (Setup_fdre_C_D)        0.109    10.998    p_0_out_i_39_psdsp_1
+    SLICE_X13Y66         FDRE (Setup_fdre_C_D)        0.075    10.964    m_q_reg[0][28]
   -------------------------------------------------------------------
-                         required time                         10.998    
-                         arrival time                          -9.911    
+                         required time                         10.964    
+                         arrival time                          -9.162    
   -------------------------------------------------------------------
-                         slack                                  1.087    
+                         slack                                  1.802    
 
-Slack (MET) :             1.103ns  (required time - arrival time)
-  Source:                 win_q_reg[1][2][2]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            m_q[1][37]_i_1_psdsp_10/D
+Slack (MET) :             1.802ns  (required time - arrival time)
+  Source:                 p_0_out/CLK
+                            (rising edge-triggered cell DSP48E1 clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            m_q_reg[0][32]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (clk rise@10.000ns - clk rise@0.000ns)
-  Data Path Delay:        8.532ns  (logic 5.127ns (60.089%)  route 3.405ns (39.911%))
-  Logic Levels:           12  (CARRY4=7 LUT1=1 LUT2=4)
+  Data Path Delay:        8.189ns  (logic 5.981ns (73.036%)  route 2.208ns (26.964%))
+  Logic Levels:           2  (DSP48E1=1 LUT3=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -853,68 +632,43 @@ Slack (MET) :             1.103ns  (required time - arrival time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.973     0.973    clk_i
-    SLICE_X10Y93         FDRE                                         r  win_q_reg[1][2][2]/C
+                         net (fo=572, unset)          0.973     0.973    clk_i
+    DSP48_X0Y26          DSP48E1                                      r  p_0_out/CLK
   -------------------------------------------------------------------    -------------------
-    SLICE_X10Y93         FDRE (Prop_fdre_C_Q)         0.518     1.491 f  win_q_reg[1][2][2]/Q
-                         net (fo=6, routed)           0.514     2.005    win_q_reg[1][2][2]
-    SLICE_X10Y91         LUT1 (Prop_lut1_I0_O)        0.124     2.129 r  p_0_out__0_i_144/O
-                         net (fo=1, routed)           0.000     2.129    p_0_out__0_i_144_n_0
-    SLICE_X10Y91         CARRY4 (Prop_carry4_S[1]_O[2])
-                                                      0.578     2.707 r  p_0_out__0_i_136/O[2]
-                         net (fo=1, routed)           0.454     3.161    p_0_out__0_i_136_n_5
-    SLICE_X11Y90         LUT2 (Prop_lut2_I1_O)        0.301     3.462 r  p_0_out__0_i_125/O
-                         net (fo=1, routed)           0.000     3.462    p_0_out__0_i_125_n_0
-    SLICE_X11Y90         CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     3.863 r  p_0_out__0_i_110/CO[3]
-                         net (fo=1, routed)           0.000     3.863    p_0_out__0_i_110_n_0
-    SLICE_X11Y91         CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334     4.197 r  p_0_out__0_i_101/O[1]
-                         net (fo=3, routed)           0.657     4.854    p_0_out__0_i_101_n_6
-    SLICE_X10Y97         LUT2 (Prop_lut2_I1_O)        0.303     5.157 r  p_0_out__0_i_113/O
-                         net (fo=1, routed)           0.000     5.157    p_0_out__0_i_113_n_0
-    SLICE_X10Y97         CARRY4 (Prop_carry4_S[1]_O[3])
-                                                      0.643     5.800 r  p_0_out__0_i_93/O[3]
-                         net (fo=1, routed)           0.456     6.256    p_0_out__0_i_93_n_4
-    SLICE_X9Y97          LUT2 (Prop_lut2_I1_O)        0.307     6.563 r  p_0_out__0_i_74/O
-                         net (fo=1, routed)           0.000     6.563    p_0_out__0_i_74_n_0
-    SLICE_X9Y97          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     6.964 r  p_0_out__0_i_57/CO[3]
-                         net (fo=1, routed)           0.000     6.964    p_0_out__0_i_57_n_0
-    SLICE_X9Y98          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.334     7.298 r  p_0_out__0_i_51/O[1]
-                         net (fo=1, routed)           0.559     7.857    p_0_out__0_i_51_n_6
-    SLICE_X11Y97         LUT2 (Prop_lut2_I1_O)        0.303     8.160 r  p_0_out__0_i_22/O
-                         net (fo=1, routed)           0.000     8.160    p_0_out__0_i_22_n_0
-    SLICE_X11Y97         CARRY4 (Prop_carry4_S[1]_O[2])
-                                                      0.580     8.740 r  p_0_out__0_i_4/O[2]
-                         net (fo=1, routed)           0.765     9.505    p_0_out__0_i_4_n_5
-    SLICE_X11Y97         FDRE                                         r  m_q[1][37]_i_1_psdsp_10/D
+    DSP48_X0Y26          DSP48E1 (Prop_dsp48e1_CLK_P[38])
+                                                      4.009     4.982 r  p_0_out/P[38]
+                         net (fo=11, routed)          1.176     6.158    p_0_out_n_67
+    DSP48_X0Y27          DSP48E1 (Prop_dsp48e1_C[41]_P[32])
+                                                      1.820     7.978 r  p_0_out__0/P[32]
+                         net (fo=1, routed)           1.032     9.010    p_0_out__0_n_73
+    SLICE_X13Y67         LUT3 (Prop_lut3_I2_O)        0.152     9.162 r  m_q[0][32]_i_1/O
+                         net (fo=1, routed)           0.000     9.162    m_q[0][32]_i_1_n_0
+    SLICE_X13Y67         FDRE                                         r  m_q_reg[0][32]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)       10.000    10.000 r  
                                                       0.000    10.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.924    10.924    clk_i
-    SLICE_X11Y97         FDRE                                         r  m_q[1][37]_i_1_psdsp_10/C
+                         net (fo=572, unset)          0.924    10.924    clk_i
+    SLICE_X13Y67         FDRE                                         r  m_q_reg[0][32]/C
                          clock pessimism              0.000    10.924    
                          clock uncertainty           -0.035    10.889    
-    SLICE_X11Y97         FDRE (Setup_fdre_C_D)       -0.281    10.608    m_q[1][37]_i_1_psdsp_10
+    SLICE_X13Y67         FDRE (Setup_fdre_C_D)        0.075    10.964    m_q_reg[0][32]
   -------------------------------------------------------------------
-                         required time                         10.608    
-                         arrival time                          -9.505    
+                         required time                         10.964    
+                         arrival time                          -9.162    
   -------------------------------------------------------------------
-                         slack                                  1.103    
+                         slack                                  1.802    
 
-Slack (MET) :             1.143ns  (required time - arrival time)
-  Source:                 win_q_reg[0][2][0]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            p_0_out_i_39_psdsp_3/D
+Slack (MET) :             1.804ns  (required time - arrival time)
+  Source:                 p_0_out/CLK
+                            (rising edge-triggered cell DSP48E1 clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            m_q_reg[0][16]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (clk rise@10.000ns - clk rise@0.000ns)
-  Data Path Delay:        8.882ns  (logic 5.551ns (62.495%)  route 3.331ns (37.505%))
-  Logic Levels:           14  (CARRY4=9 LUT1=1 LUT2=4)
+  Data Path Delay:        8.187ns  (logic 5.981ns (73.054%)  route 2.206ns (26.946%))
+  Logic Levels:           2  (DSP48E1=1 LUT3=1)
   Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.924ns = ( 10.924 - 10.000 ) 
     Source Clock Delay      (SCD):    0.973ns
@@ -929,63 +683,32 @@ Slack (MET) :             1.143ns  (required time - arrival time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.973     0.973    clk_i
-    SLICE_X11Y81         FDRE                                         r  win_q_reg[0][2][0]/C
+                         net (fo=572, unset)          0.973     0.973    clk_i
+    DSP48_X0Y26          DSP48E1                                      r  p_0_out/CLK
   -------------------------------------------------------------------    -------------------
-    SLICE_X11Y81         FDRE (Prop_fdre_C_Q)         0.456     1.429 f  win_q_reg[0][2][0]/Q
-                         net (fo=7, routed)           0.328     1.757    win_q_reg_n_0_[0][2][0]
-    SLICE_X10Y80         LUT1 (Prop_lut1_I0_O)        0.124     1.881 r  m_q_reg[0]_i_144/O
-                         net (fo=1, routed)           0.353     2.235    m_q_reg[0]_i_144_n_0
-    SLICE_X9Y79          CARRY4 (Prop_carry4_CYINIT_CO[3])
-                                                      0.580     2.815 r  m_q_reg[0]_i_139/CO[3]
-                         net (fo=1, routed)           0.000     2.815    m_q_reg[0]_i_139_n_0
-    SLICE_X9Y80          CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.222     3.037 r  m_q_reg[0]_i_127/O[0]
-                         net (fo=1, routed)           0.619     3.656    m_q_reg[0]_i_127_n_7
-    SLICE_X8Y81          LUT2 (Prop_lut2_I1_O)        0.299     3.955 r  m_q_reg[0]_i_125/O
-                         net (fo=1, routed)           0.000     3.955    m_q_reg[0]_i_125_n_0
-    SLICE_X8Y81          CARRY4 (Prop_carry4_S[1]_CO[3])
-                                                      0.533     4.488 r  m_q_reg[0]_i_104/CO[3]
-                         net (fo=1, routed)           0.000     4.488    m_q_reg[0]_i_104_n_0
-    SLICE_X8Y82          CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.323     4.811 r  m_q_reg[0]_i_91/O[1]
-                         net (fo=3, routed)           0.698     5.509    m_q_reg[0]_i_91_n_6
-    SLICE_X6Y82          LUT2 (Prop_lut2_I1_O)        0.306     5.815 r  m_q_reg[0]_i_107/O
-                         net (fo=1, routed)           0.000     5.815    m_q_reg[0]_i_107_n_0
-    SLICE_X6Y82          CARRY4 (Prop_carry4_S[1]_O[3])
-                                                      0.643     6.458 r  m_q_reg[0]_i_90/O[3]
-                         net (fo=1, routed)           0.583     7.041    m_q_reg[0]_i_90_n_4
-    SLICE_X7Y82          LUT2 (Prop_lut2_I1_O)        0.307     7.348 r  m_q_reg[0]_i_73/O
-                         net (fo=1, routed)           0.000     7.348    m_q_reg[0]_i_73_n_0
-    SLICE_X7Y82          CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.401     7.749 r  m_q_reg[0]_i_54/CO[3]
-                         net (fo=1, routed)           0.000     7.749    m_q_reg[0]_i_54_n_0
-    SLICE_X7Y83          CARRY4 (Prop_carry4_CI_O[0])
-                                                      0.222     7.971 r  m_q_reg[0]_i_49/O[0]
-                         net (fo=1, routed)           0.749     8.720    PCIN[12]
-    SLICE_X12Y83         LUT2 (Prop_lut2_I1_O)        0.299     9.019 r  m_q_reg[0]_i_21/O
-                         net (fo=1, routed)           0.000     9.019    m_q_reg[0]_i_21_n_0
-    SLICE_X12Y83         CARRY4 (Prop_carry4_S[0]_CO[3])
-                                                      0.513     9.532 r  m_q_reg[0]_i_4/CO[3]
-                         net (fo=1, routed)           0.000     9.532    m_q_reg[0]_i_4_n_0
-    SLICE_X12Y84         CARRY4 (Prop_carry4_CI_O[1])
-                                                      0.323     9.855 r  m_q_reg[0]_i_3/O[1]
-                         net (fo=1, routed)           0.000     9.855    p_1_out[17]
-    SLICE_X12Y84         FDRE                                         r  p_0_out_i_39_psdsp_3/D
+    DSP48_X0Y26          DSP48E1 (Prop_dsp48e1_CLK_P[38])
+                                                      4.009     4.982 r  p_0_out/P[38]
+                         net (fo=11, routed)          1.176     6.158    p_0_out_n_67
+    DSP48_X0Y27          DSP48E1 (Prop_dsp48e1_C[41]_P[16])
+                                                      1.820     7.978 r  p_0_out__0/P[16]
+                         net (fo=1, routed)           1.030     9.008    p_0_out__0_n_89
+    SLICE_X13Y68         LUT3 (Prop_lut3_I2_O)        0.152     9.160 r  m_q[0][16]_i_1/O
+                         net (fo=1, routed)           0.000     9.160    m_q[0][16]_i_1_n_0
+    SLICE_X13Y68         FDRE                                         r  m_q_reg[0][16]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)       10.000    10.000 r  
                                                       0.000    10.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.924    10.924    clk_i
-    SLICE_X12Y84         FDRE                                         r  p_0_out_i_39_psdsp_3/C
+                         net (fo=572, unset)          0.924    10.924    clk_i
+    SLICE_X13Y68         FDRE                                         r  m_q_reg[0][16]/C
                          clock pessimism              0.000    10.924    
                          clock uncertainty           -0.035    10.889    
-    SLICE_X12Y84         FDRE (Setup_fdre_C_D)        0.109    10.998    p_0_out_i_39_psdsp_3
+    SLICE_X13Y68         FDRE (Setup_fdre_C_D)        0.075    10.964    m_q_reg[0][16]
   -------------------------------------------------------------------
-                         required time                         10.998    
-                         arrival time                          -9.855    
+                         required time                         10.964    
+                         arrival time                          -9.160    
   -------------------------------------------------------------------
-                         slack                                  1.143    
+                         slack                                  1.804    
 
 
 
@@ -993,15 +716,15 @@ Slack (MET) :             1.143ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.108ns  (arrival time - required time)
-  Source:                 h1_q_reg[1][5]/C
+Slack (MET) :             0.116ns  (arrival time - required time)
+  Source:                 h1_q_reg[1][10]/C
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            h2_q_reg[1][5]/D
+  Destination:            h2_q_reg[1][10]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
-  Data Path Delay:        0.208ns  (logic 0.141ns (67.855%)  route 0.067ns (32.145%))
+  Data Path Delay:        0.209ns  (logic 0.141ns (67.454%)  route 0.068ns (32.546%))
   Logic Levels:           0  
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
@@ -1012,36 +735,36 @@ Slack (MET) :             0.108ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.410     0.410    clk_i
-    SLICE_X3Y77          FDRE                                         r  h1_q_reg[1][5]/C
+                         net (fo=572, unset)          0.410     0.410    clk_i
+    SLICE_X7Y78          FDRE                                         r  h1_q_reg[1][10]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X3Y77          FDRE (Prop_fdre_C_Q)         0.141     0.551 r  h1_q_reg[1][5]/Q
-                         net (fo=2, routed)           0.067     0.618    h1_q_reg[1][5]
-    SLICE_X3Y77          FDRE                                         r  h2_q_reg[1][5]/D
+    SLICE_X7Y78          FDRE (Prop_fdre_C_Q)         0.141     0.551 r  h1_q_reg[1][10]/Q
+                         net (fo=2, routed)           0.068     0.619    h1_q_reg[1][10]
+    SLICE_X7Y78          FDRE                                         r  h2_q_reg[1][10]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.432     0.432    clk_i
-    SLICE_X3Y77          FDRE                                         r  h2_q_reg[1][5]/C
+                         net (fo=572, unset)          0.432     0.432    clk_i
+    SLICE_X7Y78          FDRE                                         r  h2_q_reg[1][10]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X3Y77          FDRE (Hold_fdre_C_D)         0.078     0.510    h2_q_reg[1][5]
+    SLICE_X7Y78          FDRE (Hold_fdre_C_D)         0.071     0.503    h2_q_reg[1][10]
   -------------------------------------------------------------------
-                         required time                         -0.510    
-                         arrival time                           0.618    
+                         required time                         -0.503    
+                         arrival time                           0.619    
   -------------------------------------------------------------------
-                         slack                                  0.108    
+                         slack                                  0.116    
 
-Slack (MET) :             0.165ns  (arrival time - required time)
-  Source:                 adv_q_reg[6]/C
+Slack (MET) :             0.145ns  (arrival time - required time)
+  Source:                 h1_q_reg[1][6]/C
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            adv_q_reg[8]/D
+  Destination:            h2_q_reg[1][6]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
-  Data Path Delay:        0.306ns  (logic 0.186ns (60.743%)  route 0.120ns (39.257%))
-  Logic Levels:           1  (LUT6=1)
+  Data Path Delay:        0.231ns  (logic 0.164ns (71.058%)  route 0.067ns (28.942%))
+  Logic Levels:           0  
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
     Source Clock Delay      (SCD):    0.410ns
@@ -1051,37 +774,113 @@ Slack (MET) :             0.165ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.410     0.410    clk_i
-    SLICE_X7Y79          FDRE                                         r  adv_q_reg[6]/C
+                         net (fo=572, unset)          0.410     0.410    clk_i
+    SLICE_X8Y77          FDRE                                         r  h1_q_reg[1][6]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X7Y79          FDRE (Prop_fdre_C_Q)         0.141     0.551 r  adv_q_reg[6]/Q
-                         net (fo=6, routed)           0.120     0.671    adv_q_reg[6]
-    SLICE_X6Y79          LUT6 (Prop_lut6_I4_O)        0.045     0.716 r  adv_q[8]_i_1/O
-                         net (fo=1, routed)           0.000     0.716    p_0_in__0[8]
-    SLICE_X6Y79          FDRE                                         r  adv_q_reg[8]/D
+    SLICE_X8Y77          FDRE (Prop_fdre_C_Q)         0.164     0.574 r  h1_q_reg[1][6]/Q
+                         net (fo=2, routed)           0.067     0.641    h1_q_reg[1][6]
+    SLICE_X8Y77          FDRE                                         r  h2_q_reg[1][6]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.432     0.432    clk_i
-    SLICE_X6Y79          FDRE                                         r  adv_q_reg[8]/C
+                         net (fo=572, unset)          0.432     0.432    clk_i
+    SLICE_X8Y77          FDRE                                         r  h2_q_reg[1][6]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X6Y79          FDRE (Hold_fdre_C_D)         0.120     0.552    adv_q_reg[8]
+    SLICE_X8Y77          FDRE (Hold_fdre_C_D)         0.064     0.496    h2_q_reg[1][6]
   -------------------------------------------------------------------
-                         required time                         -0.552    
-                         arrival time                           0.716    
+                         required time                         -0.496    
+                         arrival time                           0.641    
   -------------------------------------------------------------------
-                         slack                                  0.165    
+                         slack                                  0.145    
+
+Slack (MET) :             0.156ns  (arrival time - required time)
+  Source:                 h1_q_reg[1][4]/C
+                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            h2_q_reg[1][4]/D
+                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             clk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
+  Data Path Delay:        0.231ns  (logic 0.164ns (70.995%)  route 0.067ns (29.005%))
+  Logic Levels:           0  
+  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.432ns
+    Source Clock Delay      (SCD):    0.410ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock clk rise edge)        0.000     0.000 r  
+                                                      0.000     0.000 r  clk_i (IN)
+                         net (fo=572, unset)          0.410     0.410    clk_i
+    SLICE_X8Y77          FDRE                                         r  h1_q_reg[1][4]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X8Y77          FDRE (Prop_fdre_C_Q)         0.164     0.574 r  h1_q_reg[1][4]/Q
+                         net (fo=2, routed)           0.067     0.641    h1_q_reg[1][4]
+    SLICE_X8Y77          FDRE                                         r  h2_q_reg[1][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock clk rise edge)        0.000     0.000 r  
+                                                      0.000     0.000 r  clk_i (IN)
+                         net (fo=572, unset)          0.432     0.432    clk_i
+    SLICE_X8Y77          FDRE                                         r  h2_q_reg[1][4]/C
+                         clock pessimism              0.000     0.432    
+    SLICE_X8Y77          FDRE (Hold_fdre_C_D)         0.053     0.485    h2_q_reg[1][4]
+  -------------------------------------------------------------------
+                         required time                         -0.485    
+                         arrival time                           0.641    
+  -------------------------------------------------------------------
+                         slack                                  0.156    
+
+Slack (MET) :             0.163ns  (arrival time - required time)
+  Source:                 m_tdata_o_reg[17]/C
+                            (rising edge-triggered cell FDSE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            h1_q_reg[1][1]/D
+                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             clk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
+  Data Path Delay:        0.240ns  (logic 0.141ns (58.780%)  route 0.099ns (41.220%))
+  Logic Levels:           0  
+  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.432ns
+    Source Clock Delay      (SCD):    0.410ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock clk rise edge)        0.000     0.000 r  
+                                                      0.000     0.000 r  clk_i (IN)
+                         net (fo=572, unset)          0.410     0.410    clk_i
+    SLICE_X4Y76          FDSE                                         r  m_tdata_o_reg[17]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X4Y76          FDSE (Prop_fdse_C_Q)         0.141     0.551 r  m_tdata_o_reg[17]/Q
+                         net (fo=3, routed)           0.099     0.650    m_tdata_o[17]
+    SLICE_X5Y76          FDRE                                         r  h1_q_reg[1][1]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock clk rise edge)        0.000     0.000 r  
+                                                      0.000     0.000 r  clk_i (IN)
+                         net (fo=572, unset)          0.432     0.432    clk_i
+    SLICE_X5Y76          FDRE                                         r  h1_q_reg[1][1]/C
+                         clock pessimism              0.000     0.432    
+    SLICE_X5Y76          FDRE (Hold_fdre_C_D)         0.055     0.487    h1_q_reg[1][1]
+  -------------------------------------------------------------------
+                         required time                         -0.487    
+                         arrival time                           0.650    
+  -------------------------------------------------------------------
+                         slack                                  0.163    
 
 Slack (MET) :             0.169ns  (arrival time - required time)
-  Source:                 h1_q_reg[1][2]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            h2_q_reg[1][2]/D
+  Source:                 m_tdata_o_reg[19]/C
+                            (rising edge-triggered cell FDSE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            h1_q_reg[1][3]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
-  Data Path Delay:        0.262ns  (logic 0.141ns (53.794%)  route 0.121ns (46.206%))
+  Data Path Delay:        0.254ns  (logic 0.141ns (55.541%)  route 0.113ns (44.459%))
   Logic Levels:           0  
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
@@ -1092,35 +891,35 @@ Slack (MET) :             0.169ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.410     0.410    clk_i
-    SLICE_X3Y76          FDRE                                         r  h1_q_reg[1][2]/C
+                         net (fo=572, unset)          0.410     0.410    clk_i
+    SLICE_X4Y76          FDSE                                         r  m_tdata_o_reg[19]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X3Y76          FDRE (Prop_fdre_C_Q)         0.141     0.551 r  h1_q_reg[1][2]/Q
-                         net (fo=2, routed)           0.121     0.672    h1_q_reg[1][2]
-    SLICE_X3Y76          FDRE                                         r  h2_q_reg[1][2]/D
+    SLICE_X4Y76          FDSE (Prop_fdse_C_Q)         0.141     0.551 r  m_tdata_o_reg[19]/Q
+                         net (fo=3, routed)           0.113     0.664    m_tdata_o[19]
+    SLICE_X6Y76          FDRE                                         r  h1_q_reg[1][3]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.432     0.432    clk_i
-    SLICE_X3Y76          FDRE                                         r  h2_q_reg[1][2]/C
+                         net (fo=572, unset)          0.432     0.432    clk_i
+    SLICE_X6Y76          FDRE                                         r  h1_q_reg[1][3]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X3Y76          FDRE (Hold_fdre_C_D)         0.072     0.504    h2_q_reg[1][2]
+    SLICE_X6Y76          FDRE (Hold_fdre_C_D)         0.063     0.495    h1_q_reg[1][3]
   -------------------------------------------------------------------
-                         required time                         -0.504    
-                         arrival time                           0.672    
+                         required time                         -0.495    
+                         arrival time                           0.664    
   -------------------------------------------------------------------
                          slack                                  0.169    
 
-Slack (MET) :             0.175ns  (arrival time - required time)
-  Source:                 h1_q_reg[1][3]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            h2_q_reg[1][3]/D
+Slack (MET) :             0.173ns  (arrival time - required time)
+  Source:                 m_tdata_o_reg[27]/C
+                            (rising edge-triggered cell FDSE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            h1_q_reg[1][11]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
-  Data Path Delay:        0.269ns  (logic 0.141ns (52.489%)  route 0.128ns (47.511%))
+  Data Path Delay:        0.247ns  (logic 0.141ns (57.182%)  route 0.106ns (42.818%))
   Logic Levels:           0  
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
@@ -1131,35 +930,74 @@ Slack (MET) :             0.175ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.410     0.410    clk_i
-    SLICE_X4Y77          FDRE                                         r  h1_q_reg[1][3]/C
+                         net (fo=572, unset)          0.410     0.410    clk_i
+    SLICE_X4Y78          FDSE                                         r  m_tdata_o_reg[27]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X4Y77          FDRE (Prop_fdre_C_Q)         0.141     0.551 r  h1_q_reg[1][3]/Q
-                         net (fo=2, routed)           0.128     0.679    h1_q_reg[1][3]
-    SLICE_X4Y77          FDRE                                         r  h2_q_reg[1][3]/D
+    SLICE_X4Y78          FDSE (Prop_fdse_C_Q)         0.141     0.551 r  m_tdata_o_reg[27]/Q
+                         net (fo=3, routed)           0.106     0.657    m_tdata_o[27]
+    SLICE_X6Y78          FDRE                                         r  h1_q_reg[1][11]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.432     0.432    clk_i
-    SLICE_X4Y77          FDRE                                         r  h2_q_reg[1][3]/C
+                         net (fo=572, unset)          0.432     0.432    clk_i
+    SLICE_X6Y78          FDRE                                         r  h1_q_reg[1][11]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X4Y77          FDRE (Hold_fdre_C_D)         0.072     0.504    h2_q_reg[1][3]
+    SLICE_X6Y78          FDRE (Hold_fdre_C_D)         0.052     0.484    h1_q_reg[1][11]
   -------------------------------------------------------------------
-                         required time                         -0.504    
-                         arrival time                           0.679    
+                         required time                         -0.484    
+                         arrival time                           0.657    
+  -------------------------------------------------------------------
+                         slack                                  0.173    
+
+Slack (MET) :             0.175ns  (arrival time - required time)
+  Source:                 win_q_reg[1][1][6]/C
+                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            win_q_reg[1][0][6]/D
+                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             clk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
+  Data Path Delay:        0.219ns  (logic 0.148ns (67.474%)  route 0.071ns (32.526%))
+  Logic Levels:           0  
+  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.432ns
+    Source Clock Delay      (SCD):    0.410ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock clk rise edge)        0.000     0.000 r  
+                                                      0.000     0.000 r  clk_i (IN)
+                         net (fo=572, unset)          0.410     0.410    clk_i
+    SLICE_X8Y70          FDRE                                         r  win_q_reg[1][1][6]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X8Y70          FDRE (Prop_fdre_C_Q)         0.148     0.558 r  win_q_reg[1][1][6]/Q
+                         net (fo=6, routed)           0.071     0.629    win_q_reg[1][1][6]
+    SLICE_X8Y70          FDRE                                         r  win_q_reg[1][0][6]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock clk rise edge)        0.000     0.000 r  
+                                                      0.000     0.000 r  clk_i (IN)
+                         net (fo=572, unset)          0.432     0.432    clk_i
+    SLICE_X8Y70          FDRE                                         r  win_q_reg[1][0][6]/C
+                         clock pessimism              0.000     0.432    
+    SLICE_X8Y70          FDRE (Hold_fdre_C_D)         0.023     0.455    win_q_reg[1][0][6]
+  -------------------------------------------------------------------
+                         required time                         -0.455    
+                         arrival time                           0.629    
   -------------------------------------------------------------------
                          slack                                  0.175    
 
-Slack (MET) :             0.181ns  (arrival time - required time)
-  Source:                 m_tdata_o_reg[10]/C
-                            (rising edge-triggered cell FDSE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            h1_q_reg[0][10]/D
+Slack (MET) :             0.175ns  (arrival time - required time)
+  Source:                 win_q_reg[1][1][9]/C
+                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            win_q_reg[1][0][9]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
-  Data Path Delay:        0.273ns  (logic 0.141ns (51.729%)  route 0.132ns (48.271%))
+  Data Path Delay:        0.219ns  (logic 0.148ns (67.474%)  route 0.071ns (32.526%))
   Logic Levels:           0  
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
@@ -1170,79 +1008,35 @@ Slack (MET) :             0.181ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.410     0.410    clk_i
-    SLICE_X4Y80          FDSE                                         r  m_tdata_o_reg[10]/C
+                         net (fo=572, unset)          0.410     0.410    clk_i
+    SLICE_X8Y76          FDRE                                         r  win_q_reg[1][1][9]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X4Y80          FDSE (Prop_fdse_C_Q)         0.141     0.551 r  m_tdata_o_reg[10]/Q
-                         net (fo=3, routed)           0.132     0.683    m_tdata_o[10]
-    SLICE_X4Y79          FDRE                                         r  h1_q_reg[0][10]/D
+    SLICE_X8Y76          FDRE (Prop_fdre_C_Q)         0.148     0.558 r  win_q_reg[1][1][9]/Q
+                         net (fo=6, routed)           0.071     0.629    win_q_reg[1][1][9]
+    SLICE_X8Y76          FDRE                                         r  win_q_reg[1][0][9]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.432     0.432    clk_i
-    SLICE_X4Y79          FDRE                                         r  h1_q_reg[0][10]/C
+                         net (fo=572, unset)          0.432     0.432    clk_i
+    SLICE_X8Y76          FDRE                                         r  win_q_reg[1][0][9]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X4Y79          FDRE (Hold_fdre_C_D)         0.070     0.502    h1_q_reg[0][10]
+    SLICE_X8Y76          FDRE (Hold_fdre_C_D)         0.023     0.455    win_q_reg[1][0][9]
   -------------------------------------------------------------------
-                         required time                         -0.502    
-                         arrival time                           0.683    
+                         required time                         -0.455    
+                         arrival time                           0.629    
   -------------------------------------------------------------------
-                         slack                                  0.181    
+                         slack                                  0.175    
 
-Slack (MET) :             0.183ns  (arrival time - required time)
-  Source:                 c3_q_reg[1][-1111111111]__0/C
+Slack (MET) :             0.176ns  (arrival time - required time)
+  Source:                 win_q_reg[1][1][1]/C
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            c1_q_reg[1][0]/D
+  Destination:            win_q_reg[1][0][1]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
-  Data Path Delay:        0.339ns  (logic 0.256ns (75.604%)  route 0.083ns (24.396%))
-  Logic Levels:           2  (CARRY4=1 LUT2=1)
-  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    0.432ns
-    Source Clock Delay      (SCD):    0.410ns
-    Clock Pessimism Removal (CPR):    -0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock clk rise edge)        0.000     0.000 r  
-                                                      0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.410     0.410    clk_i
-    SLICE_X9Y91          FDRE                                         r  c3_q_reg[1][-1111111111]__0/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X9Y91          FDRE (Prop_fdre_C_Q)         0.141     0.551 r  c3_q_reg[1][-1111111111]__0/Q
-                         net (fo=5, routed)           0.083     0.634    c3_q_reg[1][-1111111111]__0_n_0
-    SLICE_X8Y91          LUT2 (Prop_lut2_I1_O)        0.045     0.679 r  c1_q[1][3]_i_5/O
-                         net (fo=1, routed)           0.000     0.679    c1_q[1][3]_i_5_n_0
-    SLICE_X8Y91          CARRY4 (Prop_carry4_S[0]_O[0])
-                                                      0.070     0.749 r  c1_q_reg[1][3]_i_1/O[0]
-                         net (fo=1, routed)           0.000     0.749    c1_q_reg[1][3]_i_1_n_7
-    SLICE_X8Y91          FDRE                                         r  c1_q_reg[1][0]/D
-  -------------------------------------------------------------------    -------------------
-
-                         (clock clk rise edge)        0.000     0.000 r  
-                                                      0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.432     0.432    clk_i
-    SLICE_X8Y91          FDRE                                         r  c1_q_reg[1][0]/C
-                         clock pessimism              0.000     0.432    
-    SLICE_X8Y91          FDRE (Hold_fdre_C_D)         0.134     0.566    c1_q_reg[1][0]
-  -------------------------------------------------------------------
-                         required time                         -0.566    
-                         arrival time                           0.749    
-  -------------------------------------------------------------------
-                         slack                                  0.183    
-
-Slack (MET) :             0.190ns  (arrival time - required time)
-  Source:                 B[3]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            win_q_reg[0][2][3]/D
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             clk
-  Path Type:              Hold (Min at Fast Process Corner)
-  Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
-  Data Path Delay:        0.282ns  (logic 0.141ns (50.075%)  route 0.141ns (49.925%))
+  Data Path Delay:        0.221ns  (logic 0.148ns (66.993%)  route 0.073ns (33.007%))
   Logic Levels:           0  
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
@@ -1253,36 +1047,36 @@ Slack (MET) :             0.190ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.410     0.410    clk_i
-    SLICE_X5Y82          FDRE                                         r  B[3]/C
+                         net (fo=572, unset)          0.410     0.410    clk_i
+    SLICE_X8Y69          FDRE                                         r  win_q_reg[1][1][1]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X5Y82          FDRE (Prop_fdre_C_Q)         0.141     0.551 r  B[3]/Q
-                         net (fo=4, routed)           0.141     0.692    B_n_0_[3]
-    SLICE_X5Y80          FDRE                                         r  win_q_reg[0][2][3]/D
+    SLICE_X8Y69          FDRE (Prop_fdre_C_Q)         0.148     0.558 r  win_q_reg[1][1][1]/Q
+                         net (fo=5, routed)           0.073     0.631    win_q_reg[1][1][1]
+    SLICE_X8Y69          FDRE                                         r  win_q_reg[1][0][1]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.432     0.432    clk_i
-    SLICE_X5Y80          FDRE                                         r  win_q_reg[0][2][3]/C
+                         net (fo=572, unset)          0.432     0.432    clk_i
+    SLICE_X8Y69          FDRE                                         r  win_q_reg[1][0][1]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X5Y80          FDRE (Hold_fdre_C_D)         0.070     0.502    win_q_reg[0][2][3]
+    SLICE_X8Y69          FDRE (Hold_fdre_C_D)         0.023     0.455    win_q_reg[1][0][1]
   -------------------------------------------------------------------
-                         required time                         -0.502    
-                         arrival time                           0.692    
+                         required time                         -0.455    
+                         arrival time                           0.631    
   -------------------------------------------------------------------
-                         slack                                  0.190    
+                         slack                                  0.176    
 
-Slack (MET) :             0.205ns  (arrival time - required time)
-  Source:                 frac_q_reg[0]/C
+Slack (MET) :             0.178ns  (arrival time - required time)
+  Source:                 st_q_reg[6]/C
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            frac_q_reg[1]/D
+  Destination:            st_q_reg[7]/D
                             (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             clk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
-  Data Path Delay:        0.332ns  (logic 0.265ns (79.819%)  route 0.067ns (20.181%))
-  Logic Levels:           1  (CARRY4=1)
+  Data Path Delay:        0.265ns  (logic 0.141ns (53.167%)  route 0.124ns (46.833%))
+  Logic Levels:           0  
   Clock Path Skew:        0.022ns (DCD - SCD - CPR)
     Destination Clock Delay (DCD):    0.432ns
     Source Clock Delay      (SCD):    0.410ns
@@ -1292,110 +1086,25 @@ Slack (MET) :             0.205ns  (arrival time - required time)
   -------------------------------------------------------------------    -------------------
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.410     0.410    clk_i
-    SLICE_X11Y74         FDRE                                         r  frac_q_reg[0]/C
+                         net (fo=572, unset)          0.410     0.410    clk_i
+    SLICE_X11Y78         FDRE                                         r  st_q_reg[6]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X11Y74         FDRE (Prop_fdre_C_Q)         0.141     0.551 r  frac_q_reg[0]/Q
-                         net (fo=2, routed)           0.067     0.618    frac_q[0]
-    SLICE_X11Y74         CARRY4 (Prop_carry4_DI[0]_O[1])
-                                                      0.124     0.742 r  frac_q_reg[3]_i_1/O[1]
-                         net (fo=1, routed)           0.000     0.742    frac_q_reg[3]_i_1_n_6
-    SLICE_X11Y74         FDRE                                         r  frac_q_reg[1]/D
+    SLICE_X11Y78         FDRE (Prop_fdre_C_Q)         0.141     0.551 r  st_q_reg[6]/Q
+                         net (fo=53, routed)          0.124     0.675    p_2_in
+    SLICE_X11Y77         FDRE                                         r  st_q_reg[7]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock clk rise edge)        0.000     0.000 r  
                                                       0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.432     0.432    clk_i
-    SLICE_X11Y74         FDRE                                         r  frac_q_reg[1]/C
+                         net (fo=572, unset)          0.432     0.432    clk_i
+    SLICE_X11Y77         FDRE                                         r  st_q_reg[7]/C
                          clock pessimism              0.000     0.432    
-    SLICE_X11Y74         FDRE (Hold_fdre_C_D)         0.105     0.537    frac_q_reg[1]
+    SLICE_X11Y77         FDRE (Hold_fdre_C_D)         0.066     0.498    st_q_reg[7]
   -------------------------------------------------------------------
-                         required time                         -0.537    
-                         arrival time                           0.742    
+                         required time                         -0.498    
+                         arrival time                           0.675    
   -------------------------------------------------------------------
-                         slack                                  0.205    
-
-Slack (MET) :             0.206ns  (arrival time - required time)
-  Source:                 adv_q_reg[1]/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            adv_q_reg[2]/D
-                            (rising edge-triggered cell FDSE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             clk
-  Path Type:              Hold (Min at Fast Process Corner)
-  Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
-  Data Path Delay:        0.349ns  (logic 0.246ns (70.553%)  route 0.103ns (29.447%))
-  Logic Levels:           1  (LUT5=1)
-  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    0.432ns
-    Source Clock Delay      (SCD):    0.410ns
-    Clock Pessimism Removal (CPR):    -0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock clk rise edge)        0.000     0.000 r  
-                                                      0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.410     0.410    clk_i
-    SLICE_X10Y78         FDRE                                         r  adv_q_reg[1]/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X10Y78         FDRE (Prop_fdre_C_Q)         0.148     0.558 r  adv_q_reg[1]/Q
-                         net (fo=6, routed)           0.103     0.661    adv_q_reg[1]
-    SLICE_X10Y78         LUT5 (Prop_lut5_I2_O)        0.098     0.759 r  adv_q[2]_i_1/O
-                         net (fo=1, routed)           0.000     0.759    p_0_in__0[2]
-    SLICE_X10Y78         FDSE                                         r  adv_q_reg[2]/D
-  -------------------------------------------------------------------    -------------------
-
-                         (clock clk rise edge)        0.000     0.000 r  
-                                                      0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.432     0.432    clk_i
-    SLICE_X10Y78         FDSE                                         r  adv_q_reg[2]/C
-                         clock pessimism              0.000     0.432    
-    SLICE_X10Y78         FDSE (Hold_fdse_C_D)         0.121     0.553    adv_q_reg[2]
-  -------------------------------------------------------------------
-                         required time                         -0.553    
-                         arrival time                           0.759    
-  -------------------------------------------------------------------
-                         slack                                  0.206    
-
-Slack (MET) :             0.213ns  (arrival time - required time)
-  Source:                 m_tvalid_o_reg/C
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            m_tvalid_o_reg/D
-                            (rising edge-triggered cell FDRE clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Path Group:             clk
-  Path Type:              Hold (Min at Fast Process Corner)
-  Requirement:            0.000ns  (clk rise@0.000ns - clk rise@0.000ns)
-  Data Path Delay:        0.339ns  (logic 0.183ns (53.966%)  route 0.156ns (46.034%))
-  Logic Levels:           1  (LUT3=1)
-  Clock Path Skew:        0.022ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    0.432ns
-    Source Clock Delay      (SCD):    0.410ns
-    Clock Pessimism Removal (CPR):    -0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock clk rise edge)        0.000     0.000 r  
-                                                      0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.410     0.410    clk_i
-    SLICE_X5Y87          FDRE                                         r  m_tvalid_o_reg/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X5Y87          FDRE (Prop_fdre_C_Q)         0.141     0.551 r  m_tvalid_o_reg/Q
-                         net (fo=2, routed)           0.156     0.707    m_tvalid_o
-    SLICE_X5Y87          LUT3 (Prop_lut3_I2_O)        0.042     0.749 r  m_tvalid_o_i_1/O
-                         net (fo=1, routed)           0.000     0.749    m_tvalid_o_i_1_n_0
-    SLICE_X5Y87          FDRE                                         r  m_tvalid_o_reg/D
-  -------------------------------------------------------------------    -------------------
-
-                         (clock clk rise edge)        0.000     0.000 r  
-                                                      0.000     0.000 r  clk_i (IN)
-                         net (fo=510, unset)          0.432     0.432    clk_i
-    SLICE_X5Y87          FDRE                                         r  m_tvalid_o_reg/C
-                         clock pessimism              0.000     0.432    
-    SLICE_X5Y87          FDRE (Hold_fdre_C_D)         0.105     0.537    m_tvalid_o_reg
-  -------------------------------------------------------------------
-                         required time                         -0.537    
-                         arrival time                           0.749    
-  -------------------------------------------------------------------
-                         slack                                  0.213    
+                         slack                                  0.178    
 
 
 
@@ -1409,36 +1118,36 @@ Period(ns):         10.000
 Sources:            { clk_i }
 
 Check Type        Corner  Lib Pin      Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location     Pin
-Min Period        n/a     DSP48E1/CLK  n/a            5.244         10.000      4.756      DSP48_X0Y33  m_q_reg[0]/CLK
-Min Period        n/a     DSP48E1/CLK  n/a            3.884         10.000      6.116      DSP48_X0Y31  gardner_err3/CLK
-Min Period        n/a     DSP48E1/CLK  n/a            3.687         10.000      6.313      DSP48_X0Y30  pe_q_reg/CLK
-Min Period        n/a     DSP48E1/CLK  n/a            2.154         10.000      7.846      DSP48_X0Y29  x/CLK
-Min Period        n/a     FDRE/C       n/a            1.000         10.000      9.000      SLICE_X9Y81  B[0]/C
-Min Period        n/a     FDRE/C       n/a            1.000         10.000      9.000      SLICE_X5Y92  B[0]__0/C
-Min Period        n/a     FDRE/C       n/a            1.000         10.000      9.000      SLICE_X5Y84  B[10]/C
-Min Period        n/a     FDRE/C       n/a            1.000         10.000      9.000      SLICE_X5Y94  B[10]__0/C
-Min Period        n/a     FDRE/C       n/a            1.000         10.000      9.000      SLICE_X8Y82  B[11]/C
-Min Period        n/a     FDRE/C       n/a            1.000         10.000      9.000      SLICE_X9Y96  B[11]__0/C
-Low Pulse Width   Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X9Y81  B[0]/C
-Low Pulse Width   Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X9Y81  B[0]/C
-Low Pulse Width   Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y92  B[0]__0/C
-Low Pulse Width   Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y92  B[0]__0/C
-Low Pulse Width   Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y84  B[10]/C
-Low Pulse Width   Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y84  B[10]/C
-Low Pulse Width   Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y94  B[10]__0/C
-Low Pulse Width   Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y94  B[10]__0/C
-Low Pulse Width   Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y82  B[11]/C
-Low Pulse Width   Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y82  B[11]/C
-High Pulse Width  Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X9Y81  B[0]/C
-High Pulse Width  Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X9Y81  B[0]/C
-High Pulse Width  Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y92  B[0]__0/C
-High Pulse Width  Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y92  B[0]__0/C
-High Pulse Width  Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y84  B[10]/C
-High Pulse Width  Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y84  B[10]/C
-High Pulse Width  Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y94  B[10]__0/C
-High Pulse Width  Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X5Y94  B[10]__0/C
-High Pulse Width  Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y82  B[11]/C
-High Pulse Width  Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y82  B[11]/C
+Min Period        n/a     DSP48E1/CLK  n/a            3.884         10.000      6.116      DSP48_X0Y30  gardner_err3/CLK
+Min Period        n/a     DSP48E1/CLK  n/a            3.687         10.000      6.313      DSP48_X0Y32  pe_q_reg/CLK
+Min Period        n/a     DSP48E1/CLK  n/a            3.558         10.000      6.442      DSP48_X0Y25  c3_q_reg[0]/CLK
+Min Period        n/a     DSP48E1/CLK  n/a            3.558         10.000      6.442      DSP48_X1Y28  c3_q_reg[1]/CLK
+Min Period        n/a     DSP48E1/CLK  n/a            2.154         10.000      7.846      DSP48_X0Y33  x/CLK
+Min Period        n/a     FDRE/C       n/a            1.000         10.000      9.000      SLICE_X8Y86  adv_q_reg[0]/C
+Min Period        n/a     FDRE/C       n/a            1.000         10.000      9.000      SLICE_X8Y86  adv_q_reg[1]/C
+Min Period        n/a     FDSE/C       n/a            1.000         10.000      9.000      SLICE_X8Y86  adv_q_reg[2]/C
+Min Period        n/a     FDRE/C       n/a            1.000         10.000      9.000      SLICE_X8Y86  adv_q_reg[3]/C
+Min Period        n/a     FDRE/C       n/a            1.000         10.000      9.000      SLICE_X8Y87  adv_q_reg[4]/C
+Low Pulse Width   Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[0]/C
+Low Pulse Width   Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[0]/C
+Low Pulse Width   Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[1]/C
+Low Pulse Width   Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[1]/C
+Low Pulse Width   Slow    FDSE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[2]/C
+Low Pulse Width   Fast    FDSE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[2]/C
+Low Pulse Width   Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[3]/C
+Low Pulse Width   Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[3]/C
+Low Pulse Width   Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y87  adv_q_reg[4]/C
+Low Pulse Width   Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y87  adv_q_reg[4]/C
+High Pulse Width  Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[0]/C
+High Pulse Width  Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[0]/C
+High Pulse Width  Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[1]/C
+High Pulse Width  Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[1]/C
+High Pulse Width  Slow    FDSE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[2]/C
+High Pulse Width  Fast    FDSE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[2]/C
+High Pulse Width  Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[3]/C
+High Pulse Width  Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y86  adv_q_reg[3]/C
+High Pulse Width  Slow    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y87  adv_q_reg[4]/C
+High Pulse Width  Fast    FDRE/C       n/a            0.500         5.000       4.500      SLICE_X8Y87  adv_q_reg[4]/C
 
 
 

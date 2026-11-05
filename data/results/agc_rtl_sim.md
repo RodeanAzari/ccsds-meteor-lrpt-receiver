@@ -1,6 +1,6 @@
 # agc_rtl_sim
 
-- **Commit:** `0e449531d347843affa8ae0aae2dfa86b2ad3a6e`
+- **Commit:** `84859c45331e5afe8f0bab5fae9c0974dcaee50c`
 - **Command:** `make sync-rtl-results`
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Verilator 5.050, cocotb 2.1.0
 - **Input:** synthetic, seeds 13-15 in tb/cocotb/test_sync_agc.py (bit-true RRC output of OQPSK at 6 dB Eb/N0, 151 kHz carrier, 30 Hz/s ramp; random full-scale for saturation). No real recording.
