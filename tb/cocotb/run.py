@@ -21,6 +21,11 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
         ["rtl/ddc/ddc_comp_fir.sv"],
         [{"TAP_FILE": f'"{ROOT / "rtl/ddc/comp_fir_taps.mem"}"'}],
     ),
+    "test_sync_rrc": (
+        "sync_rrc",
+        ["rtl/ddc/ddc_comp_fir.sv", "rtl/sync/sync_rrc.sv"],
+        [{"TAP_FILE": f'"{ROOT / "rtl/sync/rrc_taps.mem"}"'}],
+    ),
     "test_arty_ddc_rom_top": (
         "arty_ddc_rom_top",
         ["rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_rom_source.sv", "rtl/io/capture_dump.sv",
