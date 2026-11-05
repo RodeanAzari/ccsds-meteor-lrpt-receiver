@@ -287,7 +287,7 @@ Model only. RTL, sync-FSM formal proof and coverage of every hypothesis winning:
 | Survivors ([0007](docs/decisions/0007-survivor-memory.md)) | BRAM + per-bit traceback; BRAM + chunked; register exchange (6,144 FF + 6,144 mux at D = 96) | **BRAM, per-bit traceback** | Bit-exact model of the scheme |
 | Traceback depth ([0008](docs/decisions/0008-traceback-depth.md)) | Best-state start at 36–60; state-0 start at 48–96 | **96 from state 0** | +0.1% BER vs. full-block at 2.5 dB, equal at 3 and 4 dB; no 64-way minimum tree ([traceback_depth.csv](data/results/traceback_depth.csv)) |
 
-Depth 96 is outside CLAUDE.md's 35–50 guideline. That range assumes a best-state start, and even then it measures
+Depth 96 is outside the build plan's 35–50 guideline ([buildplan.md §3.6](docs/buildplan.md)). That range assumes a best-state start, and even then it measures
 2–5% worse than full-block decoding at 2.5–3 dB. ADR 0008 explains the choice.
 
 ![Viterbi BER against Eb/N0 for each soft-decision width](docs/media/2026-11-04_phase-a_soft-width-ber.png)

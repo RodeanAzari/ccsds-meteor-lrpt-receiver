@@ -560,3 +560,16 @@
 - My first `timeout_time` on the long test was in "min", which cocotb rejects. It's simulated time anyway, and no
   other test sets one, so it was removed.
 - The README's "15 written up" bug count had been stale since the last session (16 rows); it now comes from the table.
+
+## 2026-11-05 (continued): always-loaded docs trimmed
+
+- CLAUDE.md 698 → 202 lines (41.0 kB → ~14 kB). The detailed spec (§1 kit detail, §2–4, planned §6 targets and CI,
+  §8–11) moved verbatim to `docs/buildplan.md` (not imported), keeping the section numbers so the `CLAUDE.md §N`
+  references in code and docs still resolve. A script checked that every moved line is in buildplan.md; the
+  condensed lines were reviewed by hand. That review caught the required-ADR list deleted by mistake (restored).
+- New rule in CLAUDE.md: CLAUDE.md ≤ 250 lines, `progress.md` ≤ 150, trimmed at the end of every session that edits
+  them.
+- `progress.md` 119 → 67 lines: per-block measurements cut (they're in the README Results table and the CSVs), stale
+  clang-tooling step removed (installed, in `make ci`).
+- Pointers updated: README (traceback-depth guideline → buildplan §3.6), `signal-spec.md` ("Differences from the
+  build plan").

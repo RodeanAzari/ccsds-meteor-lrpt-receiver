@@ -89,11 +89,12 @@ These values describe SatDump's implementation. They are not requirements on thi
 | Clock | gain_mu 8.7e-3, gain_omega (8.7e-3)²/4, relative limit 0.005 | `module_psk_demod.h:32-35` |
 | Soft scale | sample × 100, clamped to int8 | `module_psk_demod.cpp:209` |
 
-## Differences from CLAUDE.md
+## Differences from the build plan
 
-This file wins wherever they differ, as CLAUDE.md itself says. CLAUDE.md §2, §3 and §12 haven't been rewritten.
+This file wins wherever they differ, as CLAUDE.md itself says. The build plan's §2 and §3 (`docs/buildplan.md`,
+moved there from CLAUDE.md with the same numbers) and CLAUDE.md §12 haven't been rewritten.
 
-| # | CLAUDE.md | SatDump 1.2.2 | Consequence |
+| # | Build plan | SatDump 1.2.2 | Consequence |
 |---|---|---|---|
 | 1 | No differential decoder in §3 | NRZ-M is on | **Add an NRZ-M block between Viterbi and the ASM check**, and NRZ-M encode in the §8.1 modulator. Without it no ASM ever matches. |
 | 2 | §3.5: correlate against one encoded ASM pattern, 4 rotations | Two complementary patterns, rotations {0°, 90°} | Correlate on absolute value with {0°, 90°} × swap × shift. Confirm on a recording in Phase A. |
