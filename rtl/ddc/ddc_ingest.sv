@@ -8,7 +8,9 @@
 // Per rail: v = 2*raw - 255 (s9, exact), then
 //   acc += ((v - prev) << DC_FRAC) - round(acc >> DC_K)      (pole 1 - 2^-DC_K)
 //   y    = sat(round(acc >> DC_FRAC), OUT_W)
-// One output register; s_tready = !m_tvalid || m_tready, so nothing is dropped under backpressure.
+// Pipeline: S1 convert to v | S2 accumulator update | S3 round, saturate. All stages advance together on
+// ce = !m_tvalid || m_tready (s_tready = ce), so nothing is dropped under backpressure. Splitting S2 from S3 closed
+// the board build's timing (docs/log.md); the arithmetic is unchanged.
 module ddc_ingest #(
     parameter int IN_W   = 8,   // cu8 per rail, signal-spec.md
     parameter int DC_K   = 10,  // pole 1 - 2^-10, corner 159 Hz at 1.024 MS/s; fixed-point.md §DDC
@@ -30,15 +32,14 @@ module ddc_ingest #(
 
     localparam int V_W = IN_W + 1;  // 2*raw - 255 is s9 for IN_W = 8
 
-    logic signed [ACC_W-1:0] acc_q  [2];
+    logic signed [ACC_W-1:0] acc_q  [2];  // after the latest S2 sample; S3 reads it
     logic signed [V_W-1:0]   prev_q [2];
-    logic signed [ACC_W-1:0] acc_d  [2];
-    logic signed [V_W-1:0]   v      [2];
-    logic signed [OUT_W-1:0] y      [2];
-    logic                    take;
+    logic signed [V_W-1:0]   v1_q   [2];  // S1
+    logic [2:1]              vld_q;       // S1, S2 valid
+    logic                    ce;
 
-    assign s_tready_o = !m_tvalid_o || m_tready_i;
-    assign take       = s_tvalid_i && s_tready_o;
+    assign ce         = !m_tvalid_o || m_tready_i;
+    assign s_tready_o = ce;
 
     function automatic logic signed [OUT_W-1:0] sat_round(input logic signed [ACC_W-1:0] a);
         logic signed [ACC_W-1:0] r;
@@ -48,33 +49,30 @@ module ddc_ingest #(
         else                                          return r[OUT_W-1:0];
     endfunction
 
-    always_comb begin
-        for (int r = 0; r < 2; r++) begin
-            v[r] = V_W'({1'b0, s_tdata_i[r*IN_W +: IN_W], 1'b0}) - V_W'((1 << IN_W) - 1);
-            acc_d[r] = acc_q[r]
-                     + ((ACC_W'(v[r]) - ACC_W'(prev_q[r])) <<< DC_FRAC)  // widen first: v - prev needs s10
-                     - ((acc_q[r] + ACC_W'(1 << (DC_K - 1))) >>> DC_K);
-            y[r] = sat_round(acc_d[r]);
-        end
-    end
-
     always_ff @(posedge clk_i) begin
         if (rst_i) begin
+            vld_q      <= '0;
             m_tvalid_o <= 1'b0;
             for (int r = 0; r < 2; r++) begin
                 acc_q[r]  <= '0;
                 prev_q[r] <= '0;
             end
-        end else begin
-            if (take) begin
-                for (int r = 0; r < 2; r++) begin
-                    acc_q[r]  <= acc_d[r];
-                    prev_q[r] <= v[r];
+        end else if (ce) begin
+            vld_q      <= {vld_q[1], s_tvalid_i};
+            m_tvalid_o <= vld_q[2];
+            for (int r = 0; r < 2; r++) begin
+                // S1: v = 2*raw - 255
+                v1_q[r] <= V_W'({1'b0, s_tdata_i[r*IN_W +: IN_W], 1'b0}) - V_W'((1 << IN_W) - 1);
+                // S2: acc += ((v - prev) << DC_FRAC) - round(acc >> DC_K); widen first: v - prev needs s10
+                if (vld_q[1]) begin
+                    acc_q[r]  <= acc_q[r]
+                               + ((ACC_W'(v1_q[r]) - ACC_W'(prev_q[r])) <<< DC_FRAC)
+                               - ((acc_q[r] + ACC_W'(1 << (DC_K - 1))) >>> DC_K);
+                    prev_q[r] <= v1_q[r];
                 end
-                m_tdata_o <= {y[1], y[0]};
             end
-            if (take)            m_tvalid_o <= 1'b1;
-            else if (m_tready_i) m_tvalid_o <= 1'b0;
+            // S3: acc_q holds the accumulator after the sample now in S2's output slot
+            m_tdata_o <= {sat_round(acc_q[1]), sat_round(acc_q[0])};
         end
     end
 

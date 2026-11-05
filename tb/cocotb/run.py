@@ -21,6 +21,19 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
         ["rtl/ddc/ddc_comp_fir.sv"],
         [{"TAP_FILE": f'"{ROOT / "rtl/ddc/comp_fir_taps.mem"}"'}],
     ),
+    "test_arty_ddc_rom_top": (
+        "arty_ddc_rom_top",
+        ["rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_rom_source.sv", "rtl/io/capture_dump.sv",
+         "rtl/io/uart_tx.sv"]
+        + [f"rtl/ddc/{f}.sv" for f in ("ddc_ingest", "ddc_nco_mixer", "ddc_cic", "ddc_comp_fir", "ddc_top")]
+        + ["rtl/top/arty_ddc_rom_top.sv"],
+        [{
+            "N_SAMPLES": 2048,  # tb/cocotb/ddc_board.py N_SIM
+            "CLKS_PER_BIT": 8,  # test_arty_ddc_rom_top.py CLKS_PER_BIT
+            "NCO_LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"',
+            "COMP_TAP_FILE": f'"{ROOT / "rtl/ddc/comp_fir_taps.mem"}"',
+        }],
+    ),
     "test_ddc_top": (
         "ddc_top",
         [f"rtl/ddc/{f}.sv" for f in ("ddc_ingest", "ddc_nco_mixer", "ddc_cic", "ddc_comp_fir", "ddc_top")],
@@ -42,6 +55,11 @@ def main(names: list[str]) -> int:
         for params in param_sets:
             tag = "_".join(f"{k}{v}" for k, v in params.items() if isinstance(v, int)) or "default"
             build_dir = ROOT / "build" / "sim" / f"{name}_{tag}"
+            if name == "test_arty_ddc_rom_top":  # the ROM image must exist before $readmemh at elaboration
+                from ddc_board import prepare, rom_path
+
+                prepare(build_dir)
+                params = {**params, "ROM_FILE": f'"{rom_path(build_dir)}"'}
             runner = get_runner("verilator")
             runner.build(
                 sources=[ROOT / s for s in srcs],

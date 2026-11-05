@@ -2,8 +2,8 @@ PY := .venv/bin/python
 RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' | sort)
 RTL_DIRS := $(sort $(dir $(RTL)))
 
-.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results synth-ooc ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq ci clean \
-        sim-full cov formal gs gs-test fuzz synth impl prog reports
+.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results synth-ooc board prog board-check ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq ci clean \
+        sim-full cov formal gs gs-test fuzz synth impl reports
 
 setup:
 	python3 -m venv .venv
@@ -61,6 +61,23 @@ synth-ooc:
 	@grep "^OOC " build/syn/$(TOP).log
 	$(PY) -m analysis.synth_report $(TOP)
 
+# Phase B board bring-up: ROM snippet -> DDC -> UART (rtl/top/arty_ddc_rom_top.sv). `make board prog board-check`.
+BOARD_TOP := arty_ddc_rom_top
+SERIAL ?= /dev/ttyUSB1
+board:
+	PYTHONPATH=. $(PY) scripts/ddc_board.py rom build/board/iq_rom.mem
+	cd build/board && ../../scripts/vivado.sh -mode batch -source ../../syn/impl_board.tcl \
+		-tclargs $(BOARD_TOP) iq_rom.mem > $(BOARD_TOP).log 2>&1 || { tail -30 $(BOARD_TOP).log; exit 1; }
+	@grep "^BOARD " build/board/$(BOARD_TOP).log
+	$(PY) -m analysis.synth_report $(BOARD_TOP) board
+
+# Claim the shared board first: python3 ~/fpga-coord/coord.py board claim P3 "<reason>" (fpga-coord PROTOCOL §6)
+prog:
+	openFPGALoader -b arty_a7_100t build/board/$(BOARD_TOP).bit
+
+board-check:
+	PYTHONPATH=. $(PY) scripts/ddc_board.py check $(SERIAL)
+
 plots:
 	$(PY) -m analysis.plots
 
@@ -74,5 +91,5 @@ clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build sim_build
 
 # Fail loudly instead of pretending these work.
-sim-full cov formal gs gs-test fuzz synth impl prog reports:
+sim-full cov formal gs gs-test fuzz synth impl reports:
 	@echo "make $@: not implemented yet (needs RTL or C++ from a later phase)" >&2; exit 1
