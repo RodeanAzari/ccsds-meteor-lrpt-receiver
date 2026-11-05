@@ -348,6 +348,9 @@
    Moved the interpretation to `analysis/interpretations/`. Its run-to-run jitter numbers are now stated as ranges,
    because re-running changed them (late datagrams 69–304 at 1×; flat-out loss at the Python receiver 0.4–17%).
 
-**Not done**
-
-- Vivado GUI screenshot of the ILA waveform (you; steps in `docs/portfolio-todo.md`).
+- 2026-11-05: re-captured with `make ila-capture` (0 mismatches again). The script now also writes the `.ila` file
+  and the trigger/capture settings it used. The GUI screenshot was taken offline from that file.
+- GUI lessons, for next time: pressing PROG clears the bitstream (re-program; the ILA is gone until then). A GUI
+  trigger row left on rom_done == 1 stops the trigger from ever firing on the first output. Virtual buses built from
+  expanded bits came out bit-reversed the first time; check one known sample against the model. hw_server crashed
+  once over usbipd; killing it and reconnecting fixed it.

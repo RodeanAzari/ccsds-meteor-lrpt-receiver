@@ -12,13 +12,10 @@
       `make plots`)
 - [x] Plot: ILA capture of baseband I/Q vs. the model (`docs/media/2026-11-04_phase-b_ddc-ila-baseband.png`,
       `make plots`)
-- [ ] Screenshot (you, Vivado GUI, no board needed): the ILA waveform from the scripted capture. Run
-      `make ila-capture` (board claimed) to make `build/board/ila_ddc.ila`, start `scripts/vivado.sh`, and in the Tcl
-      Console run `open_hw_manager` and then `display_hw_ila_data [read_hw_ila_data build/board/ila_ddc.ila]` (full
-      path). Make virtual buses I = `bb_tdata[15:0]` and Q = `[31:16]`, set them to Signed Decimal and Analog, and
-      check that sample 15 reads I = −81, Q = −185 (Reverse Bit Order if not). Zoom to samples 0–128 and crop to the
-      waveform. The trigger settings used are recorded in
-      `docs/reports/board/arty_ddc_rom_top_ila/ila_capture_settings.txt`, so they need no screenshot.
+- [x] Screenshot: Vivado ILA waveform of the DDC output, I/Q as signed analog traces, samples 0–140
+      (`docs/media/2026-11-04_phase-b_ila-waveform.png`). Checked: sample 15 reads I = −81, Q = −185, as in the
+      model. From `build/board/ila_ddc.ila` (`make ila-capture`); trigger settings in
+      `docs/reports/board/arty_ddc_rom_top_ila/ila_capture_settings.txt`.
 - [ ] Photo: the Arty running the bring-up design, LD4–LD6 lit (heartbeat, snippet played, capture full), USB cable
       to the host visible
 - [ ] Screen recording or screenshot: terminal running `make prog board-check` ending in
