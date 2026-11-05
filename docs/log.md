@@ -240,3 +240,44 @@
 - Worst path is now the DC-block accumulator (8.73 ns). Thin margin for the integrated build; pipelining its
   rounding is the first fix if needed.
 - Board top with the BRAM-ROM snippet, `gs-replay`, Phase B media.
+
+## 2026-11-04 (continued): DDC on the board
+
+**Done**
+
+- Bring-up design `rtl/top/arty_ddc_rom_top.sv` (ROM → DDC → capture → UART) with `reset_sync`, `cdc_sync_bit`,
+  `iq_rom_source`, `capture_dump`, `uart_tx`; `constr/arty_a7_100t.xdc`; `syn/impl_board.tcl`;
+  `make board prog board-check`. A cocotb test decodes the UART pin in simulation and checks every output and the
+  BTN0 repeat dump against the model (14 cocotb tests now).
+- Board build at 100 MHz: WNS +1.521 ns, WHS +0.040 ns (`data/results/board_arty_ddc_rom_top.csv`).
+- **On hardware: 16,384 DDC outputs, 0 mismatches against the bit-true model** (`data/results/ddc_board.csv`),
+  on three CRC-checked runs with byte-identical dumps. Spectrum before/after from board data:
+  `docs/media/2026-11-04_phase-b_ddc-spectrum-board.png`.
+- Planted bug, caught by the board-top test: the capture buffer's stale-read bug (bug 3 below) put back.
+
+**Bugs**
+
+1. Symptom: board build missed 100 MHz by 0.155 ns on 7 endpoints. Root cause: the ROM's BRAM output fed the DC
+   block's accumulator update, rounding and saturation in one cycle (9.51 ns, 12 logic levels), the path flagged
+   after the OOC run. Fix: `ddc_ingest` split into three stages (convert, accumulate, round/saturate). Bit-exact
+   tests unchanged.
+2. Symptom: second board run reported 16,169 of 16,384 outputs wrong, from word 215 on. Root cause: not the DDC.
+   Opening the serial port resets the board (a dump began 0.05 s after the port opened, with no programming or
+   button), and programming then cut that dump off after 891 bytes; the host took the cut-off dump's header and read
+   on into the next dump. The first run passed only because no DDC design was loaded yet. Fix: CRC-32 trailer on the
+   dump; the host skips dumps that fail it (`scripts/tests/test_ddc_board.py` replays this case). Next run: the
+   cut-off dump was skipped on its CRC and the real one matched.
+3. Symptom (caught in review before simulation): `capture_dump` would have sent each word's predecessor. Root cause:
+   the FSM loaded the BRAM read register in the cycle after changing the address, one cycle too early. Fix: a wait
+   state.
+4. Symptom: the "before" spectrum showed a notch, not a spike, at the DC offset. Root cause: Welch's default
+   per-segment mean removal. Fix: `detrend=False`.
+5. Process slip: a shell chain continued after a ruff failure and ran `make prog` without the fpga-coord board
+   claim (the board was free; claimed properly on every run since). Board runs now use `set -e` and remove stale logs.
+6. Also fixed: the top's default NCO word was written as 0x0258_0000 instead of 0x2580_0000 (150 kHz); caught by
+   reading it back before the first simulation.
+
+**Not done**
+
+- ILA build and baseband I/Q capture; `gs-replay`; board photo.
+- Why opening the port resets the design is not established; the CRC makes the check immune to it either way.

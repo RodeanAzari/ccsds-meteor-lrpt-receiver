@@ -97,7 +97,8 @@ def read_dump(port: str, n: int, timeout_s: float) -> bytes:
 
     with serial.Serial(port, BAUD, timeout=1.0) as s:
         s.reset_input_buffer()
-        print(f"waiting for a dump on {port} (opening the port resets the board and starts one; BTN0 repeats it)...", flush=True)
+        print(f"waiting for a dump on {port} (opening the port resets the board and starts one; BTN0 repeats it)...",
+              flush=True)
         buf = b""
         start = 0  # first byte not yet ruled out as the start of a dump
         deadline = time.monotonic() + timeout_s

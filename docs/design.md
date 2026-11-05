@@ -30,4 +30,16 @@ encoded ASM, `signal-spec.md`) are implemented in the model but have no ADR yet.
 
 ## Clock-domain crossings
 
-None yet: the DDC is single-clock. Every crossing gets a row here and an XDC constraint when it is written.
+The design is single-clock (100 MHz, `clk100_i`). The only crossings are asynchronous board inputs:
+
+| Signal | From | Synchronizer | XDC |
+|---|---|---|---|
+| `ck_rst_n_i` (RESET button) | asynchronous | `rtl/lib/reset_sync.sv`: async assert, 3-flop sync deassert | `set_false_path -from` in `constr/arty_a7_100t.xdc` |
+| `btn0_i` (BTN0) | asynchronous | `rtl/lib/cdc_sync_bit.sv`: 2-flop, `ASYNC_REG` | `set_false_path -from` in `constr/arty_a7_100t.xdc` |
+
+## Board bring-up (Phase B, no Ethernet)
+
+`rtl/top/arty_ddc_rom_top.sv`: `iq_rom_source` (64 K-sample cu8 snippet in BRAM) → `ddc_top` → `capture_dump`
+(16 K-word BRAM) → `uart_tx` (115,200 baud). Dump format: `"DDC1"` | u32 n | n × u32 `{Q, I}` | u32 CRC-32, all
+little-endian. **Opening the board's serial port resets the design** and starts a dump (observed 2026-11-04; the
+mechanism is not established), so the host discards any dump whose CRC fails. `make board prog board-check`.

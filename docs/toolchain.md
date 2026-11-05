@@ -10,5 +10,7 @@ Versions marked "installed" were read from the machine on 2026-11-02. `[TBD]` me
 | Vivado | 2025.2 (build 6299465; edition not checked). `syn/synth_ooc.tcl` warns on any other version | `~/Xilinx/2025.2/Vivado`, run through `scripts/vivado.sh` (locale and ncurses workarounds; not on PATH) | Installed; OOC flow working 2026-11-04 |
 | cocotb | 2.1.0 (pinned in `requirements.txt`) | `.venv` | Installed 2026-11-04 |
 | tb-common (P2) | `tb-common-v0.1`, pip from git at the tag (`requirements.txt`) | `.venv` | Installed 2026-11-04 |
+| pyserial | 3.5 (pinned in `requirements.txt`) | `.venv` | Installed 2026-11-04 |
+| openFPGALoader | v1.1.1 (`make prog`) | `~/.local/opt/oss-cad-suite`; board attached to WSL with usbipd-win | Working 2026-11-04 |
 | SymbiYosys, CMake, C++ compiler | `[TBD]` | — | Not checked |
 | rtl_sdr | `[TBD]` | — | Not installed |

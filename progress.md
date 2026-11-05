@@ -32,7 +32,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   `docs/design.md` summarizes ADRs 0001–0008. 56 tests passing.
 - Not done: a real recording. Phase A's model work is otherwise complete through the Viterbi.
 
-**Phase B: DDC RTL written and bit-exact in simulation.**
+**Phase B: DDC bit-exact in simulation and on the board.**
 
 - `rtl/ddc/`: ingest + DC block, NCO + mixer, CIC ÷4, 31-tap comp FIR, `ddc_top`. Each block and the whole chain
   match `model/ddc_fixed.py` bit for bit under backpressure. 9.0 cycles per input sample, 10.8× real time at
@@ -40,7 +40,10 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 - tb-common pinned at `tb-common-v0.1` (pip from git) with cocotb 2.1.0.
 - Out-of-context at 100 MHz: WNS +0.661 ns, 1,036 LUTs, 6 DSP48E1, 1 RAMB18 (`data/results/synth_ddc_top.csv`).
   Vivado via `scripts/vivado.sh`; `make synth-ooc TOP=<top>`.
-- Not done: BRAM-ROM board top, `gs-replay`, Phase B media.
+- **On the board:** BRAM-ROM snippet → DDC → UART; 16,384 outputs, 0 mismatches vs. the model
+  (`data/results/ddc_board.csv`); board build WNS +1.521 ns. `make board prog board-check` (claim the board first).
+- Opening the serial port resets the board design; dumps carry a CRC-32 and the host skips cut-off ones.
+- Not done: ILA build (baseband I/Q capture), `gs-replay`, board photo.
 
 ## Next steps
 
@@ -49,7 +52,9 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 2. Decode it with SatDump and list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
-4. Phase B: board top with a BRAM-ROM IQ snippet and UART/ILA readout (no Ethernet until `eth-core-v0.1`); `gs-replay`.
+4. Phase B: `gs-replay` (C++, packetizes `.iq` into UDP; testable on the host before eth-core-v0.1 exists).
+5. Phase B: `make board ILA=1` and an ILA capture of baseband I/Q (media).
+6. **You:** board photo and terminal capture listed in `docs/portfolio-todo.md`.
 
 ## Key decisions
 
@@ -68,6 +73,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 | Costas 0.001 rad/sample, timing kp 0.02 | Measured sweeps | `data/results/sync_*.csv` |
 | Work in WSL at `~/CCSDS`; board USB through usbipd-win | Toolchain lives in WSL; /mnt/c is slow | This file |
 | RTL streams carry `{Q, I}` in one beat; pipelines stall as a whole | One handshake per sample; no rail skew | `docs/design.md` |
+| Board readout: UART dump with CRC-32, host skips bad dumps | A cut-off dump must not read as a DDC error | `docs/design.md` |
 | RTL tables generated from the model, checked for staleness | One source of truth for NCO and FIR coefficients | `scripts/gen_rtl_tables.py` |
 | Sync threshold 0.75; frames under the flywheel held until the lock is confirmed | Fixes false locks and duplicate frames | `model/receiver.py` |
 
@@ -77,4 +83,4 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 - P2 gates (2026-11-04): `tb-common-v0.1` tagged and in use. `eth-core-v0.1` and `v0.2` not tagged: hardware
   testing from a BRAM ROM only, results over UART/ILA (CLAUDE.md, Dependencies on Project 2).
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
-- DDC worst path is the DC-block accumulator (0.66 ns slack out of context); watch it in the board build.
+- What in the board resets the design when the serial port opens (DTR/RTS?). Harmless with the CRC.
