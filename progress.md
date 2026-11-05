@@ -43,7 +43,10 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 - **On the board:** BRAM-ROM snippet → DDC → UART; 16,384 outputs, 0 mismatches vs. the model
   (`data/results/ddc_board.csv`); board build WNS +1.521 ns. `make board prog board-check` (claim the board first).
 - Opening the serial port resets the board design; dumps carry a CRC-32 and the host skips cut-off ones.
-- Not done: ILA build (baseband I/Q capture), `gs-replay`, board photo.
+- `gs-replay` (C++, `gs/`): 8-byte BE sequence + 512 cu8 samples per datagram (ADR 0009, `docs/protocol.md`).
+  Loopback on the synthetic recording: 1× and 5× lossless and byte-exact (`data/results/gs_replay_loopback.csv`).
+  `make gs gs-test`, in `make ci`. Not yet sent to the board (eth-core-v0.1).
+- Not done: ILA build (baseband I/Q capture), board photo; clang-tidy/cppcheck/clang-format/libFuzzer not installed.
 
 ## Next steps
 
@@ -52,8 +55,8 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 2. Decode it with SatDump and list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
-4. Phase B: `gs-replay` (C++, packetizes `.iq` into UDP; testable on the host before eth-core-v0.1 exists).
-5. Phase B: `make board ILA=1` and an ILA capture of baseband I/Q (media).
+4. Phase B: `make board ILA=1` and an ILA capture of baseband I/Q (media).
+5. **You:** install clang-format, clang-tidy, cppcheck and clang (libFuzzer), which need sudo, so C++ static analysis can run.
 6. **You:** board photo and terminal capture listed in `docs/portfolio-todo.md`.
 
 ## Key decisions
@@ -75,6 +78,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 | RTL streams carry `{Q, I}` in one beat; pipelines stall as a whole | One handshake per sample; no rail skew | `docs/design.md` |
 | Board readout: UART dump with CRC-32, host skips bad dumps | A cut-off dump must not read as a DDC error | `docs/design.md` |
 | RTL tables generated from the model, checked for staleness | One source of truth for NCO and FIR coefficients | `scripts/gen_rtl_tables.py` |
+| IQ replay: 8-byte BE seq + 512 raw cu8 per datagram | Matches eth-core `rx_stats`; no host conversion; ≤ 5.69× on 100 Mb/s | ADR 0009 |
 | Sync threshold 0.75; frames under the flywheel held until the lock is confirmed | Fixes false locks and duplicate frames | `model/receiver.py` |
 
 ## Open questions

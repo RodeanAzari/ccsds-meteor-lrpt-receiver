@@ -15,9 +15,10 @@ and lists clock-domain crossings.
 | [0006](decisions/0006-path-metric-normalization.md) | Modulo path metrics, 9 bits | `test_viterbi_fixed.py` |
 | [0007](decisions/0007-survivor-memory.md) | Survivors in BRAM, per-bit sliding traceback | `test_viterbi_fixed.py` |
 | [0008](decisions/0008-traceback-depth.md) | Traceback depth 96 from state 0 | `traceback_depth.csv` |
+| [0009](decisions/0009-iq-transport-format.md) | IQ replay: 8-byte BE sequence + 512 raw cu8 samples per datagram | `gs_replay_loopback.csv` |
 
 Still required (CLAUDE.md §5.5): interpolator type, Berlekamp–Massey variant, RS instance count, phase-ambiguity
-strategy, IQ transport format. The interpolator (Catmull-Rom cubic) and phase-ambiguity strategy (4 hypotheses on the
+strategy. The interpolator (Catmull-Rom cubic) and phase-ambiguity strategy (4 hypotheses on the
 encoded ASM, `signal-spec.md`) are implemented in the model but have no ADR yet.
 
 ## Stream conventions (RTL)

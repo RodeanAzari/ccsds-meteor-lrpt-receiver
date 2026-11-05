@@ -281,3 +281,33 @@
 
 - ILA build and baseband I/Q capture; `gs-replay`; board photo.
 - Why opening the port resets the design is not established; the CRC makes the check immune to it either way.
+
+## 2026-11-04 (continued): gs-replay and the IQ transport format
+
+**Done**
+
+- `docs/protocol.md` started: IQ replay datagram = 8-byte big-endian sequence + 512 raw cu8 samples (1,032 B).
+  It matches fpga-eth-core `examples/rx_stats`'s payload contract, so that harness can soak-test replay once
+  eth-core-v0.1 exists. ADR 0009 covers the alternatives.
+- `gs/`: CMake project (C++20, `-Wall -Wextra -Werror -Wconversion -Wshadow`, ASan/UBSan in Debug), `gs_core` library
+  (packet build, deadline math, argument parsing), `gs-replay` binary. Pacing is real time, N× (3 decimals), or flat
+  out, with absolute deadlines from the packet index. Every run logs the achieved rate, and a partial final datagram
+  is reported, not sent. GoogleTest v1.15.2 is fetched at a pinned SHA-256.
+- Tests: 8 GoogleTest cases (Release and Debug), plus 4 loopback pytest cases that run the sanitized binary and check
+  sequence, byte-exact payload, tail reporting and pacing span. `make gs`, `make gs-test`; `make ci` now includes
+  `gs-test` and passes.
+- Planted bugs, both caught: sequence written little-endian (1 GoogleTest + 3 loopback failures); pacing sleep removed
+  (2 loopback failures).
+
+**Measured** (`data/results/gs_replay_loopback.csv`, loopback, synthetic recording)
+
+- 1×: 68,266/68,266 datagrams, 0 sequence errors, byte-identical, 1.00× achieved over 34.133 s.
+- 5×: same, 5.00× achieved; 7% of datagrams sent more than one 100 µs period late (WSL jitter), average exact.
+- Flat-out: 124× on loopback; the Python measuring receiver dropped about 11% at about 250 k datagrams/s.
+  A receiver limit; it doesn't apply to the 100 Mb/s link (≤ 5.69× by arithmetic).
+
+**Not done**
+
+- clang-format, clang-tidy, cppcheck and libFuzzer are not installed (no sudo). §5.3 static analysis is not running.
+  There is no parser yet to fuzz; the IQ parser lives on the board.
+- Replay to the Arty: gated on eth-core-v0.1 (P2). WSL2 multicast egress to the board NIC is untested.

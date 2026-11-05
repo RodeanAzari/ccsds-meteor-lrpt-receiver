@@ -1,0 +1,4 @@
+recording,mode,packets_sent,packets_received,seq_errors,payload_bit_exact,elapsed_s,achieved_sps,x_real_time,late_packets,tail_not_sent
+synthetic_seed2026_1024000SPS.cu8,1.000x,68266,68266,0,True,34.133,1024011,1.00,222,"gs-replay: NOT SENT: final 740 bytes (370 samples), less than one packet"
+synthetic_seed2026_1024000SPS.cu8,5.000x,68266,68266,0,True,6.827,5120049,5.00,4880,"gs-replay: NOT SENT: final 740 bytes (370 samples), less than one packet"
+synthetic_seed2026_1024000SPS.cu8,flat-out,68266,60515,36,False,0.274,127474788,124.49,0,"gs-replay: NOT SENT: final 740 bytes (370 samples), less than one packet"

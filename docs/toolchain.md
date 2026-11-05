@@ -12,5 +12,9 @@ Versions marked "installed" were read from the machine on 2026-11-02. `[TBD]` me
 | tb-common (P2) | `tb-common-v0.1`, pip from git at the tag (`requirements.txt`) | `.venv` | Installed 2026-11-04 |
 | pyserial | 3.5 (pinned in `requirements.txt`) | `.venv` | Installed 2026-11-04 |
 | openFPGALoader | v1.1.1 (`make prog`) | `~/.local/opt/oss-cad-suite`; board attached to WSL with usbipd-win | Working 2026-11-04 |
-| SymbiYosys, CMake, C++ compiler | `[TBD]` | — | Not checked |
+| CMake | 4.2.3 | WSL Ubuntu 26.04 | Installed; `make gs` |
+| g++ | 15.2.0 (C++20) | WSL Ubuntu 26.04 | Installed; `make gs` |
+| GoogleTest | v1.15.2, fetched by CMake at a pinned SHA-256 (`gs/CMakeLists.txt`) | `build/gs-*/_deps` | Working 2026-11-04 |
+| clang-format, clang-tidy, cppcheck, libFuzzer (clang) | `[TBD]` | — | Not installed; no sudo in this session. Needed for CLAUDE.md §5.3 |
+| SymbiYosys | `[TBD]` | — | Not checked |
 | rtl_sdr | `[TBD]` | — | Not installed |
