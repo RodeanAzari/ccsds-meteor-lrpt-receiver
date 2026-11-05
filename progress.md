@@ -48,8 +48,8 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   `make gs gs-test`, in `make ci`. Not yet sent to the board (eth-core-v0.1).
 - ILA: `make board ILA=1` + `make ila-capture`. All 16,384 DDC outputs captured over JTAG, 0 mismatches vs. the model
   (`data/results/ddc_board_ila.csv`); plot in `docs/media/`.
-- Not done: ILA GUI screenshot and board photo (you); clang-tidy/cppcheck/clang-format/libFuzzer not installed;
-  README (doesn't exist yet).
+- README written to the §11.4 standard (2026-11-05); every number links to its CSV, unmeasured rows `[TBD]`.
+- Not done: board photo (deferred by you); clang-tidy/cppcheck/clang-format/libFuzzer (you're installing them).
 
 ## Next steps
 
@@ -59,8 +59,8 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, and compare the model's CADUs
    with SatDump's.
 4. **You:** install clang-format, clang-tidy, cppcheck and clang (libFuzzer), which need sudo, so C++ static analysis can run.
-5. **You:** board photo, terminal capture and ILA GUI screenshot listed in `docs/portfolio-todo.md`.
-6. Phase B close-out: write the README (none exists yet) to the §11.4 standard with the Phase B results.
+5. Once the C++ tools are installed: clang-format, clang-tidy and cppcheck on `gs/`, wired into `make ci`.
+6. Phase B can't close until `gs-replay` runs over Ethernet to the board (eth-core-v0.1).
 
 ## Key decisions
 
@@ -91,4 +91,4 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
 - P2 gates (2026-11-04): `tb-common-v0.1` tagged and in use. `eth-core-v0.1` and `v0.2` not tagged: hardware
   testing from a BRAM ROM only, results over UART/ILA (CLAUDE.md, Dependencies on Project 2).
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
-- What in the board resets the design when the serial port opens (DTR/RTS?). Harmless with the CRC.
+- What in the board resets the design when the serial port opens. Not established; harmless with the CRC.

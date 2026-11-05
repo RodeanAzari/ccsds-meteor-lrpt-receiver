@@ -1,6 +1,6 @@
 # ddc_board_ila_iq
 
-- **Commit:** `1c7bb4c099448567894eede6da85f3d75c9c0640`
+- **Commit:** `9393fb55411c9279ba43a2d8ac0e2d4cc9f1f00f (with uncommitted changes)`
 - **Command:** `PYTHONPATH=. python scripts/ddc_board.py ila-check build/board/ila_ddc.csv`
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1
 - **Input:** synthetic, snippet seed 2026, 8.0 dB, carrier 151 kHz (scripts/ddc_board.py), played from BRAM on the Arty A7-100T, DDC output captured by the ILA. No real recording.

@@ -4,8 +4,8 @@
 #   make ila-capture    (claim the board first: fpga-coord PROTOCOL §6)
 #
 # The ILA stores only cycles where the DDC output handshakes (bb_tvalid && !full, see impl_board.tcl), triggering
-# on the first. The snippet plays once after reset, and opening the serial port resets the design (DTR on the
-# Arty's reset line), so: arm, open the port, wait for the full window.
+# on the first. The snippet plays once after reset, and opening the serial port resets the design
+# (observed; the mechanism is not established, docs/design.md), so: arm, open the port, wait for the full window.
 
 lassign $argv bit ltx csv serial python
 if {$csv eq ""} { error "usage: -tclargs <bit> <ltx> <out.csv> <serial> <python>" }

@@ -322,7 +322,7 @@
   output of the snippet. Timing: WNS +1.750 ns, WHS +0.024 ns; the ILA costs 1,449 LUTs, 2,461 FFs and 16 RAMB36
   (`data/results/board_arty_ddc_rom_top_ila.csv`).
 - `make ila-capture` (`syn/ila_capture.tcl`): programs over JTAG (Vivado hw_server works through usbipd in WSL),
-  arms on the first handshake, then resets the design by opening the serial port (DTR drives the Arty's reset).
+  arms on the first handshake, then resets the design by opening the serial port (observed behaviour; the mechanism is not established).
   Writes the CSV, then `scripts/ddc_board.py ila-check` compares it with the model.
 - Plot `docs/media/2026-11-04_phase-b_ddc-ila-baseband.png` (`make plots`).
 
@@ -354,3 +354,17 @@
   trigger row left on rom_done == 1 stops the trigger from ever firing on the first output. Virtual buses built from
   expanded bits came out bit-reversed the first time; check one known sample against the model. hw_server crashed
   once over usbipd; killing it and reconnecting fixed it.
+
+## 2026-11-05: README and Phase B media
+
+**Done**
+
+- `README.md` written to the CLAUDE.md §11.4 standard: claim title, at-a-glance table, status, Mermaid architecture,
+  verification by layer, bugs table (15) and planted bugs (15), deep sections for every block (RTL where it exists,
+  model decisions and `[TBD]` otherwise), on the board, demos, Vivado, results, limitations, build, layout,
+  roadmap. Every number links to its CSV or report; every file link checked.
+- Phase B media: ILA waveform screenshot (from the `.ila` file, offline) and the `make prog board-check` terminal
+  screenshot. Board photo deferred by the user.
+- Corrected my own unverified claim that the serial port resets the board through DTR. The behaviour is observed;
+  the mechanism is not established (`docs/design.md`).
+- CLAUDE.md status table: Phase B is now IN PROGRESS (it said NOT STARTED).
