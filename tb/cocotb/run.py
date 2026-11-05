@@ -27,6 +27,7 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
         [{"TAP_FILE": f'"{ROOT / "rtl/sync/rrc_taps.mem"}"'}],
     ),
     "test_sync_agc": ("sync_agc", ["rtl/sync/sync_agc.sv"], [{}]),
+    "test_sync_costas": ("sync_costas", ["rtl/sync/sync_costas.sv"], [NCO_LUT]),
     "test_arty_ddc_rom_top": (
         "arty_ddc_rom_top",
         ["rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_rom_source.sv", "rtl/io/capture_dump.sv",
