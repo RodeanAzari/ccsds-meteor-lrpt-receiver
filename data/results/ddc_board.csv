@@ -1,0 +1,2 @@
+outputs,mismatches,first_mismatch,n_input_samples,freq_word_hex,clk_mhz,baud
+16384,0,-1,65536,25800000,100,115200

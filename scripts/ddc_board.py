@@ -97,7 +97,7 @@ def read_dump(port: str, n: int, timeout_s: float) -> bytes:
 
     with serial.Serial(port, BAUD, timeout=1.0) as s:
         s.reset_input_buffer()
-        print(f"waiting for a dump on {port} (press BTN0 on the board)...", flush=True)
+        print(f"waiting for a dump on {port} (opening the port resets the board and starts one; BTN0 repeats it)...", flush=True)
         buf = b""
         start = 0  # first byte not yet ruled out as the start of a dump
         deadline = time.monotonic() + timeout_s
@@ -132,7 +132,7 @@ def check(port: str, n: int) -> int:
         "ddc_board",
         ["outputs", "mismatches", "first_mismatch", "n_input_samples", "freq_word_hex", "clk_mhz", "baud"],
         [[got.shape[0], bad.size, first, n, f"{m.freq_word(CFG.tune_offset_hz, CFG.fs):08x}", 100, BAUD]],
-        f"synthetic snippet, seed {SEED}, {EBN0_DB} dB, carrier {CARRIER_HZ / 1e3:.0f} kHz "
+        f"snippet seed {SEED}, {EBN0_DB} dB, carrier {CARRIER_HZ / 1e3:.0f} kHz "
         f"(scripts/ddc_board.py), played from BRAM on the Arty A7-100T",
         command=f"PYTHONPATH=. python scripts/ddc_board.py check {port}",
     )

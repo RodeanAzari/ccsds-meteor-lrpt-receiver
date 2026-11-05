@@ -181,7 +181,7 @@ def ddc_spectrum_plot() -> None:
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
     panels = (
         ("before", "Before: cu8 snippet in BRAM, 1.024 MS/s", BLUE),
-        ("after", "After: DDC output read back from the Arty, 256 kS/s", ORANGE),
+        ("after", "After: DDC output from the Arty, 256 kS/s", ORANGE),
     )
     for ax, (stage, title, colour) in zip(axes, panels, strict=True):
         f = np.array([float(r["freq_hz"]) for r in rows if r["stage"] == stage]) / 1e3
