@@ -25,11 +25,14 @@ ROWS: list[list[object]] = []  # filled by each test; written by the last one wh
 
 
 async def run(dut, n: int, seed: int, name: str, p_valid: float, p_ready: float) -> tuple[int, int]:
+    # After the last input the sink still has to take what is in flight: ~1/p_ready clocks per output, and up to
+    # one output per stage plus the timing block's backlog. 100 outputs' worth is far more than the chain can hold.
     i, q, cfg, _ = ddc_input(1, seed)
     i, q = i[:n], q[:n]
     re, im = expected(i, q, cfg)
     got = await run_stream(dut, name, pack_iq(i, q, W), list(zip(re.tolist(), im.tolist(), strict=True)),
-                           lambda d: unpack_iq(d, W), p_valid, p_ready, lambda d: set_gains(d, cfg))
+                           lambda d: unpack_iq(d, W), p_valid, p_ready, lambda d: set_gains(d, cfg),
+                           drain_cycles=max(200, round(100 / p_ready)))
     return n, len(got)
 
 

@@ -35,8 +35,12 @@ async def run_stream(
     p_valid: float,
     p_ready: float,
     setup: Callable[[Any], None] | None = None,
+    drain_cycles: int = 200,
 ) -> list[Any]:
-    """Reset, stream `words` into s_*, check decode(m_tdata) against `expected` in order; return what came out."""
+    """Reset, stream `words` into s_*, check decode(m_tdata) against `expected` in order; return what came out.
+
+    After the last input, outputs still in flight get `drain_cycles` clocks to come out. A slow sink needs more.
+    """
     start_soon(Clock(dut.clk_i, 10, unit="ns").start())
     rng = get_rng(name)
     dut.rst_i.value = 1
@@ -59,7 +63,7 @@ async def run_stream(
     AxisSink(dut, dut.clk_i, "m_", rng=rng, p_ready=p_ready, callback=on_beat)
     src = AxisSource(dut, dut.clk_i, "s_", rng=rng, p_valid=p_valid)
     await src.send(AxisBeat(w) for w in words)
-    for _ in range(200):
+    for _ in range(drain_cycles):
         if sb.pending == 0:
             break
         await RisingEdge(dut.clk_i)
