@@ -1,5 +1,7 @@
 # A Meteor-M LRPT Satellite Receiver in SystemVerilog, Bit-Exact Against Its Golden Model on an Arty A7
 
+[![CI](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml/badge.svg)](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml)
+
 A receiver for the **Meteor-M N2-4 LRPT downlink (72k mode, OQPSK, 72 ksym/s)**, built as an FPGA datapath on a
 Digilent Arty A7-100T with C++ ground-station tools around it. Recordings are captured with an RTL-SDR, replayed to
 the board over UDP, and decoded down to CCSDS frames: digital downconversion, timing and carrier recovery, frame
@@ -41,7 +43,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Bugs caught** | 15 written up as symptom → root cause → fix ([below](#bugs-found)); 15 planted bugs, all caught |
 | **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns ([synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv)) |
 | **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**; every multiplier in a DSP |
-| **Ground station + CI** | `gs-replay` (C++20): 68,266 / 68,266 datagrams in order and byte-exact at 1× and 5× on loopback ([gs_replay_loopback.csv](data/results/gs_replay_loopback.csv)). `make ci` (local; no hosted CI yet): ruff, mypy, Verilator lint, 63 pytest, 14 cocotb, 8 GoogleTest (Release + ASan/UBSan), 4 loopback, clang-format, clang-tidy, cppcheck |
+| **Ground station + CI** | `gs-replay` (C++20): 68,266 / 68,266 datagrams in order and byte-exact at 1× and 5× on loopback ([gs_replay_loopback.csv](data/results/gs_replay_loopback.csv)). `make ci`, run by [GitHub Actions on every push](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml): ruff, mypy, Verilator lint, 63 pytest, 14 cocotb, 8 GoogleTest (Release + ASan/UBSan), 4 loopback, clang-format, clang-tidy, cppcheck |
 
 ## Status
 
@@ -363,7 +365,6 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 - **Why opening the serial port resets the board design is not established.** The CRC on the UART dump makes the
   check immune to it.
 - **72k mode only.** If the satellite switches to 80k (interleaved) mode, this receiver won't decode it.
-- **No hosted CI yet.** `make ci` runs locally only; there is no `.github/workflows/` yet.
 - **No fuzzing yet.** The fuzz target is the radio-packet parser in `gs-rx` (Phase F), which doesn't exist; `make fuzz` fails as not implemented.
 
 ## Build and reproduce
@@ -394,7 +395,7 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make ber`, `*-study` | Model campaigns that write `data/results/` |
 | `make plots` | Regenerate every plot from `data/results/` |
 
-`make ci` runs everything that doesn't need Vivado or the board. There is no hosted CI workflow yet, so it runs locally. Vivado and the board are local only, and their reports and CSVs are committed with the RTL that
+`make ci` runs everything that doesn't need Vivado or the board, and [GitHub Actions](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml) runs it on every push in an `ubuntu:26.04` container, so its compiler, clang-tidy, cppcheck, CMake, Python and Verilator (v5.050, built from source) match the development machine. Vivado and the board are local only, and their reports and CSVs are committed with the RTL that
 produced them. `make sim-full`, `cov`, `formal` and `fuzz` print "not implemented yet" and fail, rather than
 pretending.
 

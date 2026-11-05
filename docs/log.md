@@ -391,3 +391,20 @@
 - The README claimed "CI runs `make ci`", but there is no `.github/workflows/`. Corrected; hosted CI is a next step.
 - `data/results/gs_replay_loopback.csv` was measured with the stdio read path. The new read path passes the same
   loopback tests (order, byte-exactness, tail, pacing), so the CSV wasn't re-run.
+
+## 2026-11-05 (continued): hosted CI
+
+**Done**
+
+- `.github/workflows/ci.yml`: `make setup` + `make ci` in an `ubuntu:26.04` container on GitHub's ubuntu-24.04
+  runner, so CI uses the development machine's tool versions. Verilator v5.050 is built from source and cached.
+- First run (41977969472) green in 17 min, including the uncached Verilator build. Checked in the job log rather than
+  trusting the badge: Verilator 5.050, Python 3.14.4, CMake 4.2.3, LLVM 21.1.8, cppcheck 2.19.0; 63 pytest,
+  14 cocotb (0 skipped), 8 GoogleTest in each of the Release and sanitized builds, 4 loopback, and all three gs-lint
+  tools ran. The only "skipped" lines are CMake's compiler self-checks.
+- README: CI badge; the "no hosted CI" limitation removed.
+
+**Not done**
+
+- GitHub annotation: `actions/checkout@v4` and `actions/cache@v4` target Node.js 20, which is deprecated; they run on
+  Node.js 24 for now. Bump them when newer majors are confirmed.
