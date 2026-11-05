@@ -81,6 +81,9 @@ the chain measurements below show no loss from it. Scaling the update by a small
 would narrow it if a strong, clean real recording ever needs that. The gain's lower clamp (1) is unreachable from s16
 input: a saturated output moves the gain by at most −128 per sample. RTL: `rtl/sync/sync_agc.sv`, bit-exact
 (`data/results/agc_rtl_sim.csv`). Costas RTL: `rtl/sync/sync_costas.sv`, bit-exact (`data/results/costas_rtl_sim.csv`).
+Timing RTL: `rtl/sync/sync_timing.sv`, bit-exact (`data/results/timing_rtl_sim.csv`). Horner sums are carried in
+W+7 bits (|c₂| ≤ 12·2¹⁵ and each step adds at most one coefficient, so |v + c| < 2²¹); the step is assumed positive,
+which holds for gains near `loop_gains()` (1.78 ± 0.04 samples).
 
 **Measured.** With everything up to the soft symbols bit-true, the receiver decodes the same frames as the float chain
 at every Eb/N0 from 2 to 8 dB and at 1 kHz and 3.4 kHz offsets with a 30 Hz/s ramp. Frequency tracking error is

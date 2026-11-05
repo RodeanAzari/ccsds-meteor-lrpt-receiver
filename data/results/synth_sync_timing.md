@@ -1,0 +1,8 @@
+# synth_sync_timing
+
+- **Commit:** `0e449531d347843affa8ae0aae2dfa86b2ad3a6e (with uncommitted changes)`
+- **Command:** `make synth-ooc TOP=sync_timing`
+- **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Vivado 2025.2
+- **Input:** synthetic, no input data: out-of-context place and route of sync_timing on xc7a100tcsg324-1. No real recording.
+
+The timing block closes timing out of context at 100 MHz on the xc7a100t-1 after place and route, with no failing endpoints (slack in the CSV). It uses 7 DSP48E1s (from the synthesis DSP report: four for the six Horner products of the two rails, one for the Gardner product with its rounding constant, one for ki·e with the integrator add, one for kp·e), with no block RAM: the 4-sample window is in registers. The first version did the last Horner rounding, the halving, the add of p1 and the saturation in one cycle (14 logic levels) and met timing by 0.583 ns. Splitting that over two stages gave 0.745 ns for one more clock per output, without changing any output. The worst path is now the window registers through the cubic's coefficient adders into the Horner DSP. Out-of-context results exclude I/O and clocking.

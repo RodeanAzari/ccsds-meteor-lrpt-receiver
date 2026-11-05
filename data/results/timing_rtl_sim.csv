@@ -1,0 +1,4 @@
+test,samples_in,outputs_checked,mismatches,eye_end,eye_no_loop,cycles_per_sample,budget_cycles_100mhz,headroom
+bit_exact_lock_backpressure,16000,8998,0,2.08,1.48,,,
+bit_exact_clamp,8000,4498,0,,,,,
+throughput_no_stall,2000,1123,0,,,8.86,390.6,44.1

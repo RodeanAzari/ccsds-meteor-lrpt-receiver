@@ -492,3 +492,37 @@
   lock within 20,000 samples; 50 Hz locks after ~5,000 samples (20 ms), 100–400 Hz do not within 16,000. This is
   the ADR 0002 reason for the coarse estimate, now with numbers from the bit-true model. A proper lock-range and
   lock-time sweep is a Phase C deliverable still to do.
+
+## 2026-11-05 (continued): Phase C, Farrow + Gardner timing RTL
+
+**Done**
+
+- `rtl/sync/sync_timing.sv`: Farrow cubic resampler to 2 sps with the per-rail OQPSK Gardner detector. Each output's
+  error sets the next position, so outputs go one at a time: fill a 4-sample window (1–2 new samples per output) |
+  cubic coefficients | three Horner steps per rail | output | detector terms | product | error | ki·e, kp·e |
+  integrator | position. Gains are input ports. 8.86 clocks per input sample (44× real time).
+- `tb/cocotb/test_sync_timing.py`, 3 tests on bit-true Costas output of 6 dB OQPSK, 14,619 outputs bit-exact
+  (`data/results/timing_rtl_sim.csv`):
+  - half-symbol offset under random backpressure; the strobe eye ratio (mean/std of |soft|) ends at 2.08, against
+    1.48 for the same input with the loop off. The test asserts that the baseline stays under the 1.9 threshold.
+  - 100 ppm clock error with the integrator limit at one ki step, so the clamp acts on nearly every update.
+  - throughput.
+- The model stops one sample before the stream ends, so the test runs the model on the input plus one sample.
+  That gives exactly the outputs the RTL emits.
+- OOC at 100 MHz: WNS +0.745 ns, 938 LUT, 504 FF, 7 DSP48E1, no BRAM (`data/results/synth_sync_timing.csv`).
+- Planted bugs, re-run on the final RTL: the detector always on the I rail fails all three tests; the integrator clamp
+  removed fails only the clamp test.
+- `make ci` passes: 63 pytest, 27 cocotb.
+
+**Found**
+
+- Test bug, caught by the test's own guard. The first lock input had a 100 ppm clock error, which drifts the
+  half-symbol offset by 0.45 symbol over the 4,500-symbol run. That aligns the strobes with no loop at all: the
+  no-loop baseline ended at 2.09. Fix: no clock error in the lock run; the clock error stays in the clamp run.
+- First synthesis met timing by 0.583 ns: the last Horner rounding, the halving, the add of p1 and the saturation in
+  one cycle, 14 logic levels. Split over two stages: +0.745 ns, outputs unchanged. The worst path is now window →
+  coefficient adders → Horner DSP.
+- My first sidecar draft said ki·e takes two DSPs. The synthesis DSP report says four DSPs carry the six Horner
+  products, and ki·e is one DSP with the integrator add folded in. Corrected before committing.
+- The README's planted-bug count (15) didn't match its list (13 entries, without the Costas RTL's three). Added the
+  sync RTL bugs to the list; the count is now 18, from the list.

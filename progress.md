@@ -55,7 +55,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   First run green 2026-11-05 (17 min, including the Verilator build).
 - Not done: board photo (deferred by you); fuzzing (needs `gs-rx`'s parser, Phase F).
 
-**Phase C: RTL started.**
+**Phase C: every sync block in RTL, bit-exact in simulation.**
 
 - `rtl/sync/sync_rrc.sv`: the comp FIR reused with the 57 RRC taps (`rtl/sync/rrc_taps.mem`, generated from the
   model). 4,000 / 4,000 outputs bit-exact under backpressure; 62 clocks/sample, 6.3× real time
@@ -64,8 +64,11 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
   (`data/results/agc_rtl_sim.csv`, `synth_sync_agc.csv`). The model's AGC has a ±25% power dead zone (fixed-point.md).
 - `rtl/sync/sync_costas.sv`: 26,000 outputs bit-exact, locks to a 50 Hz residual, clamp exercised; 10 clocks/sample;
   OOC WNS +2.360 ns, 7 DSP, 1 RAMB18 (`data/results/costas_rtl_sim.csv`, `synth_sync_costas.csv`).
+- `rtl/sync/sync_timing.sv` (Farrow + per-rail Gardner): 14,619 outputs bit-exact; pulls in from a half-symbol
+  offset (eye ratio 2.08 vs. 1.48 with no loop); integrator clamp exercised; 8.86 clocks/sample; OOC WNS +0.745 ns,
+  7 DSP, no BRAM (`data/results/timing_rtl_sim.csv`, `synth_sync_timing.csv`).
 - Model pull-in is slow: 50 Hz locks in ~5,000 samples, 100–400 Hz not within 16,000. Lock range/time still to measure.
-- Next: Farrow + Gardner RTL against `model/sync_fixed.py` timing(), then a `sync_top` chain test.
+- Next: `sync_top` (RRC → AGC → Costas → timing) chain test against `model/sync_fixed.py`, then lock-time/range sweeps.
 
 ## Next steps
 
@@ -76,7 +79,7 @@ Current state, next steps and key decisions only. Details belong in `docs/log.md
    with SatDump's.
 4. **You:** install clang-format, clang-tidy, cppcheck and clang (libFuzzer), which need sudo, so C++ static analysis can run.
 5. Phase B can't close until `gs-replay` runs over Ethernet to the board (eth-core-v0.1).
-6. Phase C RTL: Farrow + Gardner, then the chain, each bit-exact against `model/sync_fixed.py`.
+6. Phase C RTL: `sync_top` chain bit-exact against `model/sync_fixed.py`; then lock-time/range and Doppler plots.
 
 ## Key decisions
 

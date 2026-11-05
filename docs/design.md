@@ -30,8 +30,8 @@ encoded ASM, `signal-spec.md`) are implemented in the model but have no ADR yet.
 - DDC chain (`rtl/ddc/ddc_top.sv`): `ddc_ingest` → `ddc_nco_mixer` → `ddc_cic` → `ddc_comp_fir`.
 - Sync chain (`rtl/sync/`, in progress): `sync_rrc`, which is `ddc_comp_fir` with the 57 RRC taps (same arithmetic;
   one FIR to verify, not two) → `sync_agc` (one sample in flight, so the per-sample gain update lands before the
-  next sample) → `sync_costas` (same structure; its own copy of the DDC's sine table, one RAMB18). Next: Farrow +
-  Gardner (ADR 0002).
+  next sample) → `sync_costas` (same structure; its own copy of the DDC's sine table, one RAMB18) → `sync_timing` (Farrow + per-rail Gardner;
+  one output at a time, since each output's error sets the next position). Next: `sync_top` chain (ADR 0002).
 
 ## Clock-domain crossings
 
