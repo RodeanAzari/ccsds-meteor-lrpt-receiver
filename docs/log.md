@@ -437,3 +437,31 @@
 
 - 6.3× real time caps the RRC-input injection mux for BER campaigns. That is about 220 s per 10⁻⁶ point, so it is
   fine for now; folding the symmetric taps through the DSP pre-adder would halve it if needed.
+
+## 2026-11-05 (continued): Phase C, AGC RTL
+
+**Done**
+
+- `rtl/sync/sync_agc.sv`: the model's AGC updates the gain from each output before the next sample, so the RTL holds
+  one sample in flight: take | x·g | round, saturate, output | yi² + yq² | error term | gain update. 6 clocks per
+  sample (65× real time at 100 MHz). Ready only when idle with the output empty, as in the FIR.
+- `tb/cocotb/test_sync_agc.py`, 3 tests, every output against `sync_fixed.agc()`: 12,000 samples of bit-true RRC
+  output from gain 1.0 under random backpressure; 1,500 silent samples then a 1,000-sample full-scale burst (the
+  unsaturated product exceeds s16, so clipping is exercised); throughput. 16,500 outputs bit-exact
+  (`data/results/agc_rtl_sim.csv`).
+- OOC at 100 MHz: WNS +2.344 ns, WHS +0.227 ns, 163 LUT, 68 FF, 4 DSP48E1 (`data/results/synth_sync_agc.csv`).
+- Planted bugs, each failing all three tests: next sample accepted one stage early (gain update applied a sample
+  late); rounding dropped from the gain step.
+- `make ci` passes: 63 pytest, 21 cocotb.
+
+**Found**
+
+- Symptom: the saturation test, written to expect the gain to settle at 512 (rms exactly ONE for a ±32768 input),
+  read 572. Root cause: not the RTL (it matched the model on every sample) but the model's update rule. The step
+  `round((2·ONE² − p) >> 24)` is zero for power within ±25% of target, a dead zone of 0.87–1.12·ONE rms; a
+  constant-envelope input stops wherever it enters it. Fix: the test asserts the dead-zone bound; the property is
+  written up in `docs/fixed-point.md`. On noisy signals the bit-true chain already decodes the same frames as float,
+  so the model is unchanged.
+- My first version of that test also asserted the gain reaches its lower clamp of 1. It can't from s16 input: a
+  saturated output moves the gain by at most −128 per sample and the loop settles at ~512. The upper clamp needs
+  ~2¹⁹ silent samples. Neither clamp is exercised in RTL simulation.

@@ -74,6 +74,14 @@ the same `RxConfig` values as the float loops (`loop_gains()`); `test_sync_fixed
 | Timing | position | 24 fraction bits | — | Nominal step 1.777… samples to 2⁻²⁴ |
 | Timing | integrator | 24 + 16 fraction bits | clamped to ±1% of nominal | ki would round to 0 without the 16 fraction bits |
 
+**AGC dead zone.** The gain step `round((2·ONE² − p) >> 24)` is zero for p within ±2²³ of 2·ONE², i.e. ±25% in power
+or rail rms 0.87–1.12·ONE. On a constant-envelope input the gain can stop anywhere in that range: a full-scale
+square-wave burst settles at 1.117·ONE (`tb/cocotb/test_sync_agc.py`). Noise dithers the update on real signals, and
+the chain measurements below show no loss from it. Scaling the update by a smaller shift with more gain fraction bits
+would narrow it if a strong, clean real recording ever needs that. The gain's lower clamp (1) is unreachable from s16
+input: a saturated output moves the gain by at most −128 per sample. RTL: `rtl/sync/sync_agc.sv`, bit-exact
+(`data/results/agc_rtl_sim.csv`).
+
 **Measured.** With everything up to the soft symbols bit-true, the receiver decodes the same frames as the float chain
 at every Eb/N0 from 2 to 8 dB and at 1 kHz and 3.4 kHz offsets with a 30 Hz/s ramp. Frequency tracking error is
 1.7–4.0 Hz rms (`data/results/sync_fixed_chain.csv`).

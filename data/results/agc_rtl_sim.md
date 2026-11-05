@@ -1,0 +1,8 @@
+# agc_rtl_sim
+
+- **Commit:** `69dcd646c92ddba42033920fe55b1cf0fcd6dd79`
+- **Command:** `make sync-rtl-results`
+- **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Verilator 5.050, cocotb 2.1.0
+- **Input:** synthetic, seeds 13-15 in tb/cocotb/test_sync_agc.py (bit-true RRC output of OQPSK at 6 dB Eb/N0, 151 kHz carrier, 30 Hz/s ramp; random full-scale for saturation). No real recording.
+
+The AGC RTL (`rtl/sync/sync_agc.sv`) matches `model/sync_fixed.py` `agc()` on every output in three runs. The first is 12,000 samples of bit-true RRC output (OQPSK at 6 dB Eb/N0, 151 kHz carrier, 30 Hz/s ramp) starting from gain 1.0, so the gain changes on every sample, with random stalls on both sides. The second is 1,500 silent samples followed by a 1,000-sample full-scale burst, which overflows s16 and checks clipping. The third is 2,000 samples for throughput. Because the loop updates per sample, an update applied one sample late would still settle plausibly; planting exactly that bug, and separately dropping the rounding from the gain step, fails all three tests. The AGC takes 6 clocks per sample, 65× real time at 100 MHz. The burst exposed a property of the model: the gain step `round((2·ONE² − p) >> 24)` is zero for power within ±25% of target, so on a constant-envelope input the loop can stop anywhere between 0.87 and 1.12·ONE rms (here 1.117·ONE). Noise dithers it on real signals, consistent with the bit-true chain decoding the same frames as float. The gain's lower clamp is unreachable from s16 input and the upper one needs ~2¹⁹ silent samples; neither is exercised in RTL simulation.

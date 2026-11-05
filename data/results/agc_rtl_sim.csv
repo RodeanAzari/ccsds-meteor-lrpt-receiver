@@ -1,0 +1,4 @@
+test,samples_in,outputs_checked,mismatches,cycles_per_sample,budget_cycles_100mhz,headroom
+bit_exact_backpressure,12000,12000,0,,,
+saturation,2500,2500,0,,,
+throughput_no_stall,2000,2000,0,6.00,390.6,65.1

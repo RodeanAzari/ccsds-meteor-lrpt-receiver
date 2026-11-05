@@ -1,6 +1,6 @@
 # rrc_rtl_sim
 
-- **Commit:** `e4f5a253caa1897059f98aba8cafa581151f554a`
+- **Commit:** `69dcd646c92ddba42033920fe55b1cf0fcd6dd79`
 - **Command:** `make sync-rtl-results`
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Verilator 5.050, cocotb 2.1.0
 - **Input:** synthetic, seeds 11 and 12 in tb/cocotb/test_sync_rrc.py (bit-true DDC output of OQPSK at 6 dB Eb/N0, 151 kHz carrier, 30 Hz/s ramp; Gaussian noise for the rate). No real recording.
