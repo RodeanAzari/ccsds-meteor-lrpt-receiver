@@ -42,6 +42,12 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_fec_bm": ("fec_bm", ["rtl/fec/fec_bm.sv"], [{}]),
     "test_fec_acs": ("fec_acs", ["rtl/fec/fec_acs.sv"], [{}]),
     "test_fec_acs_array": ("fec_acs_array", [f"rtl/fec/{f}.sv" for f in ("fec_bm", "fec_acs", "fec_acs_array")], [{}]),
+    "test_fec_traceback": ("fec_traceback", ["rtl/fec/fec_traceback.sv"], [{}]),
+    "test_fec_viterbi": (
+        "fec_viterbi",
+        [f"rtl/fec/{f}.sv" for f in ("fec_bm", "fec_acs", "fec_acs_array", "fec_traceback", "fec_viterbi")],
+        [{}],
+    ),
     "test_arty_ddc_rom_top": (
         "arty_ddc_rom_top",
         ["rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_rom_source.sv", "rtl/io/capture_dump.sv",

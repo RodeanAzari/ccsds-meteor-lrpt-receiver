@@ -2,7 +2,7 @@ PY := .venv/bin/python
 RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' | sort)
 RTL_DIRS := $(sort $(dir $(RTL)))
 
-.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results synth-ooc board prog board-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study sync-lock-study plots synthetic-iq gs-replay-results gs-lint ci clean \
+.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results fec-rtl-results synth-ooc board prog board-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study sync-lock-study plots synthetic-iq gs-replay-results gs-lint ci clean \
         sim-full cov formal gs gs-test fuzz synth impl reports
 
 setup:
@@ -65,6 +65,10 @@ ddc-rtl-results:
 sync-rtl-results:
 	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_sync_rrc test_sync_agc test_sync_costas test_sync_timing test_sync_top \
 		test_sync_top_full
+
+# Record the Viterbi RTL's bit-exactness and throughput in data/results/viterbi_rtl_sim.csv.
+fec-rtl-results:
+	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_fec_viterbi
 
 # Out-of-context synth + place + route of one block at 100 MHz (CLAUDE.md §6). Reports: docs/reports/ooc/$(TOP)/.
 TOP ?= ddc_top
