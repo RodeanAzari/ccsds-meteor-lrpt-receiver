@@ -22,6 +22,9 @@ confirmed. Hardware sees each symbol once, so this version decides as the stream
   history of the 4 hit flags. Without this, a slip cost the flywheel's frames, emitted under the wrong phase,
   before a new search (data/results/framesync_fixed.csv). Otherwise a missed ASM is a miss; the frame under it is still
   emitted and flagged (RS decides). More than `flywheel` consecutive misses return to SEARCH.
+- OUTPUT (windows()): each emitted frame goes to the Viterbi as its own window, PRE_SYMBOLS before the frame start
+  to POST_SYMBOLS after its end, derotated and paired; the RTL reads it from a ring buffer, so windows may overlap
+  (a slip of -1 or -2 symbols). Overlap costs ~2% extra Viterbi steps (ADR 0010).
 """
 
 from __future__ import annotations
@@ -34,11 +37,14 @@ import numpy.typing as npt
 from model.coding import ASM_TRANSIENT_SYMBOLS, CODED_FRAME_SYMBOLS
 from model.ddc_fixed import Ints
 from model.receiver import _hypothesis_patterns
+from model.viterbi_fixed import TRACEBACK_DEPTH
 
 SOFT_BITS = 4  # ADR 0005: the Viterbi's input
 CANDIDATES = 4  # peaks awaiting verification
 SLIP_SYMBOLS = 2  # how far from the expected position a slipped ASM is followed
 THR_FRAC = 6  # threshold register in 1/64ths: 0.75 = 48
+PRE_SYMBOLS = 128  # Viterbi run-in before a frame: RxConfig.viterbi_margin_bits steps, as receiver.decode_frames()
+POST_SYMBOLS = 2 * TRACEBACK_DEPTH  # after a frame: its last bit leaves the sliding traceback within its own window
 
 
 @dataclass
@@ -134,3 +140,45 @@ def frame_sync_fixed(u: Ints, thr64: int = 48, flywheel: int = 4) -> SyncResult:
                 dropped += 1
         n += 1
     return SyncResult(frames, fly, dropped, slips)
+
+
+@dataclass
+class Window:
+    pairs: Ints  # (WINDOW_SYMBOLS / 2,) Viterbi input words {b, a} = a | b << SOFT_BITS, derotated
+    alternate: bool
+    swap: bool
+    flywheel: bool
+
+
+WINDOW_SYMBOLS = PRE_SYMBOLS + CODED_FRAME_SYMBOLS + POST_SYMBOLS
+
+
+def undo_levels(u: Ints, alternate: bool, swap: bool) -> Ints:
+    """receiver._undo_hypothesis() on 4-bit levels. Negating level v = 2u - 15 is 15 - u: a bit inversion, exact
+    because the midrise levels are symmetric about zero. u must start on a frame-aligned even symbol."""
+    out = u.copy()
+    top = (1 << SOFT_BITS) - 1
+    if alternate:
+        out[1::2] = top - out[1::2]
+    if swap:
+        out[0::2], out[1::2] = out[1::2].copy(), out[0::2].copy()
+    return out
+
+
+def windows(u: Ints, res: SyncResult) -> tuple[list[Window], int]:
+    """What the RTL sends the Viterbi: per emitted frame, symbols [start - PRE, start + frame + POST) of u, derotated
+    and paired. A frame whose window would begin before the first symbol is not emitted and is counted (only the
+    first frame of an acquisition in the first ~16,500 symbols after reset can be). Returns (windows whose last
+    symbol is in u, early frames)."""
+    out: list[Window] = []
+    early = 0
+    for (start, alternate, swap), fly in zip(res.frames, res.flywheel, strict=True):
+        first = start - PRE_SYMBOLS
+        if first < 0:
+            early += 1
+            continue
+        if first + WINDOW_SYMBOLS > u.size:
+            break
+        w = undo_levels(u[first : first + WINDOW_SYMBOLS], alternate, swap)
+        out.append(Window(w[0::2] | (w[1::2] << SOFT_BITS), alternate, swap, fly))
+    return out, early

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from model import ddc_fixed as m
-from model import rrc_fixed
+from model import framesync_fixed, rrc_fixed
 from model.receiver import RxConfig
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -21,6 +21,11 @@ def hex_lines(values: list[int], bits: int) -> str:
     return "".join(f"{v & ((1 << bits) - 1):0{digits}x}\n" for v in values)
 
 
+def pattern_words() -> list[int]:
+    """Encoded-ASM patterns, one word per phase hypothesis (framesync_fixed.patterns() order): bit k set = +1."""
+    return [sum(1 << k for k, s in enumerate(p) if s > 0) for p in framesync_fixed.patterns().tolist()]
+
+
 def tables() -> dict[Path, str]:
     return {
         ROOT / "rtl/ddc/nco_lut.mem": hex_lines(m.nco_lut().tolist(), m.NCO_BITS),
@@ -28,6 +33,8 @@ def tables() -> dict[Path, str]:
         ROOT / "rtl/ddc/comp_fir_taps.mem": hex_lines(m.comp_taps(RxConfig()).tolist(), m.COMP_FRAC + 1),
         # s18 RRC taps (57 at the default RxConfig); the RTL's NTAPS must equal their count
         ROOT / "rtl/sync/rrc_taps.mem": hex_lines(rrc_fixed.taps(RxConfig()).tolist(), rrc_fixed.RRC_FRAC + 1),
+        # 52-symbol encoded ASM under the 4 hypotheses; the RTL's PATTERN_LEN must equal the length
+        ROOT / "rtl/fec/asm_patterns.mem": hex_lines(pattern_words(), framesync_fixed.patterns().shape[1]),
     }
 
 

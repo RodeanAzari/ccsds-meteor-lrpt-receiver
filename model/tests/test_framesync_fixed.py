@@ -5,37 +5,26 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from model.coding import CODED_FRAME_SYMBOLS, build_cadus, encode_stream
-from model.framesync_fixed import frame_sync_fixed
-from model.receiver import RxConfig, frame_sync
+from model.coding import CADU_BITS, CODED_FRAME_SYMBOLS, build_cadus, encode_stream, nrzm_decode
+from model.framesync_fixed import (
+    POST_SYMBOLS,
+    PRE_SYMBOLS,
+    WINDOW_SYMBOLS,
+    frame_sync_fixed,
+    undo_levels,
+    windows,
+)
+from model.receiver import RxConfig, _undo_hypothesis, frame_sync
 from model.sync_fixed import ONE
-from model.viterbi_fixed import quantize
-
-ASM_SYMBOLS = 64
-
-
-def _stream(frames: int, seed: int, sigma: float = 0.0) -> np.ndarray:
-    """Serial soft stream at rail rms ONE (what the AGC delivers), plus noise of std sigma * ONE."""
-    _, on_air = build_cadus(frames, seed)
-    soft = (2 * encode_stream(on_air).astype(np.int64) - 1) * ONE
-    rng = np.random.default_rng(seed)
-    return soft + np.round(sigma * ONE * rng.standard_normal(soft.size)).astype(np.int64)
-
-
-def _rotate(soft: np.ndarray, alternate: bool, swap: bool) -> np.ndarray:
-    out = soft.copy()
-    if swap:
-        out[0::2], out[1::2] = soft[1::2], soft[0::2]
-    if alternate:
-        out[1::2] = -out[1::2]
-    return out
+from model.tests.framesync_stimulus import ambiguous_slip, blank_asms, rotate, stream, symbols
+from model.viterbi_fixed import TRACEBACK_DEPTH, path_metric_bits, quantize, viterbi_fixed
 
 
 @pytest.mark.parametrize(("alternate", "swap"), [(False, False), (True, False), (False, True), (True, True)])
 def test_every_phase_hypothesis_matches_the_float_model(alternate: bool, swap: bool) -> None:
     # The RTL resolves the carrier's phase ambiguity from these flags; a wrong one decodes garbage. The first frame
     # must come out too: it is confirmed a frame later, from the delay line.
-    soft = _rotate(_stream(6, 4, 0.5), alternate, swap)
+    soft = rotate(stream(6, 4, 0.5), alternate, swap)
     fixed = frame_sync_fixed(quantize(soft, 4, 10))
     cfg = RxConfig()
     assert fixed.frames == frame_sync(soft / np.mean(np.abs(soft)), cfg.sync_threshold, cfg.flywheel)
@@ -43,18 +32,10 @@ def test_every_phase_hypothesis_matches_the_float_model(alternate: bool, swap: b
     assert not any(fixed.flywheel)
 
 
-def _blank_asms(soft: np.ndarray, frames: range, seed: int) -> np.ndarray:
-    out = soft.copy()
-    rng = np.random.default_rng(seed)
-    for f in frames:
-        s = f * CODED_FRAME_SYMBOLS
-        out[s : s + ASM_SYMBOLS] = rng.choice([-ONE, ONE], ASM_SYMBOLS)
-    return out
-
 
 def test_flywheel_keeps_a_frame_with_a_missed_asm() -> None:
     # A noise burst on one ASM must not cost the frame: the frame is emitted, flagged, and RS decides.
-    res = frame_sync_fixed(quantize(_blank_asms(_stream(6, 5), range(3, 4), 5), 4, 10))
+    res = frame_sync_fixed(quantize(blank_asms(stream(6, 5), range(3, 4), 5), 4, 10))
     assert [f[0] for f in res.frames] == [k * CODED_FRAME_SYMBOLS for k in range(6)]
     assert res.flywheel == [False, False, False, True, False, False]
 
@@ -62,7 +43,7 @@ def test_flywheel_keeps_a_frame_with_a_missed_asm() -> None:
 def test_lock_lost_after_flywheel_misses_then_reacquired() -> None:
     # Five missed ASMs in a row (flywheel 4): frames 3-6 come out flagged, frame 7 ends the lock, and the search
     # finds frame 8, confirmed at 9. Nothing is emitted twice.
-    res = frame_sync_fixed(quantize(_blank_asms(_stream(12, 6), range(3, 8), 6), 4, 10), flywheel=4)
+    res = frame_sync_fixed(quantize(blank_asms(stream(12, 6), range(3, 8), 6), 4, 10), flywheel=4)
     assert [f[0] // CODED_FRAME_SYMBOLS for f in res.frames] == [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11]
     assert res.flywheel == [False] * 3 + [True] * 4 + [False] * 4
 
@@ -77,7 +58,7 @@ def test_noise_only_produces_no_frames() -> None:
 def test_carrier_slip_switches_hypothesis_without_losing_frames() -> None:
     # A 90 degree carrier slip moves the ASM to another hypothesis at the same position. Staying on the old one would
     # emit the flywheel's frames under the wrong phase (garbage) and lose them (data/results/framesync_fixed.csv).
-    soft = _stream(12, 3)
+    soft = stream(12, 3)
     slip = 5 * CODED_FRAME_SYMBOLS
     soft[slip + 1 :: 2] *= -1
     res = frame_sync_fixed(quantize(soft, 4, 10))
@@ -89,7 +70,7 @@ def test_carrier_slip_switches_hypothesis_without_losing_frames() -> None:
 def test_timing_slip_followed_without_losing_frames() -> None:
     # The timing loop dropping one sample shifts every later ASM by a symbol, and on OQPSK also changes the phase
     # hypothesis. Seen on the bit-true chain at 2-3 dB (data/results/framesync_fixed.csv, seed 1).
-    soft = _stream(12, 3)
+    soft = stream(12, 3)
     cut = 5 * CODED_FRAME_SYMBOLS + 5000
     soft = np.delete(soft, cut)
     res = frame_sync_fixed(quantize(soft, 4, 10))
@@ -97,3 +78,54 @@ def test_timing_slip_followed_without_losing_frames() -> None:
     assert [f[0] for f in res.frames] == want
     assert res.slips == 1
     assert not any(res.flywheel)
+
+
+@pytest.mark.parametrize(("alternate", "swap"), [(False, False), (True, False), (False, True), (True, True)])
+def test_windows_decode_to_the_sent_frames(alternate: bool, swap: bool) -> None:
+    # The window is everything the RTL Viterbi gets for a frame. Decoded the way the RTL decodes (sliding traceback
+    # from state 0), the frame's bits must be the CADU sent, and the last one must leave the sliding traceback inside
+    # the window: otherwise it would wait for the next frame, which never comes after a loss of lock.
+    _, on_air = build_cadus(4, 7)
+    soft = rotate((2 * encode_stream(on_air).astype(np.int64) - 1) * ONE, alternate, swap)
+    u = quantize(np.concatenate([soft, np.zeros(PRE_SYMBOLS + POST_SYMBOLS, dtype=np.int64)]), 4, 10)
+    res = frame_sync_fixed(u)
+    wins, early = windows(u, res)
+    assert early == 1  # the frame at symbol 0 has no run-in
+    assert len(wins) == 3
+    steps = WINDOW_SYMBOLS // 2
+    first = PRE_SYMBOLS // 2
+    assert first + CADU_BITS <= steps - TRACEBACK_DEPTH
+    for k, w in enumerate(wins, start=1):
+        assert (w.alternate, w.swap, w.flywheel) == (alternate, swap, False)
+        sym = np.empty(WINDOW_SYMBOLS, dtype=np.int64)
+        sym[0::2], sym[1::2] = w.pairs & 15, w.pairs >> 4
+        bits, _ = viterbi_fixed(sym, 4, path_metric_bits(4), TRACEBACK_DEPTH, "zero")
+        frame = np.packbits(nrzm_decode(bits[first : first + CADU_BITS], int(bits[first - 1])))
+        assert np.array_equal(frame, on_air[k])
+
+
+def test_undo_levels_negates_the_represented_level_exactly() -> None:
+    # The RTL derotates by inverting bits. That must be the exact negation of the level the correlator and the
+    # Viterbi use (v = 2u - 15), for every level, or one hypothesis would decode with a bias.
+    u = np.tile(np.arange(16, dtype=np.int64), 2)
+    for alternate in (False, True):
+        for swap in (False, True):
+            want = _undo_hypothesis((2 * u - 15).astype(float), alternate, swap)
+            assert np.array_equal(2 * undo_levels(u, alternate, swap) - 15, want)
+
+
+def test_slip_back_gives_overlapping_windows() -> None:
+    # A timing slip of -1 symbol starts the next frame inside the previous window; a ring read by address emits both.
+    soft = np.delete(stream(5, 3), 2 * CODED_FRAME_SYMBOLS + 5000)
+    u = quantize(np.concatenate([soft, np.zeros(POST_SYMBOLS, dtype=np.int64)]), 4, 10)
+    wins, early = windows(u, frame_sync_fixed(u))
+    assert early == 1 and len(wins) == 4
+
+
+def test_slip_tie_follows_the_earlier_peak() -> None:
+    # The RTL searches 0, -1, +1, -2, +2 from its hit history; the model is the spec for that order. Peaks at e - 1
+    # (hypothesis 1) and e + 1 (hypothesis 2), none at e: the earlier one is followed.
+    e = 2 * CODED_FRAME_SYMBOLS + 12
+    res = frame_sync_fixed(symbols(ambiguous_slip(stream(5, 3), e, 1, 2)))
+    assert (e - 1 - 12, True, False) in res.frames
+    assert res.slips == 2  # there, and back to hypothesis 0 at the next frame
