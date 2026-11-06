@@ -48,6 +48,10 @@ encoded ASM, `signal-spec.md`) are implemented in the model but have no ADR yet.
   step per clock, trellis from the G1/G2 taps) → `fec_traceback` (256-row decision ring in one RAMB36, walks back
   `depth_i` rows from state 0 per output bit, depth + 3 clocks per bit). The traceback takes a row only between
   walks, so it stalls the array; the stall enable to the 576 path-metric flip-flops is the decoder's worst path.
+- Chain after the DDC (`rtl/top/rx_chain.sv`): `sync_top` → `fec_soft_quant` → `fec_framesync` → `fec_viterbi`.
+  The Viterbi has no reset between windows; the run-in absorbs the previous window's metrics
+  (`framesync_fixed.decode_windows()`). The Viterbi takes no `tuser`/`tlast`, so the window flags and boundary end at
+  the frame sync for now: Phase E carries them past it (frame = bits PRE/2 .. PRE/2 + 8,191 of each 8,352-bit window).
 
 ## Clock-domain crossings
 

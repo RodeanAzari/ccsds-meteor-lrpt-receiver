@@ -32,7 +32,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | | |
 |---|---|
 | **Target signal** | Meteor-M N2-4 LRPT, 72k mode: OQPSK, 72 ksym/s, conv K=7 r½, NRZ-M, CCSDS randomizer, RS(255,223) interleave 4. Parameters read from SatDump 1.2.2's source ([signal-spec.md](docs/signal-spec.md)) |
-| **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → Costas + Farrow/Gardner → encoded-ASM sync → Viterbi → NRZ-M → derandomizer → RS×4. **In RTL: the DDC (on the board); the sync chain, RRC → AGC → Costas → Farrow/Gardner (simulation), whose output decodes to the sent frames ([sync_chain_rtl_decode.csv](data/results/sync_chain_rtl_decode.csv)); the frame sync and the Viterbi decoder (simulation).** The rest is in the model |
+| **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → Costas + Farrow/Gardner → encoded-ASM sync → Viterbi → NRZ-M → derandomizer → RS×4. **In RTL: the DDC (on the board); the sync chain, RRC → AGC → Costas → Farrow/Gardner (simulation), whose output decodes to the sent frames ([sync_chain_rtl_decode.csv](data/results/sync_chain_rtl_decode.csv)); the frame sync and the Viterbi decoder (simulation), chained after the sync chain: from DDC output to frame bits that match the sent frames ([rx_chain_rtl_decode.csv](data/results/rx_chain_rtl_decode.csv)).** The rest is in the model |
 | **Real passes decoded** | 0. No recording yet; capture kit arrives about 2026-11-25 |
 | **CADU match vs. SatDump** | Synthetic recording: SatDump decoded 258 / 295 / 226 of 300 frames in three runs, **every decoded frame matching** ([satdump_crosscheck.csv](data/results/satdump_crosscheck.csv)). Real pass: `[TBD]` |
 | **DDC on the board** | **16,384 / 16,384 outputs bit-exact** vs. the model, over UART ([ddc_board.csv](data/results/ddc_board.csv)) and again over JTAG/ILA ([ddc_board_ila.csv](data/results/ddc_board_ila.csv)); 100 MHz, synthetic input |
@@ -42,7 +42,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Lock / Doppler** | Bit-true chain (bit-exact with the RTL), from reset at 6 dB with a 30 Hz/s ramp: **locks from −15 to +14 kHz in 16–35 ms** (4× the ±3.4 kHz Doppler); tracks the pass-maximum Doppler rate with **0.84 Hz rms error** ([sync_lock_range.csv](data/results/sync_lock_range.csv), [sync_doppler_track.csv](data/results/sync_doppler_track.csv)). On the board: `[TBD]` |
 | **Formal proofs** | None yet (`[TBD]`: Viterbi normalization, sync FSM, AXI-Stream, RS syndromes) |
 | **Bugs caught** | 18 written up as symptom → root cause → fix ([below](#bugs-found)); 33 planted bugs, all caught |
-| **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC +2.453 ns, AGC +2.344 ns, Costas +2.360 ns, timing +1.604 ns, **whole sync chain +1.431 ns**, Viterbi decoder +1.895 ns, frame sync +0.653 ns out of context ([synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv), [synth_sync_agc.csv](data/results/synth_sync_agc.csv), [synth_sync_costas.csv](data/results/synth_sync_costas.csv), [synth_sync_timing.csv](data/results/synth_sync_timing.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv), [synth_fec_framesync.csv](data/results/synth_fec_framesync.csv)) |
+| **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC +2.453 ns, AGC +2.344 ns, Costas +2.360 ns, timing +1.604 ns, **whole sync chain +1.431 ns**, Viterbi decoder +1.895 ns, frame sync +0.653 ns, **sync chain → Viterbi +0.827 ns** out of context ([synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv), [synth_sync_agc.csv](data/results/synth_sync_agc.csv), [synth_sync_costas.csv](data/results/synth_sync_costas.csv), [synth_sync_timing.csv](data/results/synth_sync_timing.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv), [synth_fec_framesync.csv](data/results/synth_fec_framesync.csv), [synth_rx_chain.csv](data/results/synth_rx_chain.csv)) |
 | **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**. RRC: 616 LUT, 1,874 FF, 2 DSP48E1. AGC: 163 LUT, 68 FF, 4 DSP48E1. Costas: 469 LUT, 153 FF, 7 DSP48E1, 1 RAMB18. Timing: 752 LUT, 564 FF, 9 DSP48E1. **Sync chain: 1,998 LUT (3.2%), 2,659 FF, 22 DSP48E1, 1 RAMB18.** Viterbi: 1,621 LUT (2.6%), 694 FF, 1 RAMB36, no DSP. Frame sync: 3,112 LUT (4.9%), 3,066 FF, 4 RAMB36, 1 DSP48E1. Every multiplier in a DSP |
 | **Ground station + CI** | `gs-replay` (C++20): 68,266 / 68,266 datagrams in order and byte-exact at 1× and 5× on loopback ([gs_replay_loopback.csv](data/results/gs_replay_loopback.csv)). `make ci`, run by [GitHub Actions on every push](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml): ruff, mypy, Verilator lint, 63 pytest, 39 cocotb, 8 GoogleTest (Release + ASan/UBSan), 4 loopback, clang-format, clang-tidy, cppcheck |
 
@@ -131,7 +131,8 @@ reproduces the layer above bit for bit.
 output stalls**. Each sync block (RRC, AGC, Costas, Farrow/Gardner timing) is bit-exact against
 `model/rrc_fixed.py` / `model/sync_fixed.py` the same way, with the loops driven through pull-in and their clamps. `sync_top` chains them and is bit-exact against the model
 chain with the output slower than the chain, so stalls reach every inner link. `make sim-full` runs the chain from
-reset on three frames and decodes its output through the model's back end (frame sync, Viterbi, RS). The Viterbi
+reset on three frames and decodes its output through the model's back end (frame sync, Viterbi, RS), and runs the
+chain through the RTL frame sync and Viterbi on five frames, every output bit checked. The Viterbi
 blocks are checked the same way: the branch metrics on all 256 input pairs, the ACS on every difference around the
 signed wrap, and the 64-state array, traceback and whole decoder bit-exact against `model/viterbi_fixed.py`. The board top is simulated too: the testbench decodes the UART pin and checks every dumped word.
 Coverage bins: `[TBD]`.
@@ -359,8 +360,15 @@ before the next:
   time** at 100 MHz. 1,621 LUT (2.6%), 1 RAMB36, WNS +1.895 ns
   ([viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv)).
 
-Not yet: the RTL quantizer and frame sync in front of it, a formal proof of the path-metric bound, the 3-bit build's
-area, and hardware BER (Phase D).
+**In the chain** (`rtl/top/rx_chain.sv`: `sync_top` → `fec_soft_quant` → `fec_framesync` → `fec_viterbi`), the
+decoder runs the windows back to back without a reset, so each starts from the metrics the last one left; the
+128-symbol run-in absorbs that (`framesync_fixed.decode_windows()`). From a cold start on five synthetic frames,
+every one of the 24,960 bits out matches the model chain, and the three complete frames, NRZ-M decoded and
+derandomized, are frames that were sent, before RS. The sink is held until stalls reach the chain's input, so every
+inner link stalls ([rx_chain_rtl_decode.csv](data/results/rx_chain_rtl_decode.csv)). Out of context: 6,750 LUT
+(10.6%), 23 DSP48E1, 5 RAMB36, 100 MHz with WNS +0.827 ns ([synth_rx_chain.csv](data/results/synth_rx_chain.csv)).
+
+Not yet: a formal proof of the path-metric bound, the 3-bit build's area, and hardware BER (Phase D).
 
 ## Reed-Solomon
 
@@ -476,6 +484,7 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 | Frame-sync RTL vs. model | 13 scenarios, 59 windows, 492,768 pairs bit-exact; early, dropped (12,976 at thr 16/64) and slip counts equal | Verilator, input gaps, sink slower than the input; 4 hypotheses, flywheel, lock loss, slips 0/−1/+2/tie, noise | [framesync_rtl_sim.csv](data/results/framesync_rtl_sim.csv) |
 | Viterbi throughput | 96 clocks/bit, 14.5× real time | RTL simulation, 100 MHz | [viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv) |
 | Sync chain output decoded | 1 CADU decoded, 1 matching, 0 wrong (3 sent; cold start) | 87,388 samples, 49,156 outputs bit-exact; model back end | [sync_chain_rtl_decode.csv](data/results/sync_chain_rtl_decode.csv) |
+| Chain to the Viterbi decoded | 3 of 3 frames match a frame sent before RS (5 sent; cold start); 24,960 bits bit-exact | 145,642 samples; sink held until stalls reach the input; NRZ-M and derandomizer in the model | [rx_chain_rtl_decode.csv](data/results/rx_chain_rtl_decode.csv) |
 | DDC on the board (UART) | 16,384 / 16,384 bit-exact | 65,536-sample snippet, 8 dB | [ddc_board.csv](data/results/ddc_board.csv) |
 | DDC on the board (ILA) | 16,384 / 16,384 bit-exact | Same snippet, JTAG | [ddc_board_ila.csv](data/results/ddc_board_ila.csv) |
 | `gs-replay` on loopback | 68,266 / 68,266 in order, byte-exact at 1× and 5× | 34 s synthetic recording, WSL2 | [gs_replay_loopback.csv](data/results/gs_replay_loopback.csv) |
@@ -519,7 +528,7 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make lint-py` | ruff + mypy `--strict` on `model/` |
 | `make model-test` | Signal-spec check, RTL-table staleness check, pytest |
 | `make sim` | cocotb regression on Verilator (< 5 min) |
-| `make sim-full` | Long cocotb runs: the sync chain from reset, its output decoded (~4 min) |
+| `make sim-full` | Long cocotb runs: the sync chain from reset, its output decoded (~4 min); the chain through the Viterbi (~10 min) |
 | `make gs` / `make gs-test` | Ground station, Release + Debug (ASan/UBSan); GoogleTest + loopback |
 | `make gs-lint` | clang-format check, clang-tidy (warnings are errors, every disabled check justified in `gs/.clang-tidy`), cppcheck |
 | `make ci` | Everything above |

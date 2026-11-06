@@ -676,3 +676,28 @@ frame, under every hypothesis).
   verify pair lands in one clock), so a count one clock late never lets a second push through.
 - `quantize(-x) != 15 - quantize(x)` at exact step multiples, but 15 − u is the exact negation of the level the
   correlator and Viterbi use. Derotation is defined on levels (`undo_levels()`), with a test.
+
+## 2026-11-06: Phase D, the chain through the Viterbi
+
+`rtl/top/rx_chain.sv`: `sync_top` → `fec_soft_quant` → `fec_framesync` → `fec_viterbi`. The model gained
+`framesync_fixed.decode_windows()`: the RTL Viterbi has no reset between windows, so each window starts from the
+metrics the previous one left, and the model now decodes them the same way. `make sim-full` gained
+`test_rx_chain_full` (~9 min alone): five synthetic frames from a cold start (`sync_chain.py`, 6 dB, 1 kHz + 30 Hz/s,
+20 ppm), 145,642 samples, 4 frames found, 3 windows, 24,960 bits bit-exact with the model chain, 3 of 3 frames equal
+to a frame sent after NRZ-M and derandomizing, before RS (`rx_chain_rtl_decode.csv`). OOC: 100 MHz, WNS +0.827 ns,
+6,750 LUT, 6,436 FF, 23 DSP48E1, 5 RAMB36 + 1 RAMB18 (`synth_rx_chain.csv`); no new synthesis warnings.
+
+**Found**
+
+- A fast sink never stalls this chain either (CLAUDE.md §12): the Viterbi drains windows faster than symbols arrive,
+  so the ring never filled. `run_stream` can now hold the sink until the input has been refused 2,000 clocks (sync_top
+  alone refuses ~62), and hold again every 20,000 clocks while input remains.
+- Planted quantizer bug (I/Q toggle without `tready`) passed with four frames, one hold, and still with 42 re-holds.
+  Root cause: the ring can't fill before the input is 32,768 symbols past the oldest pending window (~49,000 here),
+  and the last checked window ended at 49,368, so the stalls reached almost no checked data. Fix: five frames, so
+  the third window (49,048–65,752) carries ~40 stalls; the bug is then caught at bit 17,611. The test asserts ≥ 20
+  stalls. Also caught: Viterbi reset at each window end, frame sync ignoring the Viterbi's `tready`.
+- Model: a 4-symbol run-in decodes clean frames after a slip-back but not after a loss of lock, where the next window
+  jumps a frame ahead; only the lock-loss test catches it.
+- Open for Phase E: the window flags (`tuser`) and boundary (`tlast`) end at the frame sync; the Viterbi doesn't carry
+  them.

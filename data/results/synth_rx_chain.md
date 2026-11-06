@@ -1,0 +1,8 @@
+# synth_rx_chain
+
+- **Commit:** `a60830a0c33d9eecd620cca77be37c51e047e286 (with uncommitted changes)`
+- **Command:** `make synth-ooc TOP=rx_chain`
+- **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Vivado 2025.2
+- **Input:** synthetic, no input data: out-of-context place and route of rx_chain on xc7a100tcsg324-1. No real recording.
+
+The Phase D receiver chain after the DDC (`rtl/top/rx_chain.sv`: sync_top → fec_soft_quant → fec_framesync → fec_viterbi) closes timing out of context at 100 MHz on the xc7a100t-1 after place and route, with no failing endpoints (WNS +0.827 ns, WHS +0.111 ns). It uses 6,750 LUTs (10.6% of the device's 63,400), 6,436 flip-flops, 23 DSP48E1s (9.6% of 240), 5 RAMB36 (the frame sync's 32k-symbol ring and the Viterbi's survivor memory) and one RAMB18 (the Costas sine table). The total is within 19 LUTs of the sum of the three blocks' own builds (`synth_sync_top.csv`, `synth_fec_framesync.csv`, `synth_fec_viterbi.csv`), but the split between instances differs (sync_top +584, fec_viterbi −520 LUTs against their own builds), so per-instance rows of this build are not comparable block by block; the slack in every row is the chain's. The worst path ends where the frame sync's own build's does (+0.653 ns there): the window block's descriptor FIFO, here from the sync FSM's expected-position register (there its slip history), with 0.17 ns more slack. The synthesis warnings are the blocks' own (the 4-deep descriptor FIFO kept in registers; one trimmed bit in sync_timing); the chain adds none. Out-of-context results exclude I/O and clocking; the board top adds the DDC, Ethernet and RS.

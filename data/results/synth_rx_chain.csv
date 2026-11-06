@@ -1,0 +1,16 @@
+instance,module,luts,ffs,ramb36,ramb18,dsp48e1,clk_mhz,wns_ns,whs_ns,failing_endpoints
+rx_chain,rx_chain,6750,6436,5,1,23,100,0.827,0.111,0
+u_framesync,fec_framesync,3067,3061,4,0,1,100,0.827,0.111,0
+u_win,fec_fs_window,821,245,4,0,0,100,0.827,0.111,0
+u_corr,fec_fs_correlator,1673,2530,0,0,1,100,0.827,0.111,0
+u_fsm,fec_fs_fsm,567,280,0,0,0,100,0.827,0.111,0
+u_sync,sync_top,2582,2673,0,1,22,100,0.827,0.111,0
+u_timing,sync_timing,1335,578,0,0,9,100,0.827,0.111,0
+u_agc,sync_agc,161,68,0,0,4,100,0.827,0.111,0
+u_costas,sync_costas,470,153,0,1,7,100,0.827,0.111,0
+u_rrc,sync_rrc,600,1874,0,0,2,100,0.827,0.111,0
+u_fir,ddc_comp_fir,600,1874,0,0,2,100,0.827,0.111,0
+u_viterbi,fec_viterbi,1101,694,1,0,0,100,0.827,0.111,0
+u_acs,fec_acs_array,1024,641,0,0,0,100,0.827,0.111,0
+(u_acs),fec_acs_array,64,641,0,0,0,100,0.827,0.111,0
+u_tb,fec_traceback,77,53,1,0,0,100,0.827,0.111,0

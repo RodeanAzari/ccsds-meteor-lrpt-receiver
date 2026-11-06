@@ -1,0 +1,43 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
+| Date         : Fri Nov  6 11:51:10 2026
+| Host         : RodeanStation running 64-bit Ubuntu 26.04 LTS
+| Command      : report_utilization -hierarchical -file /home/rodea/CCSDS/docs/reports/ooc/rx_chain/utilization_hier.rpt
+| Design       : rx_chain
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++---------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
+|    Instance   |       Module      | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++---------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
+| rx_chain      |             (top) |       6750 |       6750 |       0 |    0 | 6436 |      5 |      1 |         23 |
+|   u_framesync |     fec_framesync |       3067 |       3067 |       0 |    0 | 3061 |      4 |      0 |          1 |
+|     u_win     |     fec_fs_window |        821 |        821 |       0 |    0 |  245 |      4 |      0 |          0 |
+|     u_corr    | fec_fs_correlator |       1673 |       1673 |       0 |    0 | 2530 |      0 |      0 |          1 |
+|     u_fsm     |        fec_fs_fsm |        567 |        567 |       0 |    0 |  280 |      0 |      0 |          0 |
+|   u_sync      |          sync_top |       2582 |       2582 |       0 |    0 | 2673 |      0 |      1 |         22 |
+|     u_timing  |       sync_timing |       1335 |       1335 |       0 |    0 |  578 |      0 |      0 |          9 |
+|     u_agc     |          sync_agc |        161 |        161 |       0 |    0 |   68 |      0 |      0 |          4 |
+|     u_costas  |       sync_costas |        470 |        470 |       0 |    0 |  153 |      0 |      1 |          7 |
+|     u_rrc     |          sync_rrc |        600 |        600 |       0 |    0 | 1874 |      0 |      0 |          2 |
+|       u_fir   |      ddc_comp_fir |        600 |        600 |       0 |    0 | 1874 |      0 |      0 |          2 |
+|   u_viterbi   |       fec_viterbi |       1101 |       1101 |       0 |    0 |  694 |      1 |      0 |          0 |
+|     u_acs     |     fec_acs_array |       1024 |       1024 |       0 |    0 |  641 |      0 |      0 |          0 |
+|       (u_acs) |     fec_acs_array |         64 |         64 |       0 |    0 |  641 |      0 |      0 |          0 |
+|     u_tb      |     fec_traceback |         77 |         77 |       0 |    0 |   53 |      1 |      0 |          0 |
++---------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

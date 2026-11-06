@@ -1,6 +1,6 @@
 # framesync_rtl_sim
 
-- **Commit:** `ff1f113872a2ebef0ac8b324fdefca5867e08804 (with uncommitted changes)`
+- **Commit:** `a60830a0c33d9eecd620cca77be37c51e047e286 (with uncommitted changes)`
 - **Command:** `make fec-rtl-results`
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Verilator 5.050, cocotb 2.1.0
 - **Input:** synthetic, coded frames from model/tests/framesync_stimulus.py (build_cadus seeds 3-8, antipodal at rail rms ONE + AWGN where noted, 4-bit quantized), per scenario in tb/cocotb/test_fec_framesync.py. No real recording.
