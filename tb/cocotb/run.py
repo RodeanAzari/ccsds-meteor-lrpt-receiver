@@ -81,6 +81,15 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
 # Long runs, make sim-full only (CLAUDE.md §6: make sim stays under 5 min)
 FULL_TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_sync_top_full": ("sync_top", SYNC_TOP_SRCS, [SYNC_TOP_PARAMS]),
+    "test_rx_chain_full": (
+        "rx_chain",
+        SYNC_TOP_SRCS
+        + ["rtl/fec/fec_soft_quant.sv"]
+        + FRAMESYNC_SRCS
+        + [f"rtl/fec/{f}.sv" for f in ("fec_bm", "fec_acs", "fec_acs_array", "fec_traceback", "fec_viterbi")]
+        + ["rtl/top/rx_chain.sv"],
+        [{**SYNC_TOP_PARAMS, **FRAMESYNC_PARAMS}],
+    ),
 }
 
 

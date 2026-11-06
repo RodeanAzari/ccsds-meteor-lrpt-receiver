@@ -55,7 +55,8 @@ lint:
 sim:
 	$(PY) tb/cocotb/run.py
 
-# Long runs (CLAUDE.md §6): the sync chain's output decoded end to end. Results: make sync-rtl-results.
+# Long runs (CLAUDE.md §6): the sync chain's output decoded end to end (~4 min), and the chain through the Viterbi
+# (~10 min). Results: make sync-rtl-results, make fec-rtl-results.
 sim-full:
 	$(PY) tb/cocotb/run.py --full
 
@@ -69,9 +70,10 @@ sync-rtl-results:
 	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_sync_rrc test_sync_agc test_sync_costas test_sync_timing test_sync_top \
 		test_sync_top_full
 
-# Record the Viterbi RTL's bit-exactness and throughput in data/results/viterbi_rtl_sim.csv.
+# Record the Viterbi RTL's bit-exactness and throughput in data/results/viterbi_rtl_sim.csv, the frame sync's in
+# framesync_rtl_sim.csv, and the chain through the Viterbi in rx_chain_rtl_decode.csv (includes the sim-full run).
 fec-rtl-results:
-	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_fec_viterbi test_fec_framesync
+	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_fec_viterbi test_fec_framesync test_rx_chain_full
 
 # Out-of-context synth + place + route of one block at 100 MHz (CLAUDE.md §6). Reports: docs/reports/ooc/$(TOP)/.
 TOP ?= ddc_top

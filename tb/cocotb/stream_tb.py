@@ -36,10 +36,16 @@ async def run_stream(
     p_ready: float,
     setup: Callable[[Any], None] | None = None,
     drain_cycles: int = 200,
+    hold_sink_until_stall: int = 0,
+    rehold_after: int = 0,
 ) -> list[Any]:
     """Reset, stream `words` into s_*, check decode(m_tdata) against `expected` in order; return what came out.
 
     After the last input, outputs still in flight get `drain_cycles` clocks to come out. A slow sink needs more.
+    With hold_sink_until_stall = n, the sink holds tready low until the input has been refused for n consecutive
+    clocks, then runs at p_ready: every stage between is made to stall, however fast the chain drains. With
+    rehold_after = m as well, it holds again m clocks after each release, for as long as input remains: many stalls
+    of varied length rather than one.
     """
     start_soon(Clock(dut.clk_i, 10, unit="ns").start())
     rng = get_rng(name)
@@ -60,9 +66,31 @@ async def run_stream(
         got.append(item)
         sb.observe(item)
 
-    AxisSink(dut, dut.clk_i, "m_", rng=rng, p_ready=p_ready, callback=on_beat)
+    sink = AxisSink(dut, dut.clk_i, "m_", rng=rng, p_ready=0.0 if hold_sink_until_stall else p_ready,
+                    callback=on_beat)
+
+    input_done = False
+
+    async def release_on_stall() -> None:
+        while True:
+            run = 0
+            while run < hold_sink_until_stall and not input_done:
+                await RisingEdge(dut.clk_i)
+                run = run + 1 if bool(dut.s_tvalid_i.value) and not bool(dut.s_tready_o.value) else 0
+            sink.p_ready = p_ready
+            if not rehold_after or input_done:
+                return
+            await ClockCycles(dut.clk_i, rehold_after)
+            if input_done:
+                return
+            sink.p_ready = 0.0
+
+    if hold_sink_until_stall:
+        start_soon(release_on_stall())
     src = AxisSource(dut, dut.clk_i, "s_", rng=rng, p_valid=p_valid)
     await src.send(AxisBeat(w) for w in words)
+    input_done = True
+    sink.p_ready = p_ready
     for _ in range(drain_cycles):
         if sb.pending == 0:
             break
