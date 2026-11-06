@@ -16,7 +16,12 @@ Current state, next steps and key decisions only (≤ 150 lines). Measurements l
   chain bit-exact in simulation, OOC 100 MHz met. `make sim-full` decodes the chain's output from reset: first CADU
   out of RTL. Lock range ±15 kHz (set by the coarse estimator's window), lock in 16–35 ms, Doppler tracking 0.84 Hz
   rms; plots and GIF done (`make sync-lock-study`, `make plots`). **Not done:** locking on a real recording.
-- **Phases D–F:** not started in RTL (Viterbi, frame sync, RS, `gs-rx`/`gs-diff`/`gs-view`).
+- **Phase D:** Viterbi decoder RTL (`rtl/fec/fec_viterbi.sv`: BM → ACS → 64-state array → BRAM traceback) bit-exact
+  with the model, errors included; 96 clocks/bit (14.5× real time); OOC 100 MHz met. **Not done:** soft quantizer and
+  frame sync (encoded-ASM correlator, phase hypotheses, sync FSM) in RTL, path-metric formal proof, `docs/viterbi.md`,
+  3-bit area, hardware BER.
+- **Phases E–F:** not started in RTL (RS, `gs-rx`/`gs-diff`/`gs-view`). `eth-core-v0.1` is now released (P2), so
+  Ethernet replay to the board (Phase B close-out) is unblocked; the board is shared, claim it first.
 
 Traps to remember (beyond CLAUDE.md §12):
 - Traceback depth is 96 from state 0 (ADRs 0007, 0008), outside buildplan §3.6's 35–50, which assumes a best-state
@@ -34,7 +39,9 @@ Traps to remember (beyond CLAUDE.md §12):
 2. Decode it with SatDump; list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, compare the model's CADUs with
    SatDump's.
-4. Phase D RTL: Viterbi (branch metrics → one ACS → 64-state ACS → traceback), encoded-ASM correlator, sync FSM.
+4. Phase D RTL: quantizer + encoded-ASM correlator with phase resolution + sync FSM in front of `fec_viterbi`; SBY
+   proof of the path-metric bound (ADR 0006); `docs/viterbi.md`.
+5. Phase B close-out: integrate `eth-core-v0.1` (submodule at the tag) and stream `gs-replay` to the board.
 
 ## Key decisions
 

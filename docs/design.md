@@ -34,6 +34,10 @@ encoded ASM, `signal-spec.md`) are implemented in the model but have no ADR yet.
   one output at a time, since each output's error sets the next position). The loop gains are `sync_top` ports
   (control registers later, CLAUDE.md §3.1). Three blocks accept input only with their output empty, so a stall
   anywhere propagates to `s_tready`; `test_sync_top.py` keeps the output slower than the chain to exercise that.
+- Viterbi decoder (`rtl/fec/fec_viterbi.sv`, ADRs 0005–0008): `fec_acs_array` (64 `fec_acs` on one `fec_bm`, one
+  step per clock, trellis from the G1/G2 taps) → `fec_traceback` (256-row decision ring in one RAMB36, walks back
+  `depth_i` rows from state 0 per output bit, depth + 3 clocks per bit). The traceback takes a row only between
+  walks, so it stalls the array; the stall enable to the 576 path-metric flip-flops is the decoder's worst path.
 
 ## Clock-domain crossings
 

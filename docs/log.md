@@ -594,3 +594,32 @@ register stays within 10 Hz of the true residual until the end of the run.
   150 Hz miss, and says so in its title.
 - First attempt sized the run as "6 frames = 1.36 s"; a frame is 0.114 s (8,192 symbols at 72 ksym/s), so 6 frames
   was shorter than the coarse estimator's 1 s window. Now 12 frames.
+
+## 2026-11-05 (continued): Phase D, Viterbi decoder RTL
+
+Built in the build plan's order, each step bit-exact against `model/viterbi_fixed.py` before the next. To give the
+unit tests model code to check against, the model's branch metric and modulo select became two functions
+(`branch_metric()`, `acs_select()`); `acs()` calls them. The 56 model tests pass unchanged.
+
+- `fec_bm` + `fec_acs`: the branch metrics are checked on all 256 symbol pairs; the ACS on 20,000 random inputs plus
+  every difference around 0 and ±256. Branch 1 wins when m1 − m0 is negative as a 9-bit signed number.
+- `fec_acs_array`: one step per clock; the trellis comes from the G1/G2 taps, so no table. Every decision row matches
+  at 0 dB, 6 dB and on full-scale input. 1,546 LUT, no DSP, WNS +1.552 ns.
+- `fec_traceback`: a 256 × 64 ring (1 RAMB36), walking back from state 0 at depth + 3 clocks per bit. Bit-exact at
+  depths 96 and 35. 77 LUT, WNS +4.040 ns.
+- `fec_viterbi`: at 1.5 dB it makes 93 errors in 3,904 bits, the same bits as the model. 96 clocks per bit, so
+  14.5× real time. 1,621 LUT, 1 RAMB36, WNS +1.895 ns. The worst path is the stall enable to the 576 path-metric
+  flip-flops (92% routing), not the ACS.
+- 12 planted bugs, all caught (README list). Notes:
+  - The ACS array ignoring an output stall passed the full-rate run; only the backpressure runs catch it.
+  - My first "carry lost" mutant was not a bug: SystemVerilog sizes the operands of `5'(a + b)` to 5 bits, so the
+    carry survived and the test rightly passed. The real mutant, `4'(a + b)`, fails.
+
+**Found**
+
+- The first spread guard (> 100 at 0 dB) failed at 65: noise shrinks the path-metric spread. The widest spread
+  comes from full-scale clean input (120, against ADR 0006's bound of 180), which is now its own run.
+- The wrap check is a lower bound (every path gains at least the step's smallest branch metric). On full-scale
+  input that bound is 0, so the check runs only on the noisy runs, where it proves at least 51 wraps.
+- Correction: earlier this session I said someone else had edited `analysis/synth_report.py`. It was my own
+  `ruff format analysis/`, a formatting-only change, still uncommitted.
