@@ -2,7 +2,7 @@ PY := .venv/bin/python
 RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' | sort)
 RTL_DIRS := $(sort $(dir $(RTL)))
 
-.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results synth-ooc board prog board-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study plots synthetic-iq gs-replay-results gs-lint ci clean \
+.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results synth-ooc board prog board-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study sync-lock-study plots synthetic-iq gs-replay-results gs-lint ci clean \
         sim-full cov formal gs gs-test fuzz synth impl reports
 
 setup:
@@ -40,6 +40,9 @@ soft-width-study:
 
 traceback-study:
 	$(PY) -m analysis.traceback_study
+
+sync-lock-study:
+	$(PY) -m analysis.sync_lock_study
 
 # Zero Verilator -Wall warnings, each module linted as its own top (CLAUDE.md §5.1).
 lint:

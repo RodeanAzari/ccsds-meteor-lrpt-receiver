@@ -241,6 +241,100 @@ def ddc_ila_plot() -> None:
     plt.close(fig)
 
 
+def lock_time_plot() -> None:
+    """Costas pull-in of the bit-true chain (RTL bit-exact) from reset: data/results/sync_lock_costas."""
+    rows = _rows("sync_lock_costas")
+    fig, ax = plt.subplots(figsize=(8, 5))
+    by_res: dict[float, list[float]] = defaultdict(list)
+    for r in rows:
+        by_res[float(r["residual_hz"])].append(float(r["lock_time_s"]) * 1000)
+    res = sorted(by_res)
+    locked = [(f, t) for f in res for t in by_res[f] if not math.isnan(t)]
+    ax.plot([p[0] for p in locked], [p[1] for p in locked], "o", color=BLUE, alpha=0.6, label="One seed")
+    med = [(f, float(np.median(by_res[f]))) for f in res if not any(math.isnan(t) for t in by_res[f])]
+    ax.plot([m[0] for m in med], [m[1] for m in med], "-", color=ORANGE, label="Median (every seed locked)")
+    top = max(p[1] for p in locked) * 1.15
+    misses = [f for f in res for t in by_res[f] if math.isnan(t)]
+    if misses:
+        ax.plot(misses, [top] * len(misses), "x", color=INK, label="No lock by end of run")
+    ax.set_xlabel("Carrier error left after the coarse estimate (Hz)")
+    ax.set_ylabel("Lock time from reset (ms)")
+    ax.set_title("Costas pull-in, bit-true chain = RTL, 6 dB, 30 Hz/s ramp", color=INK, loc="left")
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(MEDIA / "2026-11-05_phase-c_lock-time.png", dpi=150)
+    plt.close(fig)
+
+
+def doppler_plot() -> None:
+    """Receiver's carrier estimate through closest approach: data/results/sync_doppler_track."""
+    rows = _rows("sync_doppler_track")
+    t = [float(r["time_s"]) for r in rows]
+    fig, (top, bottom) = plt.subplots(2, 1, figsize=(9, 6), sharex=True, gridspec_kw={"height_ratios": [2, 1]})
+    top.plot(t, [float(r["true_hz"]) for r in rows], color=MUTED, linewidth=4, label="True carrier offset")
+    top.plot(
+        t, [float(r["estimate_hz"]) for r in rows], color=BLUE, linewidth=1.5, label="Receiver estimate (NCO + Costas)"
+    )
+    top.set_ylabel("Carrier offset (Hz)")
+    top.set_title(
+        "Doppler tracking at the pass maximum rate (30 Hz/s), bit-true chain = RTL, 6 dB", color=INK, loc="left"
+    )
+    top.legend()
+    bottom.plot(t, [float(r["error_hz"]) for r in rows], color=ORANGE, linewidth=1.2)
+    bottom.set_ylabel("Error (Hz)")
+    bottom.set_xlabel("Time from reset (s)")
+    fig.tight_layout()
+    fig.savefig(MEDIA / "2026-11-05_phase-c_doppler-tracking.png", dpi=150)
+    plt.close(fig)
+
+
+def constellation_gif() -> None:
+    """Pull-in from reset on the bit-true chain (RTL bit-exact): a spinning ring that settles into four clusters.
+
+    Generated from the model directly (seed fixed), like constellation_plot(). The DDC is tuned 150 Hz off the
+    carrier, as if the coarse estimate had missed by that much (sync_lock_costas.csv: lock in 238-314 ms at 6 dB).
+    15 dB rather than 6 so the four clusters read clearly at GIF size.
+    """
+    from matplotlib.animation import FuncAnimation, PillowWriter
+
+    from analysis.ddc_fixed_study import TUNE_HZ
+    from analysis.sync_lock_study import raw_signal
+    from model.ddc_fixed import ddc_fixed_rails
+    from model.rrc_fixed import rrc_fixed
+    from model.sync_fixed import ONE, agc, loop_gains, timing
+    from model.sync_fixed import costas as costas_fixed
+
+    raw, _, fs = raw_signal(150.0, 1, frames=4, ebn0_db=15.0)
+    cfg = RxConfig(fs=fs, tune_offset_hz=TUNE_HZ)
+    i, q = rrc_fixed(*ddc_fixed_rails(raw, cfg), cfg)
+    i, q, _ = agc(i, q)
+    gains = loop_gains(cfg)
+    re, im = timing(*costas_fixed(i, q, gains)[:2], gains)
+    pts_i, pts_q = re[0::2] / ONE, im[1::2] / ONE  # each I strobe with the Q strobe half a symbol later
+    n = min(pts_i.size, pts_q.size)
+    sym_rate = 72_000.0
+    window, step, frames = 200, int(0.0015 * sym_rate), 170  # 2.8 ms of symbols, a frame every 1.5 ms, to 258 ms
+    fig, ax = plt.subplots(figsize=(4.8, 4.8), dpi=80)
+    (dots,) = ax.plot([], [], ".", markersize=3, color=BLUE, alpha=0.6)
+    label = ax.text(-2.3, 2.05, "", color=INK)
+    ax.set_aspect("equal")
+    ax.set_xlim(-2.5, 2.5)
+    ax.set_ylim(-2.5, 2.5)
+    ax.set_xlabel("I (rail rms = 1)")
+    ax.set_ylabel("Q (rail rms = 1)")
+    ax.set_title("Lock from reset: 150 Hz off, 15 dB, bit-true chain", color=INK, loc="left", fontsize=10)
+    fig.tight_layout()
+
+    def draw(k: int) -> None:
+        end = min(n, window + k * step)
+        dots.set_data(pts_i[end - window : end], pts_q[end - window : end])
+        label.set_text(f"t = {end / sym_rate * 1000:5.0f} ms")
+
+    anim = FuncAnimation(fig, draw, frames=frames)
+    anim.save(MEDIA / "2026-11-05_phase-c_constellation-lock.gif", writer=PillowWriter(fps=15))
+    plt.close(fig)
+
+
 def main() -> None:
     _style()
     MEDIA.mkdir(parents=True, exist_ok=True)
@@ -251,6 +345,9 @@ def main() -> None:
     traceback_plot()
     ddc_spectrum_plot()
     ddc_ila_plot()
+    lock_time_plot()
+    doppler_plot()
+    constellation_gif()
 
 
 if __name__ == "__main__":
