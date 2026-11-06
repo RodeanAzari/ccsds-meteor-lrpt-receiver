@@ -285,12 +285,13 @@ def frame_sync(soft: Floats, threshold: float, flywheel: int) -> list[tuple[int,
 
 def decode_soft(soft: Floats, cfg: RxConfig = RxConfig()) -> RxResult:
     """Frame sync, Viterbi, NRZ-M, ASM check, derandomize, RS. Input is the serial soft stream."""
+    return decode_frames(soft, frame_sync(soft, cfg.sync_threshold, cfg.flywheel), cfg)
+
+
+def decode_frames(soft: Floats, frames: list[tuple[int, bool, bool]], cfg: RxConfig = RxConfig()) -> RxResult:
+    """Viterbi, NRZ-M, ASM check, derandomize, RS on the frames a frame sync found: (start, alternate, swap)."""
     margin = cfg.viterbi_margin_bits * 2
-    usable = [
-        f
-        for f in frame_sync(soft, cfg.sync_threshold, cfg.flywheel)
-        if f[0] >= margin + 2 and f[0] + CODED_FRAME_SYMBOLS + margin <= soft.size
-    ]
+    usable = [f for f in frames if f[0] >= margin + 2 and f[0] + CODED_FRAME_SYMBOLS + margin <= soft.size]
     asm_bits = np.unpackbits(np.frombuffer(ASM_BYTES, dtype=np.uint8))
     rs = lrpt_rs()
     n = len(usable)
