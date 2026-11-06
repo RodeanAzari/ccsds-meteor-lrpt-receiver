@@ -10,6 +10,7 @@ from model.framesync_fixed import (
     POST_SYMBOLS,
     PRE_SYMBOLS,
     WINDOW_SYMBOLS,
+    decode_windows,
     frame_sync_fixed,
     undo_levels,
     windows,
@@ -102,6 +103,43 @@ def test_windows_decode_to_the_sent_frames(alternate: bool, swap: bool) -> None:
         bits, _ = viterbi_fixed(sym, 4, path_metric_bits(4), TRACEBACK_DEPTH, "zero")
         frame = np.packbits(nrzm_decode(bits[first : first + CADU_BITS], int(bits[first - 1])))
         assert np.array_equal(frame, on_air[k])
+
+
+@pytest.mark.parametrize("scenario", ["noisy", "slip_back", "lock_lost"])
+def test_continuous_viterbi_decodes_every_window(scenario: str) -> None:
+    # The RTL Viterbi runs the windows back to back without a reset, so each window starts from the metrics the last
+    # one left, which belong to another part of the stream: after an overlapping slip-back window, or after a loss of
+    # lock, a gap of frames. The 64-step run-in must absorb that, or the frame's first bits (the ASM) go wrong.
+    frames, seed, flywheel = {"noisy": (6, 3, 4), "slip_back": (6, 3, 4), "lock_lost": (12, 6, 3)}[scenario]
+    _, on_air = build_cadus(frames, seed)
+    soft = stream(frames, seed, 0.5)  # 6 dB Eb/N0
+    cut = 2 * CODED_FRAME_SYMBOLS + 5000
+    if scenario == "slip_back":
+        soft = np.delete(soft, cut)
+    if scenario == "lock_lost":
+        soft = blank_asms(soft, range(3, 7), seed)
+    u = symbols(soft)
+    res = frame_sync_fixed(u, flywheel=flywheel)
+    wins, early = windows(u, res)
+    bits = decode_windows(wins)
+    assert bits.shape == (len(wins), WINDOW_SYMBOLS // 2 - TRACEBACK_DEPTH)
+    first = PRE_SYMBOLS // 2
+    checked = 0
+    for (start, _, _), w, b in zip(res.frames[early:], wins, bits, strict=False):
+        k = round(start / CODED_FRAME_SYMBOLS)
+        frame = np.packbits(nrzm_decode(b[first : first + CADU_BITS], int(b[first - 1])))
+        if scenario == "slip_back" and k == 2:
+            continue  # the cut is inside this frame
+        skip = 4 if w.flywheel else 0  # a blanked ASM decodes to the noise sent in its place
+        assert np.array_equal(frame[skip:], on_air[k][skip:]), f"frame {k}"
+        checked += 1
+    assert checked >= {"noisy": 5, "slip_back": 4, "lock_lost": 8}[scenario]
+    if scenario == "lock_lost":
+        assert 6 not in [round(f[0] / CODED_FRAME_SYMBOLS) for f in res.frames]  # a gap: the next window jumps
+
+
+def test_decode_windows_of_nothing() -> None:
+    assert decode_windows([]).shape == (0, WINDOW_SYMBOLS // 2 - TRACEBACK_DEPTH)
 
 
 def test_undo_levels_negates_the_represented_level_exactly() -> None:

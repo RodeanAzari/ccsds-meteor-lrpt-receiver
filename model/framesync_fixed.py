@@ -34,10 +34,10 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from model.coding import ASM_TRANSIENT_SYMBOLS, CODED_FRAME_SYMBOLS
+from model.coding import ASM_TRANSIENT_SYMBOLS, CODED_FRAME_SYMBOLS, Bits
 from model.ddc_fixed import Ints
 from model.receiver import _hypothesis_patterns
-from model.viterbi_fixed import TRACEBACK_DEPTH
+from model.viterbi_fixed import TRACEBACK_DEPTH, TRACEBACK_START, path_metric_bits, viterbi_fixed
 
 SOFT_BITS = 4  # ADR 0005: the Viterbi's input
 CANDIDATES = 4  # peaks awaiting verification
@@ -182,3 +182,20 @@ def windows(u: Ints, res: SyncResult) -> tuple[list[Window], int]:
         w = undo_levels(u[first : first + WINDOW_SYMBOLS], alternate, swap)
         out.append(Window(w[0::2] | (w[1::2] << SOFT_BITS), alternate, swap, fly))
     return out, early
+
+
+def decode_windows(wins: list[Window]) -> Bits:
+    """What fec_viterbi emits for the windows fec_framesync sends it. The RTL Viterbi never resets between windows:
+    the path metrics run on from one window's end into the next window's run-in, which absorbs the jump. Sliding
+    traceback, TRACEBACK_DEPTH from state 0 (ADR 0008). Returns (windows, steps - depth): per window, the bits decided
+    inside it. Bit j of a window is out at its step j + depth; the window's frame is bits PRE/2 .. PRE/2 + 8,191,
+    and POST = 2 * depth puts the last of them inside the window (ADR 0010 amendment)."""
+    steps = WINDOW_SYMBOLS // 2
+    if not wins:
+        return np.zeros((0, steps - TRACEBACK_DEPTH), dtype=np.uint8)
+    pairs = np.concatenate([w.pairs for w in wins])
+    sym = np.empty(2 * pairs.size, dtype=np.int64)
+    sym[0::2], sym[1::2] = pairs & ((1 << SOFT_BITS) - 1), pairs >> SOFT_BITS
+    bits, _ = viterbi_fixed(sym, SOFT_BITS, path_metric_bits(SOFT_BITS), TRACEBACK_DEPTH, TRACEBACK_START)
+    out: Bits = bits.reshape(len(wins), steps)[:, : steps - TRACEBACK_DEPTH]
+    return out
