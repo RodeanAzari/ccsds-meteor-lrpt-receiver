@@ -58,7 +58,7 @@ Rules every session needs from it:
 | A — Python golden model | IN PROGRESS | Float model decodes synthetic signals end to end; not yet run on a real recording |
 | B — Digital downconverter | IN PROGRESS | DDC bit-exact on the Arty (UART and ILA, 16,384 outputs); Ethernet replay waits on eth-core-v0.1 |
 | C — Synchronization | IN PROGRESS | Sync chain RTL bit-exact in simulation, output decodes; lock ±15 kHz in 16–35 ms (`sync_lock_range.csv`). Real recording pending |
-| D — Viterbi + frame sync | IN PROGRESS | Viterbi RTL bit-exact with the model, 14.5× real time (`viterbi_rtl_sim.csv`); frame sync next |
+| D — Viterbi + frame sync | IN PROGRESS | Viterbi and frame sync RTL bit-exact with the model (`viterbi_rtl_sim.csv`, `framesync_rtl_sim.csv`); chain test next |
 | E — Reed-Solomon + integration + real decode | NOT STARTED | — |
 | F — C++ ground station | NOT STARTED | — |
 
