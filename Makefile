@@ -71,7 +71,7 @@ sync-rtl-results:
 
 # Record the Viterbi RTL's bit-exactness and throughput in data/results/viterbi_rtl_sim.csv.
 fec-rtl-results:
-	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_fec_viterbi
+	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_fec_viterbi test_fec_framesync
 
 # Out-of-context synth + place + route of one block at 100 MHz (CLAUDE.md §6). Reports: docs/reports/ooc/$(TOP)/.
 TOP ?= ddc_top

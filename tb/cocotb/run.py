@@ -18,6 +18,9 @@ SYNC_TOP_PARAMS: dict[str, int | str] = {
     "NCO_LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"',
 }
 
+FRAMESYNC_SRCS = [f"rtl/fec/{f}.sv" for f in ("fec_fs_correlator", "fec_fs_fsm", "fec_fs_window", "fec_framesync")]
+FRAMESYNC_PARAMS: dict[str, int | str] = {"PATTERN_FILE": f'"{ROOT / "rtl/fec/asm_patterns.mem"}"'}
+
 # test module -> (toplevel, sources, parameter sets)
 NCO_LUT = {"LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"'}
 
@@ -48,6 +51,9 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
         [f"rtl/fec/{f}.sv" for f in ("fec_bm", "fec_acs", "fec_acs_array", "fec_traceback", "fec_viterbi")],
         [{}],
     ),
+    "test_fec_soft_quant": ("fec_soft_quant", ["rtl/fec/fec_soft_quant.sv"], [{}]),
+    "test_fec_framesync": ("fec_framesync", FRAMESYNC_SRCS, [FRAMESYNC_PARAMS]),
+    "test_fec_framesync_fifo": ("fec_framesync", FRAMESYNC_SRCS, [{**FRAMESYNC_PARAMS, "DEPTH": 131072}]),
     "test_arty_ddc_rom_top": (
         "arty_ddc_rom_top",
         ["rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_rom_source.sv", "rtl/io/capture_dump.sv",
