@@ -1,0 +1,3 @@
+instance,module,luts,ffs,ramb36,ramb18,dsp48e1,clk_mhz,wns_ns,whs_ns,failing_endpoints
+fec_acs_array,fec_acs_array,1546,641,0,0,0,100,1.552,0.295,0
+(fec_acs_array),fec_acs_array,2,641,0,0,0,100,1.552,0.295,0

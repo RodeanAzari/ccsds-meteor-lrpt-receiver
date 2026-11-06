@@ -66,9 +66,22 @@ def viterbi_fixed(
     return out, spread
 
 
+def branch_metric(a: Ints, b: Ints, g1: npt.NDArray[np.bool_], g2: npt.NDArray[np.bool_], soft_bits: int) -> Ints:
+    """Distance of symbols (a, b) from coded bits (g1, g2): top - u to an expected 1, u to an expected 0."""
+    top = (1 << soft_bits) - 1
+    out: Ints = np.where(g1, top - a, a) + np.where(g2, top - b, b)
+    return out
+
+
+def acs_select(m0: Ints, m1: Ints, pm_bits: int) -> npt.NDArray[np.bool_]:
+    """True where candidate m1 beats m0: m1 - m0 < 0 modulo 2^pm_bits. Ties keep branch 0."""
+    mask, half = (1 << pm_bits) - 1, 1 << (pm_bits - 1)
+    out: npt.NDArray[np.bool_] = ((m1 - m0 + half) & mask) < half
+    return out
+
+
 def acs(u: Ints, soft_bits: int, pm_bits: int) -> tuple[npt.NDArray[np.bool_], Ints, int]:
     """Run the ACS over a batch. Returns (decisions (n, blocks, 64), best state after each step (n, blocks), spread)."""
-    top = (1 << soft_bits) - 1
     mask = (1 << pm_bits) - 1
     half = 1 << (pm_bits - 1)
     blocks, n_sym = u.shape
@@ -85,11 +98,11 @@ def acs(u: Ints, soft_bits: int, pm_bits: int) -> tuple[npt.NDArray[np.bool_], I
     for t in range(n):
         a = u[:, 2 * t, np.newaxis]
         b = u[:, 2 * t + 1, np.newaxis]
-        bm0 = np.where(one10, top - a, a) + np.where(one20, top - b, b)
-        bm1 = np.where(one11, top - a, a) + np.where(one21, top - b, b)
+        bm0 = branch_metric(a, b, one10, one20, soft_bits)
+        bm1 = branch_metric(a, b, one11, one21, soft_bits)
         m0 = (pm[:, p0] + bm0) & mask
         m1 = (pm[:, p1] + bm1) & mask
-        choose1 = ((m1 - m0 + half) & mask) < half  # m1 - m0 < 0 modulo 2^pm_bits; ties keep branch 0
+        choose1 = acs_select(m0, m1, pm_bits)
         decisions[t] = choose1
         pm = np.where(choose1, m1, m0)
         e0, e1 = exact[:, p0] + bm0, exact[:, p1] + bm1
