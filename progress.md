@@ -39,8 +39,9 @@ Traps to remember (beyond CLAUDE.md §12):
 2. Decode it with SatDump; list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, compare the model's CADUs with
    SatDump's.
-4. Phase D RTL: quantizer + encoded-ASM correlator with phase resolution + sync FSM in front of `fec_viterbi`; SBY
-   proof of the path-metric bound (ADR 0006); `docs/viterbi.md`.
+4. Phase D RTL: frame sync per ADR 0010, matching `model/framesync_fixed.py` exactly. Pieces: quantizer, 4
+   correlators + Σ|v|, verify queue, slip history, one-frame symbol delay line (2 RAMB36) feeding `fec_viterbi`
+   with derotated, paired symbols. Then an SBY proof of the path-metric bound (ADR 0006) and `docs/viterbi.md`.
 5. Phase B close-out: integrate `eth-core-v0.1` (submodule at the tag) and stream `gs-replay` to the board.
 
 ## Key decisions
@@ -64,7 +65,8 @@ Traps to remember (beyond CLAUDE.md §12):
 | RTL tables generated from the model, checked for staleness | One source of truth for NCO and FIR coefficients | `scripts/gen_rtl_tables.py` |
 | IQ replay: 8-byte BE seq + 512 raw cu8 per datagram | Matches eth-core `rx_stats`; ≤ 5.69× on 100 Mb/s | ADR 0009 |
 | ILA inserted in Tcl after synthesis, storage-qualified | RTL unchanged; 16,384 deep holds the whole snippet | `syn/impl_board.tcl` |
-| Sync threshold 0.75; flywheel frames held until lock confirmed | Fixes false locks and duplicate frames | `model/receiver.py` |
+| Sync threshold 0.75; flywheel frames held until lock confirmed (float model) | Fixes false locks and duplicate frames | `model/receiver.py` |
+| RTL frame sync is causal: local-normalized correlation, verify queue, delay line, slips followed ±2 | Finds ≥ the float model's frames | ADR 0010 |
 | `make sim` < 5 min; long runs in `make sim-full`, recorded by `*-rtl-results` | Fast regression; no skipped tests in `make sim` | `tb/cocotb/run.py` |
 
 ## Open questions

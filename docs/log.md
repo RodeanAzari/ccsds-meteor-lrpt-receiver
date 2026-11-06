@@ -623,3 +623,22 @@ unit tests model code to check against, the model's branch metric and modulo sel
   input that bound is 0, so the check runs only on the noisy runs, where it proves at least 51 wraps.
 - Correction: earlier this session I said someone else had edited `analysis/synth_report.py`. It was my own
   `ruff format analysis/`, a formatting-only change, still uncommitted.
+
+## 2026-11-05 (continued): Phase D, streaming frame-sync model (ADR 0010)
+
+The float frame sync looks a frame ahead and back, which hardware can't. `model/framesync_fixed.py` is the causal,
+bit-true version the RTL will match (9 tests). `receiver.decode_soft()` now calls a new `decode_frames()`, so both
+frame syncs share one back end. `make framesync-study` compares them on the bit-true chain.
+
+**Found**
+
+- First threshold, normalized by a trailing 4,096-symbol mean |v|: while the AGC was still rising after reset, the
+  window held the quieter past. 4–14 false peaks filled the verify queue, and the first 2 frames were lost.
+  Normalizing by Σ|v| over the correlation's own 52 symbols fixed it.
+- Dropping the frame that only verifies cost one frame per acquisition. A one-frame delay line in front of the
+  Viterbi (needed anyway) brings it back.
+- Seed 1 lost 4 frames at 2.0, 2.5 and 3.0 dB alike. The same loss at every SNR pointed to an event, not noise: at
+  frame 20 the timing loop dropped one sample, moving the ASM by one symbol, under another phase hypothesis. A first
+  fix that only switched hypothesis at the same position did nothing (0 slips). Following a peak within ±2 symbols
+  fixed it: the streaming model now decodes ≥ the float model's frames in all 15 runs (27 vs. 25 on that seed at
+  2.0 dB).
