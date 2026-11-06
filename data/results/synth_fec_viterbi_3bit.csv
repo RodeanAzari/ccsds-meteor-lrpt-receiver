@@ -1,0 +1,6 @@
+instance,module,luts,ffs,ramb36,ramb18,dsp48e1,clk_mhz,wns_ns,whs_ns,failing_endpoints
+fec_viterbi,fec_viterbi_3bit,1365,630,1,0,0,100,2.628,0.163,0
+u_acs,fec_acs_array,1288,577,0,0,0,100,2.628,0.163,0
+(u_acs),fec_acs_array,0,577,0,0,0,100,2.628,0.163,0
+u_bm,fec_bm,520,0,0,0,0,100,2.628,0.163,0
+u_tb,fec_traceback,77,53,1,0,0,100,2.628,0.163,0

@@ -2,6 +2,10 @@
 #
 #   scripts/vivado.sh -mode batch -source syn/synth_ooc.tcl -tclargs <top> [clk_mhz] [part]
 #   make synth-ooc TOP=ddc_top
+#   make synth-ooc TOP=fec_viterbi GENERICS="SOFT_BITS=3 PM_BITS=8" NAME=fec_viterbi_3bit
+#
+# Optional environment: OOC_GENERICS (space-separated NAME=VALUE parameter overrides) and OOC_NAME (the report
+# directory and result name, so a variant does not overwrite the default build's reports; default <top>).
 #
 # Out of context: the block's ports are internal streams, not pins, so no I/O buffers or pin constraints.
 # It runs to route_design because post-synthesis timing is an estimate of routing delay; post-route is measured.
@@ -17,8 +21,14 @@ set clk_mhz [expr {[llength $argv] > 1 ? [lindex $argv 1] : 100}]
 set part    [expr {[llength $argv] > 2 ? [lindex $argv 2] : "xc7a100tcsg324-1"}]
 if {$top eq ""} { error "usage: -tclargs <top> \[clk_mhz\] \[part\]" }
 
+set name     [expr {[info exists ::env(OOC_NAME)] && $::env(OOC_NAME) ne "" ? $::env(OOC_NAME) : $top}]
+set generics {}
+if {[info exists ::env(OOC_GENERICS)]} {
+    foreach g $::env(OOC_GENERICS) { lappend generics -generic $g }
+}
+
 set root [file normalize [file join [file dirname [info script]] ..]]
-set out  [file join $root docs reports ooc $top]
+set out  [file join $root docs reports ooc $name]
 file mkdir $out
 
 # Every RTL source outside the Ethernet submodule; synth_design keeps only what $top instantiates.
@@ -28,7 +38,7 @@ read_verilog -sv $srcs
 # ROM/coefficient files for $readmemh, written by scripts/gen_rtl_tables.py
 foreach f [glob -nocomplain [file join $root rtl * *.mem]] { read_mem $f }
 
-synth_design -top $top -part $part -mode out_of_context -flatten_hierarchy rebuilt
+synth_design -top $top -part $part -mode out_of_context -flatten_hierarchy rebuilt {*}$generics
 create_clock -name clk -period [expr {1000.0 / $clk_mhz}] [get_ports clk_i]
 report_utilization -file [file join $out synth_utilization.rpt]
 
@@ -44,9 +54,10 @@ report_drc -file [file join $out drc.rpt]
 set wns [get_property SLACK [get_timing_paths -max_paths 1 -setup]]
 set f [open [file join $out summary.txt] w]
 puts $f "top $top"
+if {[llength $generics]} { puts $f "generics $::env(OOC_GENERICS)" }
 puts $f "part $part"
 puts $f "vivado [version -short]"
 puts $f "clk_mhz $clk_mhz"
 puts $f "wns_ns $wns"
 close $f
-puts "OOC $top @ $clk_mhz MHz: WNS $wns ns"
+puts "OOC $name @ $clk_mhz MHz: WNS $wns ns"

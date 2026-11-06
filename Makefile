@@ -77,11 +77,13 @@ fec-rtl-results:
 
 # Out-of-context synth + place + route of one block at 100 MHz (CLAUDE.md §6). Reports: docs/reports/ooc/$(TOP)/.
 TOP ?= ddc_top
+# Optional: GENERICS="NAME=VALUE ..." parameter overrides, NAME=<result name> (default TOP) for such a variant.
+synth-ooc: NAME ?= $(TOP)
 synth-ooc:
-	mkdir -p build/syn && cd build/syn && ../../scripts/vivado.sh -mode batch -source ../../syn/synth_ooc.tcl \
-		-tclargs $(TOP) > $(TOP).log 2>&1 || { tail -30 $(TOP).log; exit 1; }
-	@grep "^OOC " build/syn/$(TOP).log
-	$(PY) -m analysis.synth_report $(TOP)
+	mkdir -p build/syn && cd build/syn && OOC_GENERICS="$(GENERICS)" OOC_NAME="$(NAME)" ../../scripts/vivado.sh \
+		-mode batch -source ../../syn/synth_ooc.tcl -tclargs $(TOP) > $(NAME).log 2>&1 || { tail -30 $(NAME).log; exit 1; }
+	@grep "^OOC " build/syn/$(NAME).log
+	$(PY) -m analysis.synth_report $(NAME)
 
 # Phase B board bring-up: ROM snippet -> DDC -> UART (rtl/top/arty_ddc_rom_top.sv). `make board prog board-check`.
 BOARD_TOP := arty_ddc_rom_top

@@ -43,3 +43,11 @@ edges of a pass is worth more than a few hundred LUTs.
 - `data/results/soft_width_step.csv`: step sweep at 3 dB.
 - `data/results/soft_width_ber.csv`: BER curves; plot `docs/media/2026-11-04_phase-a_soft-width-ber.png`.
 - Both from `python -m analysis.soft_width_study`, AWGN symbol channel, synthetic only.
+
+## Amendment (2026-11-06): measured area, decision rechecked
+
+Out of context at 100 MHz, the decoder takes 1,621 LUTs and 694 FFs at 4 bits (WNS +1.895 ns) and 1,365 LUTs and
+630 FFs at 3 bits (WNS +2.628 ns): the fourth bit costs 256 LUTs, 0.4% of the device
+(`data/results/synth_fec_viterbi.csv`, `synth_fec_viterbi_3bit.csv`). Both widths meet timing with margin. **4-bit
+stands**: 0.11 dB for 0.4% of the LUTs, and the receiver chain uses 10.6% of the device in total
+(`synth_rx_chain.csv`).
