@@ -14,14 +14,15 @@ Current state, next steps and key decisions only (≤ 150 lines). Measurements l
   you; fuzzing waits for `gs-rx` (Phase F).
 - **Phase C:** sync chain in RTL (`rtl/sync/sync_top.sv`: RRC → AGC → Costas → Farrow/Gardner), every block and the
   chain bit-exact in simulation, OOC 100 MHz met. `make sim-full` decodes the chain's output from reset: first CADU
-  out of RTL. **Not done:** lock time and range, Doppler-tracking plot, constellation GIF, locking on a real recording.
+  out of RTL. Lock range ±15 kHz (set by the coarse estimator's window), lock in 16–35 ms, Doppler tracking 0.84 Hz
+  rms; plots and GIF done (`make sync-lock-study`, `make plots`). **Not done:** locking on a real recording.
 - **Phases D–F:** not started in RTL (Viterbi, frame sync, RS, `gs-rx`/`gs-diff`/`gs-view`).
 
 Traps to remember (beyond CLAUDE.md §12):
 - Traceback depth is 96 from state 0 (ADRs 0007, 0008), outside buildplan §3.6's 35–50, which assumes a best-state
   start. Deliberate.
-- Costas pull-in is slow at bw 0.001: 50 Hz residual locks in ~5,000 samples, 100–400 Hz not within 16,000. The host
-  coarse estimate must leave ≲ 50 Hz (ADR 0002).
+- Costas pull-in is slow at bw 0.001: within one frame up to ~100 Hz, 0.9 s or never at 300 Hz
+  (`sync_lock_costas.csv`). The host coarse estimate must leave ≲ 100 Hz; it leaves ~15 Hz (ADR 0002).
 - The AGC gain step has a ±25% power dead zone (`docs/fixed-point.md`).
 - A cold start (AGC from gain 1.0, loops from zero) costs 40,000–60,000 DDC-rate samples before the first frame
   decodes (scratch model run, not a committed result).
@@ -33,8 +34,7 @@ Traps to remember (beyond CLAUDE.md §12):
 2. Decode it with SatDump; list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, compare the model's CADUs with
    SatDump's.
-4. Phase C: lock-time/range sweeps on the RTL chain, Doppler-tracking plot, constellation GIF from the chain's output.
-5. Phase D RTL: Viterbi (branch metrics → one ACS → 64-state ACS → traceback), encoded-ASM correlator, sync FSM.
+4. Phase D RTL: Viterbi (branch metrics → one ACS → 64-state ACS → traceback), encoded-ASM correlator, sync FSM.
 
 ## Key decisions
 

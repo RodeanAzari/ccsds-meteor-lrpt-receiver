@@ -39,7 +39,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **DDC throughput** | 9.0 clocks per input sample: **10.8× real time** at 100 MHz, RTL simulation ([ddc_rtl_sim.csv](data/results/ddc_rtl_sim.csv)) |
 | **Coding gain at BER 10⁻⁵** | Model only, before NRZ-M: 10⁻⁵ at 4.28 dB with 4-bit soft decisions (4.15 dB unquantized) against 9.59 dB for uncoded OQPSK theory, a 5.3 dB gain (5.4 dB unquantized) ([soft_width_ber.csv](data/results/soft_width_ber.csv)). Hardware: `[TBD]` |
 | **Viterbi throughput and headroom** | `[TBD]` (Phase D) |
-| **Lock / Doppler** | Bit-true model tracks a **3.4 kHz offset (the Doppler maximum) with a 30 Hz/s ramp**, 1.7–4.0 Hz rms error ([sync_fixed_chain.csv](data/results/sync_fixed_chain.csv)). Lock time in hardware: `[TBD]` |
+| **Lock / Doppler** | Bit-true chain (bit-exact with the RTL), from reset at 6 dB with a 30 Hz/s ramp: **locks from −15 to +14 kHz in 16–35 ms** (4× the ±3.4 kHz Doppler); tracks the pass-maximum Doppler rate with **0.84 Hz rms error** ([sync_lock_range.csv](data/results/sync_lock_range.csv), [sync_doppler_track.csv](data/results/sync_doppler_track.csv)). On the board: `[TBD]` |
 | **Formal proofs** | None yet (`[TBD]`: Viterbi normalization, sync FSM, AXI-Stream, RS syndromes) |
 | **Bugs caught** | 18 written up as symptom → root cause → fix ([below](#bugs-found)); 21 planted bugs, all caught |
 | **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC +2.453 ns, AGC +2.344 ns, Costas +2.360 ns, timing +1.604 ns, **whole sync chain +1.431 ns** out of context ([synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv), [synth_sync_agc.csv](data/results/synth_sync_agc.csv), [synth_sync_costas.csv](data/results/synth_sync_costas.csv), [synth_sync_timing.csv](data/results/synth_sync_timing.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv)) |
@@ -53,7 +53,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | 0 — Signal spec + capture kit | **In progress** | [signal-spec.md](docs/signal-spec.md) from SatDump's source; not yet confirmed on a real signal |
 | A — Python golden model | **In progress** | Float and bit-true chains decode synthetic signals; real recording pending |
 | B — Digital downconverter | **In progress** | Bit-exact on the board; Ethernet replay waits on `eth-core-v0.1` |
-| C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock measurements, plots and GIF next |
+| C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. Real recording pending |
 | D — Viterbi + frame sync | Not started (RTL) | Bit-true model done |
 | E — Reed-Solomon + real decode | Not started | — |
 | F — C++ ground station | Not started (`gs-replay` done in B) | — |
@@ -215,7 +215,7 @@ signal at +1 kHz (the residual left for the Costas loop), DC removed. From
 
 ## Timing and carrier recovery
 
-The design is in the bit-true model; the RTL is Phase C. The OQPSK stagger is the hard part: Q is offset by half a
+The design was made in the bit-true model, and the RTL matches it bit for bit. The OQPSK stagger is the hard part: Q is offset by half a
 symbol, so a plain QPSK timing detector sees the Q rail at the wrong instants.
 
 | Loop order ([ADR 0002](docs/decisions/0002-oqpsk-timing.md)) | Frames of 48 at 0 / 300 / 1,000 / 3,000 Hz offset |
@@ -264,7 +264,26 @@ the other rail half a symbol off, which scales its error by cos 2θ, so it avera
   decode through the model's back end to **1 CADU, matching a sent frame, 0 wrong**: the first frames out of RTL.
   1,998 LUT, 22 DSP48E1, 1 RAMB18, WNS +1.431 ns ([sync_top_rtl_sim.csv](data/results/sync_top_rtl_sim.csv),
   [sync_chain_rtl_decode.csv](data/results/sync_chain_rtl_decode.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv)).
-- **Lock time and range, Doppler-tracking plot, constellation GIF:** `[TBD]` (Phase C).
+- **Lock time and range:** measured on the bit-true chain, which the RTL matches bit for bit, from reset at 6 dB
+  with a 30 Hz/s ramp. With the host's coarse estimate, **every offset from −15 to +14 kHz locks in 16–35 ms**;
+  +16 and −20 kHz don't, because they fall outside the estimator's search window (±`costas_max_hz`, 15 kHz). The
+  estimate leaves 12–18 Hz, which is the ramp across its 1 s window. On its own, the Costas loop locks within one
+  frame (114 ms) up to about ±100 Hz of error. At 150 Hz it takes 238–314 ms. At 300 Hz it took 0.9–1.2 s, and one
+  seed in four never locked within the 1.37 s run
+  ([sync_lock_range.csv](data/results/sync_lock_range.csv), [sync_lock_costas.csv](data/results/sync_lock_costas.csv)).
+- **Doppler tracking:** through closest approach, falling at 30 Hz/s through zero, the carrier estimate (NCO plus
+  the Costas register) is 0.84 Hz rms off after the first 0.1 s, 3.0 Hz at most, and 38 of 40 frames decode
+  ([sync_doppler_track.csv](data/results/sync_doppler_track.csv)). The run covers the steepest 4.6 s, not a whole
+  pass.
+
+![Carrier lock from reset: the constellation spins as a ring, then settles into four clusters](docs/media/2026-11-05_phase-c_constellation-lock.gif)
+
+*Carrier lock from reset on the bit-true chain (identical to the RTL's output), 150 Hz off the carrier at 15 dB:
+the constellation spins as a ring, then settles into four clusters. `make plots`.*
+
+| Lock time vs. carrier error | Doppler tracking at 30 Hz/s |
+|---|---|
+| [![Lock time vs. carrier error](docs/media/2026-11-05_phase-c_lock-time.png)](docs/media/2026-11-05_phase-c_lock-time.png) | [![Doppler tracking](docs/media/2026-11-05_phase-c_doppler-tracking.png)](docs/media/2026-11-05_phase-c_doppler-tracking.png) |
 
 ## Frame sync and phase ambiguity
 
@@ -401,6 +420,9 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 | Timing throughput | 9.42 clocks/input sample, 41× real time | RTL simulation, 100 MHz | [timing_rtl_sim.csv](data/results/timing_rtl_sim.csv) |
 | Sync chain RTL vs. model | 8,436 / 8,436 outputs bit-exact | Verilator, input gaps + output slower than the chain; DDC output of 6 dB OQPSK, 1 kHz + 30 Hz/s, 0.37 symbol, 20 ppm; loops from reset | [sync_top_rtl_sim.csv](data/results/sync_top_rtl_sim.csv) |
 | Sync chain throughput | 62 clocks/input sample, 6.3× real time | RTL simulation, 100 MHz | [sync_top_rtl_sim.csv](data/results/sync_top_rtl_sim.csv) |
+| Lock range (with coarse estimate) | −15 to +14 kHz, lock in 16–35 ms; +16 and −20 kHz don't lock | Bit-true chain = RTL, from reset, 6 dB, 30 Hz/s, 4 seeds | [sync_lock_range.csv](data/results/sync_lock_range.csv) |
+| Costas pull-in (no coarse estimate) | ≤ 100 Hz: 19–158 ms; 150 Hz: 238–314 ms; 300 Hz: 0.9–1.2 s, 1 of 4 seeds no lock | Same | [sync_lock_costas.csv](data/results/sync_lock_costas.csv) |
+| Doppler tracking | 0.84 Hz rms, 3.0 Hz max after 0.1 s; 38 / 40 frames | 30 Hz/s through zero, 4.6 s, 6 dB | [sync_doppler_track.csv](data/results/sync_doppler_track.csv) |
 | Sync chain output decoded | 1 CADU decoded, 1 matching, 0 wrong (3 sent; cold start) | 87,388 samples, 49,156 outputs bit-exact; model back end | [sync_chain_rtl_decode.csv](data/results/sync_chain_rtl_decode.csv) |
 | DDC on the board (UART) | 16,384 / 16,384 bit-exact | 65,536-sample snippet, 8 dB | [ddc_board.csv](data/results/ddc_board.csv) |
 | DDC on the board (ILA) | 16,384 / 16,384 bit-exact | Same snippet, JTAG | [ddc_board_ila.csv](data/results/ddc_board_ila.csv) |
@@ -480,8 +502,7 @@ pretending.
 
 1. **A real recording:** capture a pass (or find a public 72k recording), decode it with SatDump, and confirm the
    spec and the model on it (Phases 0 and A).
-2. **Phase C:** lock time and range of the RTL sync chain (it is built and bit-exact in simulation). Lock-time and Doppler-tracking plots, and the
-   constellation-locking GIF.
+2. **Phase C:** lock on a real recording; the sync chain on the board once Ethernet replay is available.
 3. **Phase D:** the Viterbi decoder and frame sync, a formal proof of path-metric overflow, and hardware BER.
 4. **Phase E:** a Reed-Solomon decoder shared with another project, and a real pass decoded on the FPGA bit-for-bit
    against SatDump.

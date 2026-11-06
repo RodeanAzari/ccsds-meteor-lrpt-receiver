@@ -46,3 +46,8 @@ This choice is open until Phase C.
 - `data/results/fer_full_chain.csv`
 
 All from synthetic signals at commit `950a988`. Not confirmed on a real recording: `[TBD]`.
+
+Added in Phase C, on the bit-true chain (bit-exact with the RTL) from reset: `data/results/sync_lock_range.csv`,
+`sync_lock_costas.csv` and `sync_doppler_track.csv`. With the coarse estimate the receiver locks from −15 to +14 kHz
+in 16–35 ms. The estimate leaves 12–18 Hz, and the Costas loop alone locks within one frame up to about 100 Hz, so
+the host-side estimate has about 6x margin.

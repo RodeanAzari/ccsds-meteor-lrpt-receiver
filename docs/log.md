@@ -573,3 +573,24 @@
   clang-tooling step removed (installed, in `make ci`).
 - Pointers updated: README (traceback-depth guideline → buildplan §3.6), `signal-spec.md` ("Differences from the
   build plan").
+
+## 2026-11-05 (continued): Phase C lock time, lock range, Doppler tracking, constellation GIF
+
+New `analysis/sync_lock_study.py` (`make sync-lock-study`, ~3.5 min). It runs on the bit-true chain, which the RTL
+matches bit for bit, from reset, at 6 dB with a 30 Hz/s ramp, seeds 1–4. Lock means the 10 ms average of the Costas
+register stays within 10 Hz of the true residual until the end of the run.
+
+- **Lock range with the host coarse estimate:** −15 to +14 kHz all lock, in 16–35 ms, with 10 of 12 frames decoded;
+  +16 and −20 kHz don't. The limit is the estimator's search window (|4f| < 4 × `costas_max_hz`). The estimate always
+  leaves 12–18 Hz, which is the 30 Hz/s ramp across its 1 s window, not a bias.
+- **Costas pull-in alone:** 0 Hz 19–21 ms; ≤ 100 Hz under 160 ms; 150 Hz 238–314 ms; 200 Hz 377–587 ms; 300 Hz
+  0.9–1.2 s, and one seed never locked in 1.37 s.
+- **Doppler tracking:** 4.6 s falling through zero at 30 Hz/s gives 0.84 Hz rms error (3.0 Hz max) after 0.1 s, with
+  38 of 40 frames decoded.
+- Even at zero error, 2 of 12 frames are lost. Checked on seed 1: frame 0, whose sync marker arrives during
+  pull-in, and frame 11, at the end of the capture.
+- `make plots` now also writes the lock-time and Doppler plots and the constellation GIF (Pillow, from the
+  matplotlib install). At 6 dB the clusters were too diffuse to read at GIF size, so the GIF uses 15 dB and a
+  150 Hz miss, and says so in its title.
+- First attempt sized the run as "6 frames = 1.36 s"; a frame is 0.114 s (8,192 symbols at 72 ksym/s), so 6 frames
+  was shorter than the coarse estimator's 1 s window. Now 12 frames.

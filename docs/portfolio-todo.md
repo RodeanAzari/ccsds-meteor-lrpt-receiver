@@ -6,6 +6,17 @@
 - [ ] Screenshot: SatDump waterfall during your own pass
 - [ ] Image: SatDump's decoded image from that pass
 
+## Phase C (synchronization)
+
+No physical captures in this phase. The generated media below come from synthetic signals; regenerate them from the
+real recording once there is one.
+
+- [x] GIF: constellation locking, ring → four clusters (`docs/media/2026-11-05_phase-c_constellation-lock.gif`,
+      `make plots`; bit-true chain, synthetic, 15 dB)
+- [x] Plot: lock time vs. carrier error (`docs/media/2026-11-05_phase-c_lock-time.png`, `make plots`)
+- [x] Plot: Doppler tracking at 30 Hz/s (`docs/media/2026-11-05_phase-c_doppler-tracking.png`, `make plots`)
+- [ ] The same GIF from the real recording
+
 ## Phase B (DDC on the board)
 
 - [x] Plot: spectrum before/after the DDC, from board data (`docs/media/2026-11-04_phase-b_ddc-spectrum-board.png`,
