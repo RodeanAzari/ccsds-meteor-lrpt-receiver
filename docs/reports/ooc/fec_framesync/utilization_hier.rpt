@@ -1,0 +1,33 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
+| Date         : Fri Nov  6 08:13:22 2026
+| Host         : RodeanStation running 64-bit Ubuntu 26.04 LTS
+| Command      : report_utilization -hierarchical -file /home/rodea/CCSDS/docs/reports/ooc/fec_framesync/utilization_hier.rpt
+| Design       : fec_framesync
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-------------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
+|      Instance     |       Module      | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++-------------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
+| fec_framesync     |             (top) |       3112 |       3112 |       0 |    0 | 3066 |      4 |      0 |          1 |
+|   (fec_framesync) |             (top) |          4 |          4 |       0 |    0 |    6 |      0 |      0 |          0 |
+|   u_corr          | fec_fs_correlator |       2234 |       2234 |       0 |    0 | 2530 |      0 |      0 |          1 |
+|   u_fsm           |        fec_fs_fsm |        493 |        493 |       0 |    0 |  280 |      0 |      0 |          0 |
+|   u_win           |     fec_fs_window |        382 |        382 |       0 |    0 |  250 |      4 |      0 |          0 |
++-------------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

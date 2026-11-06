@@ -16,10 +16,11 @@ Current state, next steps and key decisions only (≤ 150 lines). Measurements l
   chain bit-exact in simulation, OOC 100 MHz met. `make sim-full` decodes the chain's output from reset: first CADU
   out of RTL. Lock range ±15 kHz (set by the coarse estimator's window), lock in 16–35 ms, Doppler tracking 0.84 Hz
   rms; plots and GIF done (`make sync-lock-study`, `make plots`). **Not done:** locking on a real recording.
-- **Phase D:** Viterbi decoder RTL (`rtl/fec/fec_viterbi.sv`: BM → ACS → 64-state array → BRAM traceback) bit-exact
-  with the model, errors included; 96 clocks/bit (14.5× real time); OOC 100 MHz met. **Not done:** soft quantizer and
-  frame sync (encoded-ASM correlator, phase hypotheses, sync FSM) in RTL, path-metric formal proof, `docs/viterbi.md`,
-  3-bit area, hardware BER.
+- **Phase D:** Viterbi decoder RTL (`rtl/fec/fec_viterbi.sv`) bit-exact with the model, errors included; 96
+  clocks/bit (14.5× real time); OOC 100 MHz met. Soft quantizer (`fec_soft_quant`) and frame sync
+  (`rtl/fec/fec_framesync.sv`: correlators → FSM → 32k-symbol ring sending per-frame Viterbi windows, ADR 0010
+  amendment) match the model window for window in 13 cocotb scenarios; OOC 100 MHz met (+0.653 ns, 3,112 LUT,
+  4 RAMB36). **Not done:** chain test sync_top → quant → framesync → viterbi, path-metric formal proof, `docs/viterbi.md`, 3-bit area, hardware BER.
 - **Phases E–F:** not started in RTL (RS, `gs-rx`/`gs-diff`/`gs-view`). `eth-core-v0.1` is now released (P2), so
   Ethernet replay to the board (Phase B close-out) is unblocked; the board is shared, claim it first.
 
@@ -39,9 +40,9 @@ Traps to remember (beyond CLAUDE.md §12):
 2. Decode it with SatDump; list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, compare the model's CADUs with
    SatDump's.
-4. Phase D RTL: frame sync per ADR 0010, matching `model/framesync_fixed.py` exactly. Pieces: quantizer, 4
-   correlators + Σ|v|, verify queue, slip history, one-frame symbol delay line (2 RAMB36) feeding `fec_viterbi`
-   with derotated, paired symbols. Then an SBY proof of the path-metric bound (ADR 0006) and `docs/viterbi.md`.
+4. Phase D: a `make sim-full` chain test (bit-true chain from reset → `fec_soft_quant` → `fec_framesync` →
+   `fec_viterbi`, CADUs out). The model needs the per-window sliding decode first (take bits PRE/2 .. PRE/2 + 8,191
+   of each window). Then an SBY proof of the path-metric bound (ADR 0006) and `docs/viterbi.md`.
 5. Phase B close-out: integrate `eth-core-v0.1` (submodule at the tag) and stream `gs-replay` to the board.
 
 ## Key decisions
@@ -67,6 +68,7 @@ Traps to remember (beyond CLAUDE.md §12):
 | ILA inserted in Tcl after synthesis, storage-qualified | RTL unchanged; 16,384 deep holds the whole snippet | `syn/impl_board.tcl` |
 | Sync threshold 0.75; flywheel frames held until lock confirmed (float model) | Fixes false locks and duplicate frames | `model/receiver.py` |
 | RTL frame sync is causal: local-normalized correlation, verify queue, delay line, slips followed ±2 | Finds ≥ the float model's frames | ADR 0010 |
+| RTL frame sync sends each frame as its own window [s − 128, s + F + 192) from a 32k-symbol ring | Matches the model's frames through slips; last bit flushes inside the window | ADR 0010 amendment |
 | `make sim` < 5 min; long runs in `make sim-full`, recorded by `*-rtl-results` | Fast regression; no skipped tests in `make sim` | `tb/cocotb/run.py` |
 
 ## Open questions

@@ -16,7 +16,7 @@ and lists clock-domain crossings.
 | [0007](decisions/0007-survivor-memory.md) | Survivors in BRAM, per-bit sliding traceback | `test_viterbi_fixed.py` |
 | [0008](decisions/0008-traceback-depth.md) | Traceback depth 96 from state 0 | `traceback_depth.csv` |
 | [0009](decisions/0009-iq-transport-format.md) | IQ replay: 8-byte BE sequence + 512 raw cu8 samples per datagram | `gs_replay_loopback.csv` |
-| [0010](decisions/0010-streaming-frame-sync.md) | Streaming frame sync: 4-bit correlation normalized over its own 52 symbols, 4-deep verify queue, one-frame delay line, slips followed within ±2 symbols | `framesync_fixed.csv` |
+| [0010](decisions/0010-streaming-frame-sync.md) | Streaming frame sync: 4-bit correlation normalized over its own 52 symbols, 4-deep verify queue, slips followed within ±2 symbols; per-frame Viterbi windows from a 32k-symbol ring (amendment) | `framesync_fixed.csv` |
 
 Still required (CLAUDE.md §5.5): interpolator type, Berlekamp–Massey variant, RS instance count, phase-ambiguity
 strategy. The interpolator (Catmull-Rom cubic) and phase-ambiguity strategy (4 hypotheses on the
@@ -35,6 +35,15 @@ encoded ASM, `signal-spec.md`) are implemented in the model but have no ADR yet.
   one output at a time, since each output's error sets the next position). The loop gains are `sync_top` ports
   (control registers later, CLAUDE.md §3.1). Three blocks accept input only with their output empty, so a stall
   anywhere propagates to `s_tready`; `test_sync_top.py` keeps the output slower than the chain to exercise that.
+- Soft quantizer (`rtl/fec/fec_soft_quant.sv`): `{Q, I}` from `sync_top` → one u4 symbol per beat (I on even beats,
+  Q on odd, counted from reset), pass-through handshake.
+- Frame sync (`rtl/fec/fec_framesync.sv`, ADR 0010 and its amendment): `fec_fs_correlator` (4 encoded-ASM
+  correlators + Σ|v|, transposed form, one add per register) → `fec_fs_fsm` (SEARCH/VERIFY/LOCK, 4-deep verify queue,
+  5-position hit history for slips) → frame descriptors → `fec_fs_window` (32,768-symbol ring in 4 RAMB36; each frame
+  read out as a derotated window [start − 128, start + F + 192), `tuser = {flywheel, swap, alternate}`, `tlast` at
+  window end). Everything on the input side advances on the input handshake. The input stalls rather than overwrite
+  a symbol the reader or the next window still needs; windows overlap, so the next window can be the older of the
+  two.
 - Viterbi decoder (`rtl/fec/fec_viterbi.sv`, ADRs 0005–0008): `fec_acs_array` (64 `fec_acs` on one `fec_bm`, one
   step per clock, trellis from the G1/G2 taps) → `fec_traceback` (256-row decision ring in one RAMB36, walks back
   `depth_i` rows from state 0 per output bit, depth + 3 clocks per bit). The traceback takes a row only between

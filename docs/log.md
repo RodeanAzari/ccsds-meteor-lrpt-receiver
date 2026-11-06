@@ -642,3 +642,37 @@ frame syncs share one back end. `make framesync-study` compares them on the bit-
   fix that only switched hypothesis at the same position did nothing (0 slips). Following a peak within ±2 symbols
   fixed it: the streaming model now decodes ≥ the float model's frames in all 15 runs (27 vs. 25 on that seed at
   2.0 dB).
+
+## 2026-11-06: Phase D, frame sync RTL (ADR 0010 amendment)
+
+`rtl/fec/`: `fec_soft_quant` (serial 4-bit stream), `fec_fs_correlator`, `fec_fs_fsm`, `fec_fs_window`, and
+`fec_framesync` on top. The model gained `windows()`, what the RTL sends the Viterbi. The stimulus is shared by the
+model and RTL tests (`model/tests/framesync_stimulus.py`). 13 cocotb scenarios (59 windows, 492,768 pairs) and a
+128k-ring FIFO-stall build match the model window for window (`framesync_rtl_sim.csv`). OOC: 100 MHz met, WNS +0.653 ns, 3,112 LUT, 3,066 FF, 4 RAMB36, 1 DSP48E1.
+
+**Decided:** each frame goes to the Viterbi as its own window [s − 128, s + F + 192), read by address from a
+32,768-symbol ring (ADR 0010 amendment). ADR 0010's 2-RAMB36 delay line was too short: the first frame of an
+acquisition is confirmed ~F + 65 symbols after it starts, and the Viterbi needs run-in and run-out around it.
+POST = 2 × depth flushes the frame's last bit inside its own window (model test: the window decodes to the sent
+frame, under every hypothesis).
+
+**Found**
+
+- Ring overwrite. Symptom: SVA `a_read_in_ring` fired in the flywheel test, reader at 49,024 with the writer at
+  81,987. Root cause: consecutive windows overlap by PRE + POST = 320 symbols, so the next window in the FIFO starts
+  before the reader's position, and the guard protected only the reader. Fix: guard both. Clean frames at a fast
+  sink hadn't shown it; the reader is slower than a p_valid ≈ 1 input.
+- Timing, −1.867 ns: threshold multiply (DSP) → compare → FSM decision → 32-bit subtract → descriptor FIFO in one
+  clock. Fix: register the hit flags on the input enable, so the FSM judges one symbol later and nothing else
+  changes. Then −0.916 ns: `s_tready` sat in a loop, FIFO head → ring-room subtract → `s_tready` → beat → FSM →
+  FIFO write. Fixes: the FSM emits the window's first symbol (start − 140 in its one subtraction), and `s_tready` is
+  a register, computed from the FIFO's next count and the ring room with one symbol of margin. +0.653 ns.
+- Mutation campaign: 3 of 20 planted bugs first slipped through, each a test gap. (1) With a 64k ring the ring
+  still stalled first, so removing the FIFO-space check changed nothing; the FIFO test now uses a 128k ring.
+  (2) Slip order +1 before −1 needs peaks at both: `ambiguous_slip()` blends two hypotheses' patterns at e ± 1.
+  (3) The early-frame boundary off by one needs a frame exactly there: two hypothesis tests lead with 128 and 127
+  symbols. Rerun after the timing changes, with 2 more mutants for the registered `s_tready`: 21 of 22 caught. The
+  22nd, FIFO space computed without this clock's pushes, is equivalent: pushes are at least ~F symbols apart (the
+  verify pair lands in one clock), so a count one clock late never lets a second push through.
+- `quantize(-x) != 15 - quantize(x)` at exact step multiples, but 15 − u is the exact negation of the level the
+  correlator and Viterbi use. Derotation is defined on levels (`undo_levels()`), with a test.

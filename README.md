@@ -32,7 +32,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | | |
 |---|---|
 | **Target signal** | Meteor-M N2-4 LRPT, 72k mode: OQPSK, 72 ksym/s, conv K=7 r½, NRZ-M, CCSDS randomizer, RS(255,223) interleave 4. Parameters read from SatDump 1.2.2's source ([signal-spec.md](docs/signal-spec.md)) |
-| **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → Costas + Farrow/Gardner → encoded-ASM sync → Viterbi → NRZ-M → derandomizer → RS×4. **In RTL: the DDC (on the board); the sync chain, RRC → AGC → Costas → Farrow/Gardner (simulation), whose output decodes to the sent frames ([sync_chain_rtl_decode.csv](data/results/sync_chain_rtl_decode.csv)); the Viterbi decoder (simulation).** The rest is in the model |
+| **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → Costas + Farrow/Gardner → encoded-ASM sync → Viterbi → NRZ-M → derandomizer → RS×4. **In RTL: the DDC (on the board); the sync chain, RRC → AGC → Costas → Farrow/Gardner (simulation), whose output decodes to the sent frames ([sync_chain_rtl_decode.csv](data/results/sync_chain_rtl_decode.csv)); the frame sync and the Viterbi decoder (simulation).** The rest is in the model |
 | **Real passes decoded** | 0. No recording yet; capture kit arrives about 2026-11-25 |
 | **CADU match vs. SatDump** | Synthetic recording: SatDump decoded 258 / 295 / 226 of 300 frames in three runs, **every decoded frame matching** ([satdump_crosscheck.csv](data/results/satdump_crosscheck.csv)). Real pass: `[TBD]` |
 | **DDC on the board** | **16,384 / 16,384 outputs bit-exact** vs. the model, over UART ([ddc_board.csv](data/results/ddc_board.csv)) and again over JTAG/ILA ([ddc_board_ila.csv](data/results/ddc_board_ila.csv)); 100 MHz, synthetic input |
@@ -42,8 +42,8 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Lock / Doppler** | Bit-true chain (bit-exact with the RTL), from reset at 6 dB with a 30 Hz/s ramp: **locks from −15 to +14 kHz in 16–35 ms** (4× the ±3.4 kHz Doppler); tracks the pass-maximum Doppler rate with **0.84 Hz rms error** ([sync_lock_range.csv](data/results/sync_lock_range.csv), [sync_doppler_track.csv](data/results/sync_doppler_track.csv)). On the board: `[TBD]` |
 | **Formal proofs** | None yet (`[TBD]`: Viterbi normalization, sync FSM, AXI-Stream, RS syndromes) |
 | **Bugs caught** | 18 written up as symptom → root cause → fix ([below](#bugs-found)); 33 planted bugs, all caught |
-| **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC +2.453 ns, AGC +2.344 ns, Costas +2.360 ns, timing +1.604 ns, **whole sync chain +1.431 ns**, Viterbi decoder +1.895 ns out of context ([synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv), [synth_sync_agc.csv](data/results/synth_sync_agc.csv), [synth_sync_costas.csv](data/results/synth_sync_costas.csv), [synth_sync_timing.csv](data/results/synth_sync_timing.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv)) |
-| **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**. RRC: 616 LUT, 1,874 FF, 2 DSP48E1. AGC: 163 LUT, 68 FF, 4 DSP48E1. Costas: 469 LUT, 153 FF, 7 DSP48E1, 1 RAMB18. Timing: 752 LUT, 564 FF, 9 DSP48E1. **Sync chain: 1,998 LUT (3.2%), 2,659 FF, 22 DSP48E1, 1 RAMB18.** Viterbi: 1,621 LUT (2.6%), 694 FF, 1 RAMB36, no DSP. Every multiplier in a DSP |
+| **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC +2.453 ns, AGC +2.344 ns, Costas +2.360 ns, timing +1.604 ns, **whole sync chain +1.431 ns**, Viterbi decoder +1.895 ns, frame sync +0.653 ns out of context ([synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv), [synth_sync_agc.csv](data/results/synth_sync_agc.csv), [synth_sync_costas.csv](data/results/synth_sync_costas.csv), [synth_sync_timing.csv](data/results/synth_sync_timing.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv), [synth_fec_framesync.csv](data/results/synth_fec_framesync.csv)) |
+| **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**. RRC: 616 LUT, 1,874 FF, 2 DSP48E1. AGC: 163 LUT, 68 FF, 4 DSP48E1. Costas: 469 LUT, 153 FF, 7 DSP48E1, 1 RAMB18. Timing: 752 LUT, 564 FF, 9 DSP48E1. **Sync chain: 1,998 LUT (3.2%), 2,659 FF, 22 DSP48E1, 1 RAMB18.** Viterbi: 1,621 LUT (2.6%), 694 FF, 1 RAMB36, no DSP. Frame sync: 3,112 LUT (4.9%), 3,066 FF, 4 RAMB36, 1 DSP48E1. Every multiplier in a DSP |
 | **Ground station + CI** | `gs-replay` (C++20): 68,266 / 68,266 datagrams in order and byte-exact at 1× and 5× on loopback ([gs_replay_loopback.csv](data/results/gs_replay_loopback.csv)). `make ci`, run by [GitHub Actions on every push](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml): ruff, mypy, Verilator lint, 63 pytest, 39 cocotb, 8 GoogleTest (Release + ASan/UBSan), 4 loopback, clang-format, clang-tidy, cppcheck |
 
 ## Status
@@ -54,7 +54,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | A — Python golden model | **In progress** | Float and bit-true chains decode synthetic signals; real recording pending |
 | B — Digital downconverter | **In progress** | Bit-exact on the board; Ethernet replay waits on `eth-core-v0.1` |
 | C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. Real recording pending |
-| D — Viterbi + frame sync | **In progress** | Viterbi decoder RTL bit-exact with the model, 14.5× real time; frame sync next |
+| D — Viterbi + frame sync | **In progress** | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios); chain test next |
 | E — Reed-Solomon + real decode | Not started | — |
 | F — C++ ground station | Not started (`gs-replay` done in B) | — |
 
@@ -93,11 +93,11 @@ flowchart LR
     BACK -- "CADUs + stats" --> GS["gs-rx / gs-diff / gs-view"]
     classDef done fill:#d4edda,stroke:#2e7d32;
     classDef todo fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray: 4 3;
-    class DDC,GSR,ROM,RRC,SYNC,VIT done;
-    class ETH,FS,BACK,GS todo;
+    class DDC,GSR,ROM,RRC,SYNC,FS,VIT done;
+    class ETH,BACK,GS todo;
 ```
 
-Green is built and verified (the DDC on the board, the RRC, sync blocks and Viterbi decoder in simulation); grey dashed is not built yet. The Python model covers the whole signal path, but not the Ethernet core or the host tools.
+Green is built and verified (the DDC on the board; the RRC, sync blocks, frame sync and Viterbi decoder in simulation); grey dashed is not built yet. The Python model covers the whole signal path, but not the Ethernet core or the host tools.
 
 - **Clocking:** one 100 MHz domain. The DDC needs 9.0 clocks per sample against 97.7 available at 1.024 MS/s. The
   only crossings today are the asynchronous RESET and BTN0 inputs: a reset synchronizer and a two-flop synchronizer,
@@ -169,6 +169,8 @@ Each one is written up as symptom → root cause → fix in [docs/log.md](docs/l
 | 16 | The timing lock test had a 100 ppm clock error, which drifted the half-symbol offset to ~0.05 symbol over the run, so a dead loop would have passed too (a test bug). The test's no-loop baseline guard failed; the lock run now has no clock error | cocotb baseline guard |
 | 17 | The first `sync_top` test, with the output ready half the time, never stalled the inner links: an AGC wired to ignore the Costas loop's `tready` passed it (a test bug). Output ready 0.8% of the time, slower than the chain, makes stalls reach every stage | Planted bug |
 | 18 | After the timing block changed, the slow-sink chain test lost its last 2 outputs: the harness waited 200 clocks after the input ended, at ~125 clocks per output. The drain window now scales with the sink's ready rate (a test bug; 6,748 outputs had matched) | cocotb |
+| 19 | Frame-sync ring: windows overlap by 320 symbols, so the next window can start before the reader's position, and the input overwrote its first symbols while the reader finished the previous one | SVA `a_read_in_ring` in simulation |
+| 20 | Frame sync missed 100 MHz by 1.867 ns (threshold multiply → FSM → descriptor FIFO in one clock), then by 0.916 ns (`s_tready` in a loop through the FSM). The hit flags and `s_tready` are now registers | Vivado out-of-context timing |
 
 **Planted bugs, each caught:**
 - DDC: DC accumulator 4 bits short; a sign error in one NCO quadrant; CIC registers one bit short (caught only by
@@ -182,6 +184,13 @@ Each one is written up as symptom → root cause → fix in [docs/log.md](docs/l
   bit; a branch metric losing its carry; wrong predecessor wiring; the ACS array ignoring an output stall (caught only
   by the backpressure runs); the traceback one row short, starting a row early, first bit a row late, shifting the
   state the wrong way, or accepting rows mid-walk; the ACS array ignoring the traceback's stall.
+- Frame-sync RTL (21 of 22 caught, after three test fixes): ring guard ignoring the next window; no FIFO-space
+  check; ring margin dropped; alternate inverting G1; swap ignored; `tlast`
+  a pair early; the second symbol read twice; slip search +1 before −1 (needed a constructed −1/+1 tie); flywheel off
+  by one; verify on any hypothesis; queue one short; queue kept on lock; early-frame boundary off by one (needed a
+  frame exactly at the boundary); hit history reversed; a d = 0 slip uncounted; threshold `>=`; a correlator or level
+  tap misaligned; the FSM a position early; quantizer wrapping; I/Q rails swapped. Not caught, and equivalent: FIFO
+  space computed without this clock's pushes, since pushes are always about a frame apart.
 - Viterbi: plain comparison on wrapped path metrics; quantizer offset by one; traceback one step off; the
   best-state start ignored.
 - Board: the capture buffer's stale-read bug put back; the ILA parser with I and Q swapped.
@@ -299,7 +308,22 @@ The ASM `0x1ACFFC1D` is convolutionally encoded with the data, so the receiver c
 {0°, 90°} × I/Q swap on the absolute correlation. The winner gives both the frame position and the derotation.
 SEARCH → VERIFY → LOCK with a flywheel; threshold 0.75, chosen after bugs 2 and 3 above.
 
-Model only. RTL, sync-FSM formal proof and coverage of every hypothesis winning: `[TBD]` (Phase D).
+**RTL** (`rtl/fec/`, [ADR 0010](docs/decisions/0010-streaming-frame-sync.md)): hardware sees each symbol once, so
+the RTL matches a causal, bit-true model (`model/framesync_fixed.py`) that finds at least the float model's frames.
+`fec_soft_quant` turns the sync chain's `{Q, I}` into the 4-bit serial stream. `fec_fs_correlator` runs four 52-tap
+correlators plus Σ|v| in transposed form (one small add per register) and thresholds |c|·64 > 48·Σ|v|.
+`fec_fs_fsm` is SEARCH → VERIFY (4-deep queue) → LOCK, with a flywheel and slips followed within ±2 symbols.
+`fec_fs_window` writes every symbol into a 32,768-symbol ring and sends each frame to the Viterbi as its own derotated
+window, 128 symbols before the frame to 192 after. The window flushes the frame's last bit out of the traceback, and
+overlapping windows survive a −1 or −2 slip.
+
+It matches the model window for window, pair for pair, flags and counters included, in 13 scenarios: all four
+hypotheses, a missed ASM, lock lost and found again, carrier and timing slips (−1, +2 and a −1/+1 tie), noise, a
+full verify queue, and a sink slow enough to stall the input at the ring
+([framesync_rtl_sim.csv](data/results/framesync_rtl_sim.csv)). A 128k-ring build also stalls it at the descriptor
+FIFO. Out of context it meets 100 MHz with WNS +0.653 ns
+and uses 3,112 LUT, 3,066 FF, 4 RAMB36 and 1 DSP48E1 ([synth_fec_framesync.csv](data/results/synth_fec_framesync.csv)).
+Sync-FSM formal proof: `[TBD]`.
 
 ## Viterbi decoder
 
@@ -449,6 +473,7 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 | Costas pull-in (no coarse estimate) | ≤ 100 Hz: 19–158 ms; 150 Hz: 238–314 ms; 300 Hz: 0.9–1.2 s, 1 of 4 seeds no lock | Same | [sync_lock_costas.csv](data/results/sync_lock_costas.csv) |
 | Doppler tracking | 0.84 Hz rms, 3.0 Hz max after 0.1 s; 38 / 40 frames | 30 Hz/s through zero, 4.6 s, 6 dB | [sync_doppler_track.csv](data/results/sync_doppler_track.csv) |
 | Viterbi RTL vs. model | 3,904 + 2,904 bits bit-exact; at 1.5 dB the same 93 errors as the model | Verilator, random gaps and stalls; depth 96 from state 0 | [viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv) |
+| Frame-sync RTL vs. model | 13 scenarios, 59 windows, 492,768 pairs bit-exact; early, dropped (12,976 at thr 16/64) and slip counts equal | Verilator, input gaps, sink slower than the input; 4 hypotheses, flywheel, lock loss, slips 0/−1/+2/tie, noise | [framesync_rtl_sim.csv](data/results/framesync_rtl_sim.csv) |
 | Viterbi throughput | 96 clocks/bit, 14.5× real time | RTL simulation, 100 MHz | [viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv) |
 | Sync chain output decoded | 1 CADU decoded, 1 matching, 0 wrong (3 sent; cold start) | 87,388 samples, 49,156 outputs bit-exact; model back end | [sync_chain_rtl_decode.csv](data/results/sync_chain_rtl_decode.csv) |
 | DDC on the board (UART) | 16,384 / 16,384 bit-exact | 65,536-sample snippet, 8 dB | [ddc_board.csv](data/results/ddc_board.csv) |

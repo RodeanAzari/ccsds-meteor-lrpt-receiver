@@ -97,6 +97,10 @@ Bit-true model: `model/viterbi_fixed.py`. ADRs 0005 (width) and 0006 (path metri
 |---|---|---|---|---|
 | Soft quantizer | input | s16 serial soft stream, ONE units | — | Chain soft rms is 1.04–1.06 ONE at the strobes |
 | Soft quantizer | output | u4 offset binary; level u means (u − 8 + ½)·ONE/4 | `soft >> 10` (floor, midrise), + 8, clamped to [0, 15] | ADR 0005: 0.13 dB from unquantized at 10⁻⁵; levels symmetric about zero |
+| Frame-sync correlator | per hypothesis | s11: Σ ±v over 52 symbols, v = 2u − 15 ∈ {±1 … ±15}; \|c\| ≤ 780 | none (exact) | ADR 0010 |
+| Frame-sync level | Σ\|v\| | u11 (≤ 780) | none (exact) | Normalizes the threshold over the correlation's own symbols |
+| Frame-sync threshold | compare | \|c\|·64 vs thr64·Σ\|v\|, both < 2¹⁷ | none (exact) | thr64 u6 register, 48 = 0.75 |
+| Derotation | per symbol | u4; negating a level is 15 − u (bit inversion) | none (exact) | Levels symmetric about zero (`framesync_fixed.undo_levels()`) |
 | Branch metric | per branch | u5, 0–30 | none (exact) | Distance: 15 − u for an expected 1, u for an expected 0, summed over G1 and G2 |
 | Path metric | per state | u9, modulo 2⁹ | wraps by design; compare by the sign of the 9-bit difference | ADR 0006: candidate spread ≤ 7·30 = 210 < 256. Ties keep branch 0, as the float decoder does |
 

@@ -1,0 +1,6 @@
+instance,module,luts,ffs,ramb36,ramb18,dsp48e1,clk_mhz,wns_ns,whs_ns,failing_endpoints
+fec_framesync,fec_framesync,3112,3066,4,0,1,100,0.653,0.098,0
+(fec_framesync),fec_framesync,4,6,0,0,0,100,0.653,0.098,0
+u_corr,fec_fs_correlator,2234,2530,0,0,1,100,0.653,0.098,0
+u_fsm,fec_fs_fsm,493,280,0,0,0,100,0.653,0.098,0
+u_win,fec_fs_window,382,250,4,0,0,100,0.653,0.098,0
