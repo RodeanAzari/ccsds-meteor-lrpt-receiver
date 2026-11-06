@@ -23,6 +23,10 @@ SEQ_BYTES = 8
 IQ_BYTES = 1024  # 512 cu8 samples, docs/protocol.md §IQ replay
 PACKET_BYTES = SEQ_BYTES + IQ_BYTES
 PACKET_S_REALTIME = 512 / 1_024_000  # 500 us
+# Arrival times are taken by this receiver thread, so a late wake-up on the first packet shortens the measured span
+# by a fixed amount, not a fraction. On a shared CI runner a 37 ms span at 4x came out 0.2 ms under the 2% bound with
+# correct pacing (run 42148010432; passed on re-run). Unpaced (--flat-out), 300 packets span 3-7 ms here: far below.
+JITTER_S = 1e-3
 
 BINARY = Path(os.environ.get("GS_REPLAY", "build/gs-Release/gs-replay"))
 
@@ -97,7 +101,7 @@ def test_real_time_pacing_spreads_packets(binary: Path, tmp_path: Path) -> None:
     span = got[-1][0] - got[0][0]
     want = (packets - 1) * PACKET_S_REALTIME
     # Lower bound proves pacing; upper bound only catches a gross stall on a busy host.
-    assert want * 0.98 <= span <= want * 1.5, f"span {span:.3f} s, want {want:.3f} s"
+    assert want * 0.98 - JITTER_S <= span <= want * 1.5, f"span {span:.3f} s, want {want:.3f} s"
     assert "target=1.000x" in out
 
 
@@ -108,7 +112,7 @@ def test_speed_and_count(binary: Path, tmp_path: Path) -> None:
     check_stream(got, data, 300)
     span = got[-1][0] - got[0][0]
     want = 299 * PACKET_S_REALTIME / 4
-    assert want * 0.98 <= span <= want * 1.5, f"span {span:.3f} s, want {want:.3f} s"
+    assert want * 0.98 - JITTER_S <= span <= want * 1.5, f"span {span:.3f} s, want {want:.3f} s"
     assert err == ""  # --count stops early: no tail message
 
 
