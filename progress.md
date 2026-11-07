@@ -22,7 +22,8 @@ Current state, next steps and key decisions only (≤ 150 lines). Measurements l
   amendment) match the model window for window in 13 cocotb scenarios; OOC 100 MHz met (+0.653 ns, 3,112 LUT,
   4 RAMB36). Chain `rtl/top/rx_chain.sv` (sync_top → quant → framesync → viterbi): `make sim-full` decodes 5 frames
   from a cold start, every bit equal to the model (`decode_windows()`), 3/3 frames as sent; OOC +0.827 ns, 6,750 LUT.
-  **Not done:** path-metric formal proof, `docs/viterbi.md`, 3-bit area, hardware BER.
+  `docs/viterbi.md` written; 3-bit area measured (4-bit stands). Path-metric formal: stall hold proven, bound holds
+  8 steps from reset; **unbounded proof open** (k-induction > 6.5 h). **Not done:** hardware BER.
 - **Phases E–F:** not started in RTL (RS, `gs-rx`/`gs-diff`/`gs-view`). `eth-core-v0.1` and `v0.2` are released
   (P2): Ethernet replay to the board (Phase B close-out) and the host return path are unblocked; claim the board.
 
@@ -42,7 +43,7 @@ Traps to remember (beyond CLAUDE.md §12):
 2. Decode it with SatDump; list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, compare the model's CADUs with
    SatDump's.
-4. Phase D: an SBY proof of the path-metric bound (ADR 0006), `docs/viterbi.md`, 3-bit area. Phase E's first job:
+4. Phase D: hardware BER (needs Ethernet replay). Phase E's first job:
    carry the window `tuser`/`tlast` past the Viterbi (they end at `fec_framesync` today); frame = bits PRE/2 ..
    PRE/2 + 8,191 of each 8,352-bit window.
 5. Phase B close-out: integrate `eth-core-v0.1` (submodule at the tag) and stream `gs-replay` to the board.
@@ -79,3 +80,4 @@ Traps to remember (beyond CLAUDE.md §12):
 - Board Ethernet from WSL2: UDP multicast may need mirrored networking mode. Test when `eth-core-v0.1` lands.
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
 - What in the board resets the design when the serial port opens. Not established; harmless with the CRC.
+- `make formal` in CI (buildplan §6 lists it): ~25 min and oss-cad-suite in the container. Local only for now; your call.

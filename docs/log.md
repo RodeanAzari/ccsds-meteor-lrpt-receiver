@@ -701,3 +701,33 @@ to a frame sent after NRZ-M and derandomizing, before RS (`rx_chain_rtl_decode.c
   jumps a frame ahead; only the lock-loss test catches it.
 - Open for Phase E: the window flags (`tuser`) and boundary (`tlast`) end at the frame sync; the Viterbi doesn't carry
   them.
+
+## 2026-11-06: Phase D, path-metric formal, 3-bit area, docs/viterbi.md
+
+**3-bit area.** `make synth-ooc` takes `GENERICS`/`NAME` now. The 3-bit decoder: 1,365 LUT, 630 FF, WNS +2.628 ns,
+against 1,621 / 694 / +1.895 ns at 4 bits (`synth_fec_viterbi_3bit.csv`). 4-bit stands (ADR 0005 amendment).
+
+**Formal** (`tb/formal/fec_acs_array.sby`, `make formal`). The ADR 0006 bound is SVA in `fec_acs_array.sv`. Proven: a
+stall changes no metric. Bounded: no violation within 8 steps of reset at 4 bits. **Open:**
+the unbounded proof; its 4-bit induction had not finished after 6.5 hours (base case 13 min), and the 1- and 2-bit
+versions timed out at 2 hours.
+
+- First k-induction failed in 40 s. Symptom: counterexample with `s_tvalid` low for 8 steps, then one step out of
+  bounds. Root cause: the metrics hold through a stall, so k cycles of induction can be one state, an unreachable
+  one. Fix: the spread proof steps every clock; a separate task proves with free handshakes that a stall changes no
+  metric. The spread asserts are left out of that task (`ACS_HOLD_ONLY`).
+- Yosys rejects the same assertion label in every generate instance; labels dropped inside the generate.
+- Running several tasks of one .sby file in parallel corrupted SBY's status database (`sqlite3.DatabaseError`);
+  give each run its own `--prefix`.
+- Planted bugs: no metric reset and 8-bit metrics at 4-bit soft are caught in < 30 s. An ACS that keeps the larger
+  candidate is not, and shouldn't be: the spread stays bounded under max too (cocotb catches its decisions). A
+  sign-extended branch metric breaks the bound, but in the model recurrence even the worst input needs 14 steps
+  (1-bit) or 18 (2-bit), beyond the bounded depth; a 20-step 1-bit check reached step 14 in 3.3 hours.
+- Model recurrence, worst input at every step: the spread peaks at 4·BMmax (8 at 1 bit, 24 at 2 bits), below the
+  6·BMmax bound.
+- Written first as 2,016 pair asserts, the bound slowed `test_fec_viterbi` from 26 s to 66 s and pushed `make sim`
+  toward its 5-minute budget. Rewritten as one equivalent assert (metrics relative to state 0, max − min ≤ 180: pairs
+  that close can't wrap, and the spread grows by at most 30 per step, so a violation shows before anything wraps):
+  46 s under the same CPU load. Both planted bugs still caught; `make formal` (hold + 8-step bound) 11.5 min.
+
+`docs/viterbi.md` written: the §3.6 tradeoffs, one per ADR, with the measured numbers.

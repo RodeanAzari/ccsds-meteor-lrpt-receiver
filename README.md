@@ -40,7 +40,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Coding gain at BER 10⁻⁵** | Model only, before NRZ-M: 10⁻⁵ at 4.28 dB with 4-bit soft decisions (4.15 dB unquantized) against 9.59 dB for uncoded OQPSK theory, a 5.3 dB gain (5.4 dB unquantized) ([soft_width_ber.csv](data/results/soft_width_ber.csv)). Hardware: `[TBD]` |
 | **Viterbi throughput and headroom** | RTL decoder bit-exact with the model, errors included; **96 clocks per bit, 14.5× real time** at 100 MHz, RTL simulation ([viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv)). Hardware BER: `[TBD]` |
 | **Lock / Doppler** | Bit-true chain (bit-exact with the RTL), from reset at 6 dB with a 30 Hz/s ramp: **locks from −15 to +14 kHz in 16–35 ms** (4× the ±3.4 kHz Doppler); tracks the pass-maximum Doppler rate with **0.84 Hz rms error** ([sync_lock_range.csv](data/results/sync_lock_range.csv), [sync_doppler_track.csv](data/results/sync_doppler_track.csv)). On the board: `[TBD]` |
-| **Formal proofs** | None yet (`[TBD]`: Viterbi normalization, sync FSM, AXI-Stream, RS syndromes) |
+| **Formal proofs** | Viterbi path metrics: a stall changes no metric (proven); the overflow bound holds 8 steps from reset (bounded), unbounded proof open ([docs/viterbi.md](docs/viterbi.md)). `[TBD]`: sync FSM, AXI-Stream, RS syndromes |
 | **Bugs caught** | 18 written up as symptom → root cause → fix ([below](#bugs-found)); 33 planted bugs, all caught |
 | **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC +2.453 ns, AGC +2.344 ns, Costas +2.360 ns, timing +1.604 ns, **whole sync chain +1.431 ns**, Viterbi decoder +1.895 ns, frame sync +0.653 ns, **sync chain → Viterbi +0.827 ns** out of context ([synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv), [synth_sync_agc.csv](data/results/synth_sync_agc.csv), [synth_sync_costas.csv](data/results/synth_sync_costas.csv), [synth_sync_timing.csv](data/results/synth_sync_timing.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv), [synth_fec_framesync.csv](data/results/synth_fec_framesync.csv), [synth_rx_chain.csv](data/results/synth_rx_chain.csv)) |
 | **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**. RRC: 616 LUT, 1,874 FF, 2 DSP48E1. AGC: 163 LUT, 68 FF, 4 DSP48E1. Costas: 469 LUT, 153 FF, 7 DSP48E1, 1 RAMB18. Timing: 752 LUT, 564 FF, 9 DSP48E1. **Sync chain: 1,998 LUT (3.2%), 2,659 FF, 22 DSP48E1, 1 RAMB18.** Viterbi: 1,621 LUT (2.6%), 694 FF, 1 RAMB36, no DSP. Frame sync: 3,112 LUT (4.9%), 3,066 FF, 4 RAMB36, 1 DSP48E1. Every multiplier in a DSP |
@@ -143,8 +143,11 @@ JTAG, storage-qualified on the output handshake so the whole output fits in the 
 Both match the model with 0 mismatches. A script checks the ILA capture, which also proves the trigger alignment
 and probe bit order.
 
-**Formal:** none yet. Planned in [CLAUDE.md §8.3](CLAUDE.md): Viterbi path-metric overflow, the sync FSM,
-AXI-Stream handshakes, and RS syndromes.
+**Formal** (`make formal`, SymbiYosys): the Viterbi's modulo path metrics. The bound (any two metrics within 180,
+so every modulo compare is exact) is SVA in `fec_acs_array.sv`, checked in every simulation. Proven: a stall changes
+no metric. Bounded: no input breaks the bound within 8 steps of reset. Open: the unbounded proof, which had not
+finished after 6.5 hours ([docs/viterbi.md](docs/viterbi.md), ADR 0006). Still planned (buildplan §8.3): the sync
+FSM, AXI-Stream handshakes, and RS syndromes.
 
 ### Bugs found
 
@@ -368,7 +371,9 @@ derandomized, are frames that were sent, before RS. The sink is held until stall
 inner link stalls ([rx_chain_rtl_decode.csv](data/results/rx_chain_rtl_decode.csv)). Out of context: 6,750 LUT
 (10.6%), 23 DSP48E1, 5 RAMB36, 100 MHz with WNS +0.827 ns ([synth_rx_chain.csv](data/results/synth_rx_chain.csv)).
 
-Not yet: a formal proof of the path-metric bound, the 3-bit build's area, and hardware BER (Phase D).
+The tradeoffs, with the 3-bit build's area (256 LUTs fewer for 0.11 dB), are in [docs/viterbi.md](docs/viterbi.md).
+
+Not yet: the unbounded path-metric proof (bounded to 8 steps today) and hardware BER (Phase D).
 
 ## Reed-Solomon
 
@@ -529,6 +534,7 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make model-test` | Signal-spec check, RTL-table staleness check, pytest |
 | `make sim` | cocotb regression on Verilator (< 5 min) |
 | `make sim-full` | Long cocotb runs: the sync chain from reset, its output decoded (~4 min); the chain through the Viterbi (~10 min) |
+| `make formal` | SymbiYosys: Viterbi path-metric hold proof and 8-step bound (~12 min) |
 | `make gs` / `make gs-test` | Ground station, Release + Debug (ASan/UBSan); GoogleTest + loopback |
 | `make gs-lint` | clang-format check, clang-tidy (warnings are errors, every disabled check justified in `gs/.clang-tidy`), cppcheck |
 | `make ci` | Everything above |
@@ -541,8 +547,8 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make plots` | Regenerate every plot from `data/results/` |
 
 `make ci` runs everything that doesn't need Vivado or the board, and [GitHub Actions](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml) runs it on every push in an `ubuntu:26.04` container, so its compiler, clang-tidy, cppcheck, CMake, Python and Verilator (v5.050, built from source) match the development machine. Vivado and the board are local only, and their reports and CSVs are committed with the RTL that
-produced them. `make sim-full` is local only. `cov`, `formal` and `fuzz` print "not implemented yet" and fail, rather than
-pretending.
+produced them. `make sim-full` and `make formal` are local only. `cov` and `fuzz` print "not implemented yet" and fail,
+rather than pretending.
 
 ## Repository layout
 
@@ -564,8 +570,7 @@ pretending.
 1. **A real recording:** capture a pass (or find a public 72k recording), decode it with SatDump, and confirm the
    spec and the model on it (Phases 0 and A).
 2. **Phase C:** lock on a real recording; the sync chain on the board once Ethernet replay is available.
-3. **Phase D:** frame sync (encoded-ASM correlator, sync FSM) and the soft quantizer in RTL in front of the Viterbi
-   decoder, a formal proof of path-metric overflow, and hardware BER.
+3. **Phase D:** hardware BER, and the unbounded path-metric proof (bounded to 8 steps today).
 4. **Phase E:** a Reed-Solomon decoder shared with another project, and a real pass decoded on the FPGA bit-for-bit
    against SatDump.
 5. **Phase F:** `gs-rx`, `gs-diff`, `gs-view`, a fuzzed parser, and the hero image and demo video.
