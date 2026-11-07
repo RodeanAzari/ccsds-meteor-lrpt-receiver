@@ -3,6 +3,12 @@
     PYTHONPATH=. python scripts/ddc_board.py rom <out.mem> [n_samples]     # BRAM init file ({Q_u8, I_u8} hex words)
     PYTHONPATH=. python scripts/ddc_board.py check [/dev/ttyUSB1] [n_samples]
     PYTHONPATH=. python scripts/ddc_board.py ila-check <ila.csv> [n_samples]  # ILA capture (make ila-capture)
+    PYTHONPATH=. python scripts/ddc_board.py eth-check [/dev/ttyUSB1] --iface <host IP on the cable> [--speed X]
+
+`eth-check` is `check` for rtl/top/arty_ddc_eth_top.sv: the snippet goes to the board over Ethernet instead of
+from BRAM. It writes the snippet as a cu8 file, opens the serial port (which resets the board), waits for the MAC
+to start, streams the file with gs-replay (docs/protocol.md), then compares the dump the board sends once its
+capture fills. Result: data/results/ddc_board_eth.csv.
 
 `check` waits for the board's UART dump ("DDC1" | u32 n | n x u32 {Q, I} s16 | u32 CRC-32, little-endian; saved
 to build/board/ddc_dump.bin), skips any dump whose CRC fails (opening the port resets the board, so a cut-off
@@ -18,9 +24,11 @@ ILA_PLOT_SAMPLES outputs, board and model, for the plot (data/results/ddc_board_
 from __future__ import annotations
 
 import struct
+import subprocess
 import sys
 import time
 import zlib
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -40,6 +48,9 @@ DC_OFFSET = 0.25  # of sigma, per rail: an RTL-SDR-like DC offset for the DC blo
 CFG = RxConfig(fs=1_024_000.0, tune_offset_hz=150_000.0)
 BAUD = 115_200
 DUMP = Path("build/board/ddc_dump.bin")
+DUMP_ETH = Path("build/board/ddc_eth_dump.bin")
+GS_REPLAY = Path("build/gs-Release/gs-replay")  # make gs
+MAC_START_WAIT_S = 1.0  # arty_ddc_eth_top releases the MAC 200 ms after reset; the PHY link needs time too
 ILA_PLOT_SAMPLES = 512  # 2 ms at 256 kS/s
 
 
@@ -98,13 +109,15 @@ def find_dump(buf: bytes, n: int, start: int = 0) -> tuple[bytes | None, int]:
     return None, start
 
 
-def read_dump(port: str, n: int, timeout_s: float) -> bytes:
+def read_dump(port: str, n: int, timeout_s: float, after_open: Callable[[], None] | None = None) -> bytes:
     import serial  # pyserial; only the hardware path needs it
 
     with serial.Serial(port, BAUD, timeout=1.0) as s:
         s.reset_input_buffer()
         print(f"waiting for a dump on {port} (opening the port resets the board and starts one; BTN0 repeats it)...",
               flush=True)
+        if after_open is not None:
+            after_open()
         buf = b""
         start = 0  # first byte not yet ruled out as the start of a dump
         deadline = time.monotonic() + timeout_s
@@ -123,22 +136,30 @@ def spectrum(x: npt.NDArray[np.complex128], fs: float) -> tuple[npt.NDArray[np.f
     return f[order], 10 * np.log10(p[order] + 1e-30)
 
 
-def check(port: str, n: int) -> int:
-    from analysis.common import write_result
-
-    dump = read_dump(port, n // 4, timeout_s=60.0)
-    DUMP.parent.mkdir(parents=True, exist_ok=True)
-    DUMP.write_bytes(dump)  # raw board output, kept for re-analysis without the board
+def compare(dump: bytes, n: int, path: Path) -> tuple[npt.NDArray[np.int16], int, int]:
+    """Save the raw dump (for re-analysis without the board), compare it with the model.
+    Returns (outputs, mismatches, first mismatch or -1)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(dump)
     got = parse_dump(dump)
     exp_i, exp_q = expected(n)
     exp = np.stack([exp_i, exp_q], axis=1)
+    if got.shape != exp.shape:
+        raise ValueError(f"dump holds {got.shape[0]} outputs, model has {exp.shape[0]}")
     bad = np.flatnonzero(np.any(got != exp, axis=1))
     first = int(bad[0]) if bad.size else -1
     print(f"{got.shape[0]} outputs, {bad.size} mismatches" + (f", first at {first}" if bad.size else ""))
+    return got, int(bad.size), first
+
+
+def check(port: str, n: int) -> int:
+    from analysis.common import write_result
+
+    got, n_bad, first = compare(read_dump(port, n // 4, timeout_s=60.0), n, DUMP)
     write_result(
         "ddc_board",
         ["outputs", "mismatches", "first_mismatch", "n_input_samples", "freq_word_hex", "clk_mhz", "baud"],
-        [[got.shape[0], bad.size, first, n, f"{m.freq_word(CFG.tune_offset_hz, CFG.fs):08x}", 100, BAUD]],
+        [[got.shape[0], n_bad, first, n, f"{m.freq_word(CFG.tune_offset_hz, CFG.fs):08x}", 100, BAUD]],
         f"snippet seed {SEED}, {EBN0_DB} dB, carrier {CARRIER_HZ / 1e3:.0f} kHz "
         f"(scripts/ddc_board.py), played from BRAM on the Arty A7-100T",
         command=f"PYTHONPATH=. python scripts/ddc_board.py check {port}",
@@ -158,7 +179,39 @@ def check(port: str, n: int) -> int:
         f"Welch, 1024-point segments, no detrending; seed {SEED}",
         command=f"PYTHONPATH=. python scripts/ddc_board.py check {port}",
     )
-    return 1 if bad.size else 0
+    return 1 if n_bad else 0
+
+
+def eth_check(port: str, iface: str, speed: str, n: int = N_SAMPLES) -> int:
+    from analysis.common import write_result
+
+    cu8 = Path("build/board/ddc_snippet.cu8")
+    cu8.parent.mkdir(parents=True, exist_ok=True)
+    cu8.write_bytes(snippet(n).tobytes())
+    cmd = [str(GS_REPLAY), str(cu8), "--iface", iface, "--speed", speed]
+    replay: list[str] = []
+
+    def send() -> None:
+        time.sleep(MAC_START_WAIT_S)  # the port open reset the board; the MAC leaves reset after 200 ms
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        replay.append(r.stdout + r.stderr)
+        print(f"gs-replay exit {r.returncode}: {(r.stdout + r.stderr).strip()}", flush=True)
+        if r.returncode != 0:
+            raise RuntimeError("gs-replay failed")
+
+    got, n_bad, first = compare(read_dump(port, n // 4, timeout_s=60.0, after_open=send), n, DUMP_ETH)
+    write_result(
+        "ddc_board_eth",
+        ["outputs", "mismatches", "first_mismatch", "n_input_samples", "datagrams", "replay_speed", "freq_word_hex",
+         "clk_mhz", "baud"],
+        [[got.shape[0], n_bad, first, n, n // 512, speed, f"{m.freq_word(CFG.tune_offset_hz, CFG.fs):08x}", 100,
+          BAUD]],
+        f"snippet seed {SEED}, {EBN0_DB} dB, carrier {CARRIER_HZ / 1e3:.0f} kHz (scripts/ddc_board.py), streamed "
+        f"by gs-replay over 100 Mb/s Ethernet to arty_ddc_eth_top on the Arty A7-100T (fpga-eth-core "
+        f"eth-core-v0.2). gs-replay said: {' '.join(replay).strip()}",
+        command=f"PYTHONPATH=. python scripts/ddc_board.py eth-check {port} --iface {iface} --speed {speed}",
+    )
+    return 1 if n_bad else 0
 
 
 def parse_ila_csv(text: str) -> npt.NDArray[np.int64]:
@@ -224,6 +277,14 @@ def main(argv: list[str]) -> int:
         return 0
     if argv[:1] == ["check"]:
         return check(argv[1] if len(argv) > 1 else "/dev/ttyUSB1", int(argv[2]) if len(argv) > 2 else N_SAMPLES)
+    if argv[:1] == ["eth-check"]:
+        rest = argv[1:]
+        opts = {k: v for k, v in zip(rest[::2], rest[1::2], strict=False) if k.startswith("--")}
+        port = rest[0] if rest and not rest[0].startswith("--") else "/dev/ttyUSB1"
+        if "--iface" not in opts:
+            print("eth-check needs --iface <host IP on the cable to the Arty>", file=sys.stderr)
+            return 2
+        return eth_check(port, opts["--iface"], opts.get("--speed", "1"))
     if argv[:1] == ["ila-check"]:
         return ila_check(Path(argv[1]), int(argv[2]) if len(argv) > 2 else N_SAMPLES)
     print(__doc__, file=sys.stderr)

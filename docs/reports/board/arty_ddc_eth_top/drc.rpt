@@ -1,0 +1,62 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
+| Date         : Sat Nov  7 11:50:07 2026
+| Host         : RodeanStation running 64-bit Ubuntu 26.04 LTS
+| Command      : report_drc -file /home/rodea/CCSDS/docs/reports/board/arty_ddc_eth_top/drc.rpt
+| Design       : arty_ddc_eth_top
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Fully Routed
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Report DRC
+
+Table of Contents
+-----------------
+1. REPORT SUMMARY
+2. REPORT DETAILS
+
+1. REPORT SUMMARY
+-----------------
+            Netlist: arty_ddc_eth_top
+          Floorplan: design_1
+      Design limits: <entire design considered>
+           Ruledeck: default
+             Max checks: <unlimited>
+             Checks found: 5
++-----------+----------+----------------------------+--------+
+| Rule      | Severity | Description                | Checks |
++-----------+----------+----------------------------+--------+
+| DPOP-2    | Warning  | MREG Output pipelining     | 2      |
+| REQP-1839 | Warning  | RAMB36 async control check | 3      |
++-----------+----------+----------------------------+--------+
+
+2. REPORT DETAILS
+-----------------
+DPOP-2#1 Warning
+MREG Output pipelining  
+DSP u_ddc/u_mixer/im4_q_reg multiplier stage u_ddc/u_mixer/im4_q_reg/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+DPOP-2#2 Warning
+MREG Output pipelining  
+DSP u_ddc/u_mixer/re4_q_reg multiplier stage u_ddc/u_mixer/re4_q_reg/P[47:0] is not pipelined (MREG=0). Pipelining the multiplier function will improve performance and will save significant power so it is suggested whenever possible to fully pipeline this function.  If this multiplier was inferred, it is suggested to describe an additional register stage after this function.  If there is no registered adder/accumulator following the multiply function, two pipeline stages are suggested to allow both the MREG and PREG registers to be used.  If the DSP48 was instantiated in the design, it is suggested to set both the MREG and PREG attributes to 1 when performing multiply functions.
+Related violations: <none>
+
+REQP-1839#1 Warning
+RAMB36 async control check  
+The RAMB36E1 u_eth_rx/u_fifo/mem_reg has an input control pin u_eth_rx/u_fifo/mem_reg/ENARDEN (net: u_eth_rx/u_fifo/mem_reg_ENARDEN_cooolgate_en_sig_2) which is driven by a register (u_rst_mii/sync_q_reg[2]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#2 Warning
+RAMB36 async control check  
+The RAMB36E1 u_eth_rx/u_fifo/mem_reg has an input control pin u_eth_rx/u_fifo/mem_reg/WEA[0] (net: u_eth_rx/u_fifo/s_tready_o) which is driven by a register (u_rst_mii/sync_q_reg[2]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#3 Warning
+RAMB36 async control check  
+The RAMB36E1 u_eth_rx/u_fifo/mem_reg has an input control pin u_eth_rx/u_fifo/mem_reg/WEA[1] (net: u_eth_rx/u_fifo/s_tready_o) which is driven by a register (u_rst_mii/sync_q_reg[2]) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+

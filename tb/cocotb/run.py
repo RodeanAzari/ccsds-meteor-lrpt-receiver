@@ -54,6 +54,7 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_fec_soft_quant": ("fec_soft_quant", ["rtl/fec/fec_soft_quant.sv"], [{}]),
     "test_fec_framesync": ("fec_framesync", FRAMESYNC_SRCS, [FRAMESYNC_PARAMS]),
     "test_fec_framesync_fifo": ("fec_framesync", FRAMESYNC_SRCS, [{**FRAMESYNC_PARAMS, "DEPTH": 131072}]),
+    "test_iq_udp_ingest": ("iq_udp_ingest", ["rtl/io/iq_udp_ingest.sv"], [{"DEPTH": 1024}, {"DEPTH": 512}]),
     "test_arty_ddc_rom_top": (
         "arty_ddc_rom_top",
         ["rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_rom_source.sv", "rtl/io/capture_dump.sv",
@@ -62,7 +63,25 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
         + ["rtl/top/arty_ddc_rom_top.sv"],
         [{
             "N_SAMPLES": 2048,  # tb/cocotb/ddc_board.py N_SIM
-            "CLKS_PER_BIT": 8,  # test_arty_ddc_rom_top.py CLKS_PER_BIT
+            "CLKS_PER_BIT": 8,  # tb/cocotb/ddc_board.py CLKS_PER_BIT
+            "NCO_LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"',
+            "COMP_TAP_FILE": f'"{ROOT / "rtl/ddc/comp_fir_taps.mem"}"',
+        }],
+    ),
+    "test_arty_ddc_eth_top": (
+        "arty_ddc_eth_top",
+        ["tb/models/MMCME2_BASE.sv", "tb/models/BUFG.sv", "tb/models/ODDR.sv", "rtl/lib/xilinx/clk_gen_eth.sv",
+         "rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_udp_ingest.sv", "rtl/io/capture_dump.sv",
+         "rtl/io/uart_tx.sv"]
+        + [f"rtl/eth/rtl/{f}.sv" for f in ("async_fifo", "mii_rx", "rx_ovf_guard", "crc32_d8", "eth_fcs_check",
+                                           "frame_buffer", "eth_rx", "udp_rx")]
+        + [f"rtl/ddc/{f}.sv" for f in ("ddc_ingest", "ddc_nco_mixer", "ddc_cic", "ddc_comp_fir", "ddc_top")]
+        + ["rtl/top/arty_ddc_eth_top.sv"],
+        [{
+            "N_OUT": 512,  # tb/cocotb/ddc_board.py N_SIM / 4
+            "CLKS_PER_BIT": 8,  # tb/cocotb/ddc_board.py CLKS_PER_BIT
+            "PHY_RST_CYCLES": 100,
+            "MAC_START_CYCLES": 400,  # test_arty_ddc_eth_top.py MAC_START_CYCLES
             "NCO_LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"',
             "COMP_TAP_FILE": f'"{ROOT / "rtl/ddc/comp_fir_taps.mem"}"',
         }],
@@ -115,7 +134,8 @@ def main(names: list[str]) -> int:
                 sources=[ROOT / s for s in srcs],
                 hdl_toplevel=top,
                 parameters=params,
-                build_args=["--assert", "-Wall"],
+                build_args=["--assert", "-Wall"]
+                + ([str(ROOT / "tb/cocotb/eth_core.vlt")] if any(x.startswith("rtl/eth/") for x in srcs) else []),
                 build_dir=build_dir,
                 always=True,
             )

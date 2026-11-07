@@ -72,8 +72,8 @@ and this repo uses them only at tagged releases, never copied in:
 
 | Repository | What it provides here | How it is pinned |
 |---|---|---|
-| [**fpga-eth-core**](https://github.com/RodeanAzari/fpga-eth-core) | 10/100 MII MAC, CRC-32, async FIFO, IPv4/UDP RX/TX: the link that carries IQ from `gs-replay` to the board and decoded CADUs back | Git submodule at `rtl/eth/`, checked out at a release tag. Not integrated yet: waiting on `eth-core-v0.1` (RX) and `v0.2` (TX) |
-| [**tb-common**](https://github.com/RodeanAzari/tb-common) | Shared cocotb helpers: AXI-Stream source and sink with random valid/ready backpressure, an in-order scoreboard, seeded per-test RNG. Every block-level cocotb test in `tb/cocotb/` drives and checks its block through them (the board-top test decodes the UART pin itself) | `pip install` from git at `tb-common-v0.1`, pinned in [`requirements.txt`](requirements.txt) |
+| [**fpga-eth-core**](https://github.com/RodeanAzari/fpga-eth-core) | 10/100 MII MAC, CRC-32, async FIFO, IPv4/UDP RX/TX: the link that carries IQ from `gs-replay` to the board and decoded CADUs back | Git submodule at `rtl/eth/`, at `eth-core-v0.2`. RX (`eth_rx` → `udp_rx`) feeds the DDC in `arty_ddc_eth_top`; TX is for Phase E |
+| [**tb-common**](https://github.com/RodeanAzari/tb-common) | Shared cocotb helpers: AXI-Stream source and sink with random valid/ready backpressure, an in-order scoreboard, seeded per-test RNG. Every block-level cocotb test in `tb/cocotb/` drives and checks its block through them (the board-top tests drive the MII pins and decode the UART pin themselves) | `pip install` from git at `tb-common-v0.1`, pinned in [`requirements.txt`](requirements.txt) |
 
 ## Architecture
 

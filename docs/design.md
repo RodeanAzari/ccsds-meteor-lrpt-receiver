@@ -17,6 +17,7 @@ and lists clock-domain crossings.
 | [0008](decisions/0008-traceback-depth.md) | Traceback depth 96 from state 0 | `traceback_depth.csv` |
 | [0009](decisions/0009-iq-transport-format.md) | IQ replay: 8-byte BE sequence + 512 raw cu8 samples per datagram | `gs_replay_loopback.csv` |
 | [0010](decisions/0010-streaming-frame-sync.md) | Streaming frame sync: 4-bit correlation normalized over its own 52 symbols, 4-deep verify queue, slips followed within ±2 symbols; per-frame Viterbi windows from a 32k-symbol ring (amendment) | `framesync_fixed.csv` |
+| [0011](decisions/0011-ethernet-ingest.md) | Ethernet ingest: one 100 MHz core domain; each datagram held in a BRAM ring and released only if whole | `test_iq_udp_ingest.py`, `ddc_board_eth.csv` |
 
 Still required (CLAUDE.md §5.5): interpolator type, Berlekamp–Massey variant, RS instance count, phase-ambiguity
 strategy. The interpolator (Catmull-Rom cubic) and phase-ambiguity strategy (4 hypotheses on the
@@ -55,12 +56,16 @@ encoded ASM, `signal-spec.md`) are implemented in the model but have no ADR yet.
 
 ## Clock-domain crossings
 
-The design is single-clock (100 MHz, `clk100_i`). The only crossings are asynchronous board inputs:
+The ROM top is single-clock (100 MHz, `clk100_i`); the Ethernet top's core domain is 100 MHz from the MMCM
+(`rtl/lib/xilinx/clk_gen_eth.sv`, ADR 0011), plus the PHY's 25 MHz `eth_rx_clk_i` inside fpga-eth-core's `eth_rx`.
 
 | Signal | From | Synchronizer | XDC |
 |---|---|---|---|
 | `ck_rst_n_i` (RESET button) | asynchronous | `rtl/lib/reset_sync.sv`: async assert, 3-flop sync deassert | `set_false_path -from` in `constr/arty_a7_100t.xdc` |
 | `btn0_i` (BTN0) | asynchronous | `rtl/lib/cdc_sync_bit.sv`: 2-flop, `ASYNC_REG` | `set_false_path -from` in `constr/arty_a7_100t.xdc` |
+| MMCM `locked` (Ethernet top) | asynchronous | `reset_sync` `u_rst_core`, with the button | not a timed path |
+| MII bytes, rx_clk → core | `eth_rx_clk_i` | fpga-eth-core `async_fifo` (Gray pointers, formally proven) | eth-core's `constr/async_fifo.xdc`, read scoped to `async_fifo` |
+| MAC reset request, core → rx_clk | `mac_rst_q` | `reset_sync` `u_rst_mii` (async assert, sync deassert) | `set_false_path -to` its `PRE` pins, `constr/arty_eth.xdc` |
 
 ## Board bring-up (Phase B, no Ethernet)
 
@@ -68,3 +73,8 @@ The design is single-clock (100 MHz, `clk100_i`). The only crossings are asynchr
 (16 K-word BRAM) → `uart_tx` (115,200 baud). Dump format: `"DDC1"` | u32 n | n × u32 `{Q, I}` | u32 CRC-32, all
 little-endian. **Opening the board's serial port resets the design** and starts a dump (observed 2026-11-04; the
 mechanism is not established), so the host discards any dump whose CRC fails. `make board prog board-check`.
+
+Over Ethernet (`rtl/top/arty_ddc_eth_top.sv`, ADR 0011): MII → fpga-eth-core `eth_rx` → `udp_rx` (239.1.1.1:26400)
+→ `iq_udp_ingest` (docs/protocol.md datagrams → `{Q_u8, I_u8}`, whole datagrams only) → the same `ddc_top`,
+`capture_dump` and dump format. The capture fills from the replay, not on reset; the host opens the port first (the
+reset), waits for the MAC, then runs `gs-replay`. `make board BOARD_TOP=arty_ddc_eth_top`, `prog`, `eth-check`.

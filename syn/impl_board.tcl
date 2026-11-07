@@ -1,7 +1,9 @@
 # Board build: synth -> place -> route -> bitstream for a top on the Arty A7-100T (CLAUDE.md §6, batch only).
 #
-#   scripts/vivado.sh -mode batch -source syn/impl_board.tcl -tclargs <top> <rom.mem>
+#   scripts/vivado.sh -mode batch -source syn/impl_board.tcl -tclargs <top> <rom.mem | none> [ila]
 #   make board          (top arty_ddc_rom_top; generates the ROM snippet first)
+#   make board BOARD_TOP=arty_ddc_eth_top   (Ethernet-fed; no ROM. Adds fpga-eth-core's rtl/ at its tag, the MII
+#                        constraints constr/arty_eth.xdc and eth-core's async_fifo.xdc scoped to async_fifo)
 #   make board ILA=1    (same, plus an ILA on the DDC output, inserted here after synthesis; the RTL is unchanged.
 #                        Outputs <top>_ila.bit / .ltx and reports under docs/reports/board/<top>_ila/)
 #
@@ -14,23 +16,30 @@ if {[version -short] ne $pinned_version} {
 }
 
 set top  [lindex $argv 0]
-set rom  [file normalize [lindex $argv 1]]
+set rom  [lindex $argv 1]
 set ila  [expr {[lindex $argv 2] eq "ila"}]
 set name [expr {$ila ? "${top}_ila" : $top}]
 set part xc7a100tcsg324-1
-if {$top eq "" || ![file exists $rom]} { error "usage: -tclargs <top> <rom.mem>" }
+if {$top eq "" || ($rom ne "none" && ![file exists $rom])} { error "usage: -tclargs <top> <rom.mem | none> \[ila\]" }
+set eth  [string match *_eth_* $top]
 
 set root [file normalize [file join [file dirname [info script]] ..]]
 set out  [file join $root docs reports board $name]
 set bdir [file join $root build board]
 file mkdir $out $bdir
 
-set srcs [lsort [glob -nocomplain [file join $root rtl * *.sv]]]
+set srcs [lsort [concat [glob -nocomplain [file join $root rtl * *.sv]] \
+    [glob -nocomplain [file join $root rtl lib xilinx *.sv]]]]
 set srcs [lsearch -all -inline -not -glob $srcs */rtl/eth/*]
+if {$eth} { lappend srcs {*}[lsort [glob [file join $root rtl eth rtl *.sv]]] }  ;# fpga-eth-core at its tag
 read_verilog -sv $srcs
 foreach f [glob -nocomplain [file join $root rtl * *.mem]] { read_mem $f }
-read_mem $rom  ;# the ROM_FILE default "iq_rom.mem" resolves to this file
+if {$rom ne "none"} { read_mem [file normalize $rom] }  ;# the ROM_FILE default "iq_rom.mem" resolves to this file
 read_xdc [file join $root constr arty_a7_100t.xdc]
+if {$eth} {
+    read_xdc [file join $root constr arty_eth.xdc]
+    read_xdc -ref async_fifo [file join $root rtl eth constr async_fifo.xdc]
+}
 
 synth_design -top $top -part $part -flatten_hierarchy rebuilt
 
@@ -72,6 +81,7 @@ report_utilization -file [file join $out utilization.rpt]
 report_utilization -hierarchical -file [file join $out utilization_hier.rpt]
 report_drc -file [file join $out drc.rpt]
 report_power -file [file join $out power.rpt]
+report_clock_interaction -delay_type min_max -file [file join $out clock_interaction.rpt]
 
 set wns [get_property SLACK [get_timing_paths -max_paths 1 -setup]]
 set whs [get_property SLACK [get_timing_paths -max_paths 1 -hold]]

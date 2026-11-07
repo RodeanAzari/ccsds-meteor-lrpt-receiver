@@ -1,0 +1,5 @@
+`verilator_config
+// fpga-eth-core (rtl/eth, a submodule at its tag; never edited here). eth_rx's ready path through rx_ovf_guard is
+// combinational in both directions at the bit level, which Verilator reports as UNOPTFLAT: a simulation-speed note,
+// not a loop (eth-core's own regression builds with -Wno-fatal). Scoped to the submodule's files only.
+lint_off -rule UNOPTFLAT -file "*/rtl/eth/rtl/*"

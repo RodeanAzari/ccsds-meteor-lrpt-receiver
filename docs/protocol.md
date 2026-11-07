@@ -16,6 +16,9 @@ One UDP datagram carries 512 consecutive samples of the recording.
   Ethernet frame (UDP payload ≤ 1,472 B), so it is never fragmented.
 - **Destination:** default `239.1.1.1:26400`, the group and port of fpga-eth-core's `examples/rx_stats`, whose payload
   contract (bytes 0–7 a big-endian sequence, +1 per datagram) this format satisfies. Both are `gs-replay` options.
+- **Receiver:** `rtl/io/iq_udp_ingest.sv` (ADR 0011). It releases a datagram's samples only if the datagram is exactly
+  1,032 bytes and `udp_rx` did not flag it truncated; otherwise none of them reach the DDC and it is counted as bad.
+  The first expected `seq` after reset is 0.
 - **Gaps:** the receiver counts `seq` jumps (CLAUDE.md §3 INGEST gap counter). A gap of *g* datagrams is `512 g`
   lost samples. The host sends whole datagrams only; a final partial datagram is not sent, and `gs-replay` reports
   it on stderr.
