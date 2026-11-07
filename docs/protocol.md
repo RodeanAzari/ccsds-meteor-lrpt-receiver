@@ -33,7 +33,7 @@ Every board → host datagram starts with this 16-byte header. All fields big-en
 
 | Bytes | Field | Notes |
 |---|---|---|
-| 0 | `type`, u8 | 1 = stats. 2 = CADU `[TBD]` |
+| 0 | `type`, u8 | 1 = stats. 2 = CADU |
 | 1 | `version`, u8 | 1. Changes only if existing fields change meaning; new fields are appended, never reordered |
 | 2–3 | `n`, u16 | Number of u32 fields after the header (stats) or payload bytes (other types) |
 | 4–7 | `pkt_seq`, u32 | Packets of this type sent since reset, starting at 0 |
@@ -74,7 +74,20 @@ Packet size: 16 + 4 × 18 = 88 bytes. Parsed by `scripts/board_stats.py`.
 
 ## CADU (board → host), type 2
 
-`[TBD]` (Phase E).
+One packet per CADU out of `fec_cadu` (`rtl/fec/fec_cadu.sv`, ADR 0012), in decode order. `n` = 1,032 payload bytes;
+UDP payload 16 + 1,032 = 1,048 bytes. `pkt_seq` counts CADUs sent, so a gap in it means a packet lost between the
+board and the host (the board never drops one: the chain stalls instead). `uptime` is sampled at the packet's
+first byte, after RS.
+
+| Bytes | Field | Notes |
+|---|---|---|
+| 0 | `flags`, u8 | bit 0 `alternate`, bit 1 `swap` (phase hypothesis the frame sync locked to), bit 2 `flywheel` (frame emitted under a missed ASM); bits 7–3 zero |
+| 1 | `asm_errors`, u8 | Bit errors in the received ASM, 0–32, after Viterbi and NRZ-M |
+| 2–5 | `rs[0..3]`, u8 each | Codeword b (bytes 4 + 4n + b of the CADU): bit 7 `fail` (uncorrectable: left as received), bits 4–0 symbols corrected, 0–16 (0 when `fail`); bits 6–5 zero |
+| 6–7 | reserved | Zero |
+| 8–1,031 | `cadu`, 1,024 bytes | ASM as received, then the body derandomized and RS-corrected per codeword. Same bytes as the model's `RxResult.cadus` and SatDump's output data bytes 4–895 (`docs/signal-spec.md`: SatDump leaves parity errors in place, so compare the 892 data bytes) |
+
+The status fields are `fec_cadu`'s `m_tuser` (`model/cadu_fixed.py` `CaduOut.status_word()`), repacked into bytes.
 
 ## Debug constellation samples (board → host)
 
