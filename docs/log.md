@@ -796,3 +796,25 @@ replay's sender. On hardware they arrived the first time. The counters split the
   All link-ups took 2.1–2.6 s this time, against 2.4–6.8 s in the campaign before, so no corruption occurred and
   the stopgap did not fire: on hardware it is untested.
 - `CLAUDE.md` and `progress.md` are no longer tracked (the user's call); history still has them.
+
+## 2026-11-07 (cont.): Phase E step 2, fpga-rs-core
+
+New repo [fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core) (P3 owns it; P4 consumes it at
+`rs-core-v1.0` for KP4). Its ADR 0001 records the architecture: riBM, four codeword stages, pass-through on failure.
+
+- Model first: `model/rs.py` (from this repo) plus `model/hw.py`, the RTL's algorithms stage by stage. Both
+  cross-checked against reedsolo 1.7.0 (independent) on CCSDS and KP4 suites: 0..t+2 errors, bursts, first/last
+  positions, parity-only, all-zero/all-ones data.
+- Forney with riBM's Ω^h: exponent −(FCR + 2t), fitted on reference error values at both codes, then checked on
+  every decode.
+- The reference's three failure checks (deg > t, roots ≠ deg, re-syndrome) are redundant: removing any one changes
+  no result, removing two is caught. The RTL keeps roots ≠ deg alone.
+- RTL `rs_decoder`: S1 syndromes, S2 riBM (result 2t + 1 clocks after load), S3 Chien + Forney in output order,
+  S4 output; 4 codewords in flight. cocotb at both codes: suite under random handshakes, 12 codewords back to back
+  with no input stall and no output gap, output stalls filling every slot, misplaced tlast. 24 planted bugs across
+  models and RTL, all caught.
+- Test bugs found and fixed (not RTL): a coverage count I had miscounted (9 cases at t, not 10); riBM latency
+  expected 2t, really load + 2t; a coroutine race in a cycle count, fixed by sampling at the falling edge.
+- OOC 100 MHz, xc7a100t: CCSDS WNS +1.457 ns, 4,142 LUT, 1,766 FF, 1.5 BRAM36; KP4 +1.168 ns, 5,558 LUT,
+  2,066 FF, 3.5 BRAM36; 0 DSP (fpga-rs-core `docs/reports/ooc/`).
+- Not yet: tag `rs-core-v1.0`; CCSDS consuming it (submodule, deinterleave ×4 wrapper, step 3).
