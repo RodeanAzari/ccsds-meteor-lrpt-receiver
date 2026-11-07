@@ -9,9 +9,11 @@ Current state, next steps and key decisions only (≤ 150 lines). Measurements l
   Kit (RTL-SDR Blog V3 + SAWbird+ NOAA) arrives about 2026-11-25.
 - **Phase A:** float and bit-true models complete through the Viterbi on synthetic signals (BER matches theory;
   SatDump decodes our synthetic recording with every frame matching). Needs a real recording.
-- **Phase B:** DDC bit-exact in simulation and on the board (UART and ILA, 16,384 / 16,384). `gs-replay` works on
-  loopback. Can't close until `gs-replay` reaches the board over Ethernet (`eth-core-v0.1`). Board photo deferred by
-  you; fuzzing waits for `gs-rx` (Phase F).
+- **Phase B:** DDC bit-exact in simulation and on the board (UART and ILA, 16,384 / 16,384). Ethernet-fed top
+  `arty_ddc_eth_top` (eth-core at `rtl/eth`, `iq_udp_ingest`, ADR 0011) passes from MII pins to UART in sim and builds
+  with timing met (+1.495 ns). **Not done:** the hardware run, `make board BOARD_TOP=arty_ddc_eth_top prog eth-check
+  IFACE=169.254.235.36` (the host IP on the cable that eth-core's runs used). Board photo deferred by you; fuzzing
+  waits for `gs-rx` (Phase F).
 - **Phase C:** sync chain in RTL (`rtl/sync/sync_top.sv`: RRC → AGC → Costas → Farrow/Gardner), every block and the
   chain bit-exact in simulation, OOC 100 MHz met. `make sim-full` decodes the chain's output from reset: first CADU
   out of RTL. Lock range ±15 kHz (set by the coarse estimator's window), lock in 16–35 ms, Doppler tracking 0.84 Hz
@@ -24,8 +26,8 @@ Current state, next steps and key decisions only (≤ 150 lines). Measurements l
   from a cold start, every bit equal to the model (`decode_windows()`), 3/3 frames as sent; OOC +0.827 ns, 6,750 LUT.
   `docs/viterbi.md` written; 3-bit area measured (4-bit stands). Path-metric formal: stall hold proven, bound holds
   8 steps from reset; **unbounded proof open** (k-induction > 6.5 h). **Not done:** hardware BER.
-- **Phases E–F:** not started in RTL (RS, `gs-rx`/`gs-diff`/`gs-view`). `eth-core-v0.1` and `v0.2` are released
-  (P2): Ethernet replay to the board (Phase B close-out) and the host return path are unblocked; claim the board.
+- **Phases E–F:** not started in RTL (RS, `gs-rx`/`gs-diff`/`gs-view`). eth-core TX (`v0.2`) is in the submodule
+  for the return path.
 
 Traps to remember (beyond CLAUDE.md §12):
 - Traceback depth is 96 from state 0 (ADRs 0007, 0008), outside buildplan §3.6's 35–50, which assumes a best-state
@@ -46,7 +48,8 @@ Traps to remember (beyond CLAUDE.md §12):
 4. Phase D: hardware BER (needs Ethernet replay). Phase E's first job:
    carry the window `tuser`/`tlast` past the Viterbi (they end at `fec_framesync` today); frame = bits PRE/2 ..
    PRE/2 + 8,191 of each 8,352-bit window.
-5. Phase B close-out: integrate `eth-core-v0.1` (submodule at the tag) and stream `gs-replay` to the board.
+5. Phase B close-out: claim the board, run `eth-check` at 1× and 5×, write up `ddc_board_eth.csv` (ADR 0011 evidence,
+   README). Then the Phase B §9 checklist and your confirmation.
 
 ## Key decisions
 
@@ -73,6 +76,7 @@ Traps to remember (beyond CLAUDE.md §12):
 | RTL frame sync is causal: local-normalized correlation, verify queue, delay line, slips followed ±2 | Finds ≥ the float model's frames | ADR 0010 |
 | RTL frame sync sends each frame as its own window [s − 128, s + F + 192) from a 32k-symbol ring | Matches the model's frames through slips; last bit flushes inside the window | ADR 0010 amendment |
 | `make sim` < 5 min; long runs in `make sim-full`, recorded by `*-rtl-results` | Fast regression; no skipped tests in `make sim` | `tb/cocotb/run.py` |
+| Ethernet core on the 100 MHz core clock; ingest releases whole datagrams only | One crossing (eth-core's); DDC indices stay seq × 512 | ADR 0011 |
 | RTL Viterbi never resets between windows; the run-in absorbs the jump | No per-window control; model matches it | `framesync_fixed.decode_windows()` |
 
 ## Open questions
@@ -80,4 +84,6 @@ Traps to remember (beyond CLAUDE.md §12):
 - Board Ethernet from WSL2: UDP multicast may need mirrored networking mode. Test when `eth-core-v0.1` lands.
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
 - What in the board resets the design when the serial port opens. Not established; harmless with the CRC.
+- `make sim` takes 356 s against a 5-minute budget (322 s before 2026-11-07). Move `test_fec_framesync` (98 s) to
+  `sim-full`, or raise the budget? Your call.
 - `make formal` in CI (buildplan §6 lists it): ~25 min and oss-cad-suite in the container. Local only for now; your call.

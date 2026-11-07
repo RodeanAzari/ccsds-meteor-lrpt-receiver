@@ -731,3 +731,25 @@ versions timed out at 2 hours.
   46 s under the same CPU load. Both planted bugs still caught; `make formal` (hold + 8-step bound) 11.5 min.
 
 `docs/viterbi.md` written: the §3.6 tradeoffs, one per ADR, with the measured numbers.
+
+## 2026-11-07: Phase B, Ethernet-fed DDC top (sim and board build; hardware run pending)
+
+fpga-eth-core joined as submodule `rtl/eth` at `eth-core-v0.2`. New: `iq_udp_ingest` (ADR 0011), `clk_gen_eth`
+(MMCM: 100 MHz core, 25 MHz PHY reference), `arty_ddc_eth_top` (MII → eth_rx → udp_rx → ingest → DDC → capture →
+UART), `constr/arty_eth.xdc`, `make board BOARD_TOP=arty_ddc_eth_top`, `make eth-check`.
+
+- Board build: WNS +1.495 ns, WHS +0.041 ns at 100 MHz; 1,611 LUT, 2,596 FF, 18 RAMB36 + 2 RAMB18, 6 DSP
+  (`board_arty_ddc_eth_top.csv`); 0 critical warnings; the clock interaction report shows only eth-core's two
+  crossings, both Max Delay Datapath Only.
+- Ingest deadlock. Symptom: `test_iq_udp_ingest` at DEPTH 512 hung (DEPTH 1024 passed). Root cause: a datagram one
+  byte too long wrote its 512 samples, the ring was full, and `s_tready` refused the surplus byte carrying `tlast`,
+  which is what triggers the rewind. Fix: only bytes that write a sample wait for room. Test timeouts added so a
+  deadlock fails instead of hanging.
+- Mutants. Ingest: 6/6 caught. Top: 3/3, but "ingest reset tied off" was missed at first, because Verilator starts
+  flops at 0, so one replay from power-up can't tell. The test now replays twice across a RESET, which is the board
+  flow, since opening the serial port resets it.
+- A comment starting "Verilator ..." is parsed as a pragma (BADVLTPRAGMA). `pkill -f <pattern>` killed my own
+  shell twice: the pattern was in its command line. Kill by PID.
+- `make sim` takes 356 s alone (budget 300 s). Before these changes it took 322 s: the budget was already exceeded,
+  and the new tests add ~15 s. `test_fec_framesync` alone is 98 s.
+- Hardware run not done: the board was claimed by P2 at 11:27.
