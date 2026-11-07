@@ -6,6 +6,7 @@ RTL_DIRS := $(sort $(dir $(RTL)))
         sim-full cov formal gs gs-test fuzz synth impl reports
 
 setup:
+	git submodule update --init
 	python3 -m venv .venv
 	$(PY) -m pip install -q -r requirements.txt
 

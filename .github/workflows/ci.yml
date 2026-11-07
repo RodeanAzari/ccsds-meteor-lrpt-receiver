@@ -28,6 +28,8 @@ jobs:
             autoconf bison flex help2man libfl-dev perl zlib1g-dev zstd
 
       - uses: actions/checkout@v4
+        with:
+          submodules: true  # rtl/eth: fpga-eth-core at its release tag
 
       # The container runs as root over a checkout owned by another uid; git refuses it without this.
       - name: Trust the workspace
