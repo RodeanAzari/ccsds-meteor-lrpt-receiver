@@ -9,11 +9,10 @@ Current state, next steps and key decisions only (≤ 150 lines). Measurements l
   Kit (RTL-SDR Blog V3 + SAWbird+ NOAA) arrives about 2026-11-25.
 - **Phase A:** float and bit-true models complete through the Viterbi on synthetic signals (BER matches theory;
   SatDump decodes our synthetic recording with every frame matching). Needs a real recording.
-- **Phase B:** DDC bit-exact in simulation and on the board (UART and ILA, 16,384 / 16,384). Ethernet-fed top
-  `arty_ddc_eth_top` (eth-core at `rtl/eth`, `iq_udp_ingest`, ADR 0011) passes from MII pins to UART in sim and builds
-  with timing met (+1.495 ns). **Not done:** the hardware run, `make board BOARD_TOP=arty_ddc_eth_top prog eth-check
-  IFACE=169.254.235.36` (the host IP on the cable that eth-core's runs used). Board photo deferred by you; fuzzing
-  waits for `gs-rx` (Phase F).
+- **Phase B:** DDC bit-exact on the board from BRAM (UART and ILA) and over Ethernet (`arty_ddc_eth_top`, ADR 0011):
+  37 of 40 `gs-replay` replays bit-exact at 1×, 5×, 5.6× (`ddc_board_eth.csv`); the other 3 lost or reordered
+  datagrams on the host side (log 2026-11-07). Every §9 item done; **waiting on you** for the two new captures in
+  `docs/portfolio-todo.md` (board photo still deferred), then Phase B can close. Fuzzing waits for `gs-rx` (Phase F).
 - **Phase C:** sync chain in RTL (`rtl/sync/sync_top.sv`: RRC → AGC → Costas → Farrow/Gardner), every block and the
   chain bit-exact in simulation, OOC 100 MHz met. `make sim-full` decodes the chain's output from reset: first CADU
   out of RTL. Lock range ±15 kHz (set by the coarse estimator's window), lock in 16–35 ms, Doppler tracking 0.84 Hz
@@ -45,12 +44,11 @@ Traps to remember (beyond CLAUDE.md §12):
 2. Decode it with SatDump; list it in `data/MANIFEST.md` with the gain.
 3. On the recording: confirm the spec, resolve which rail leads and which carries G1, compare the model's CADUs with
    SatDump's.
-4. Phase D: hardware BER (needs Ethernet replay). Phase E's first job:
+4. Phase D: hardware BER (Ethernet replay works now). Phase E's first job:
    carry the window `tuser`/`tlast` past the Viterbi (they end at `fec_framesync` today); frame = bits PRE/2 ..
    PRE/2 + 8,191 of each 8,352-bit window.
-5. Phase B close-out: claim the board, run `eth-check` at 1× and 5×, write up `ddc_board_eth.csv` (ADR 0011 evidence,
-   README). Then the Phase B §9 checklist and your confirmation.
-
+5. Phase E: the stats packet (ingest gap/bad/lost counters, eth-core error counters) back over eth-core TX; that
+   also says where the intermittent replay losses happen.
 ## Key decisions
 
 | Decision | Why | Where |
@@ -68,7 +66,7 @@ Traps to remember (beyond CLAUDE.md §12):
 | Costas 0.001 rad/sample, timing kp 0.02 | Measured sweeps | `data/results/sync_*.csv` |
 | RTL streams carry `{Q, I}` in one beat; pipelines stall as a whole | One handshake per sample; no rail skew | `docs/design.md` |
 | Loop blocks (AGC, Costas, timing) keep one sample/output in flight | Each update depends on the previous output | `docs/design.md` |
-| Board readout: UART dump with CRC-32, host skips bad dumps | Opening the serial port resets the design | `docs/design.md` |
+| Board readout: UART dump with CRC-32, host skips bad dumps | Opening the serial port sometimes resets the design | `docs/design.md` |
 | RTL tables generated from the model, checked for staleness | One source of truth for NCO and FIR coefficients | `scripts/gen_rtl_tables.py` |
 | IQ replay: 8-byte BE seq + 512 raw cu8 per datagram | Matches eth-core `rx_stats`; ≤ 5.69× on 100 Mb/s | ADR 0009 |
 | ILA inserted in Tcl after synthesis, storage-qualified | RTL unchanged; 16,384 deep holds the whole snippet | `syn/impl_board.tcl` |
@@ -83,7 +81,11 @@ Traps to remember (beyond CLAUDE.md §12):
 
 - Board Ethernet from WSL2: UDP multicast may need mirrored networking mode. Test when `eth-core-v0.1` lands.
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
-- What in the board resets the design when the serial port opens. Not established; harmless with the CRC.
-- `make sim` without `test_fec_framesync` (now `make sim-slow`, still in `make ci`): re-time on a quiet machine; it
-  measured 385 s at load average 16 on 2026-11-07 (expected ~260 s quiet: 356 − 98).
+- Why opening the serial port reset the design on 2026-11-04 but not on 2026-11-07. Not established; `eth-check`
+  reprograms instead.
+- `make sim` without `test_fec_framesync` (now `make sim-slow`, in `make ci`): re-time on a quiet machine (expected
+  ~260 s: 356 − 98).
+- Intermittent replay faults (3 of 40): datagrams reordered on the host (proven by the model) or lost (cause open).
+  Real-pass replays need the board's gap counter in the stats packet. Reordering buffer in the ingest: only if
+  real replays need it.
 - `make formal` in CI (buildplan §6 lists it): ~25 min and oss-cad-suite in the container. Local only for now; your call.

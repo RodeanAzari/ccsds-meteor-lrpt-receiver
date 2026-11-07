@@ -120,7 +120,7 @@ def read_dump(port: str, n: int, timeout_s: float, after_open: Callable[[], None
 
     with serial.Serial(port, BAUD, timeout=1.0) as s:
         s.reset_input_buffer()
-        print(f"waiting for a dump on {port} (opening the port resets the board and starts one; BTN0 repeats it)...",
+        print(f"waiting for a dump on {port} (BTN0 repeats the last one)...",
               flush=True)
         if after_open is not None:
             after_open()

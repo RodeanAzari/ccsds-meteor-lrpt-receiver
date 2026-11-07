@@ -56,7 +56,7 @@ Rules every session needs from it:
 |---|---|---|
 | 0 — Signal spec + capture kit | IN PROGRESS | `docs/signal-spec.md` written from source, not yet confirmed on a recording |
 | A — Python golden model | IN PROGRESS | Float model decodes synthetic signals end to end; not yet run on a real recording |
-| B — Digital downconverter | IN PROGRESS | DDC bit-exact on the Arty (UART and ILA, 16,384 outputs); Ethernet-fed top bit-exact in sim, timing met; hardware run pending |
+| B — Digital downconverter | IN PROGRESS | DDC bit-exact on the Arty (UART and ILA, 16,384 outputs) and fed over Ethernet (37/40 replays, `ddc_board_eth.csv`); waiting on your captures |
 | C — Synchronization | IN PROGRESS | Sync chain RTL bit-exact in simulation, output decodes; lock ±15 kHz in 16–35 ms (`sync_lock_range.csv`). Real recording pending |
 | D — Viterbi + frame sync | IN PROGRESS | Viterbi, frame sync and the chain from DDC output through the Viterbi bit-exact with the model; 3/3 frames as sent (`rx_chain_rtl_decode.csv`). Path-metric bound bounded-proven (unbounded open); HW BER pending |
 | E — Reed-Solomon + integration + real decode | NOT STARTED | — |
@@ -195,7 +195,8 @@ docs/{buildplan, signal-spec, design, fixed-point, viterbi, protocol, toolchain,
 - **CIC bit growth undersized:** overflow wraps silently
 - **DSP inference failure:** multipliers in LUTs, timing fails
 - **Editing `rtl/eth/` in place:** the submodule diverges from `fpga-eth-core`
-- **Opening the board's serial port resets the loaded design:** dumps carry a CRC-32 and the host skips cut-off ones
+- **Opening the serial port may or may not reset the design** (did 2026-11-04, didn't 2026-11-07): dumps carry a
+  CRC-32 and the host skips cut-off ones; for a clean start, reprogram (`eth-check` does)
 - **Vivado deletes `.mem` files in its run directory at exit:** generate ROM images outside it
 - **Synthesis renames nets:** ILA insertion by net name must fail loudly on a rename
 - **A fast sink never stalls a slow chain:** a chain test only exercises inner backpressure when the output is

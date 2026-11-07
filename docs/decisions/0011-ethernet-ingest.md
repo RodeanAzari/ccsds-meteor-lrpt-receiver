@@ -52,4 +52,7 @@ simulation found exactly that deadlock at DEPTH = 512.
   rewind, length off by one, I/Q swapped, loss count off by one, `tuser` ignored) each fail.
 - `test_arty_ddc_eth_top.py`: MII pins to UART, DDC output equal to the bit-true model; bad-FCS and wrong-port
   frames don't reach the DDC.
-- Hardware: `data/results/ddc_board_eth.csv` `[TBD]`.
+- Hardware (`data/results/ddc_board_eth.csv`): 37 of 40 replays of the 65,536-sample snippet bit-exact at 1×, 5×
+  and 5.6× real time. The other 3 lost a datagram (no dump) or received two datagrams swapped. The swap's dump
+  equals the model's output for that order bit for bit, which shows the ingest released exactly what arrived, in
+  arrival order. The second consequence above (no reordering, no gap fill) is now a measured limitation.

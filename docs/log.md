@@ -753,3 +753,25 @@ UART), `constr/arty_eth.xdc`, `make board BOARD_TOP=arty_ddc_eth_top`, `make eth
 - `make sim` takes 356 s alone (budget 300 s). Before these changes it took 322 s: the budget was already exceeded,
   and the new tests add ~15 s. `test_fec_framesync` alone is 98 s.
 - Hardware run not done: the board was claimed by P2 at 11:27.
+
+## 2026-11-07 (cont.): Phase B on hardware over Ethernet; make sim split
+
+**Result** (`ddc_board_eth.csv`, commit 210e742): 37 of 40 replays of the 65,536-sample snippet bit-exact through
+gs-replay → eth-core → iq_udp_ingest → DDC: 1× 8/10, 5× 9/10, 5.6× 20/20. Two campaigns before it (code since
+changed, not committed as results): 39/40 and 34/40.
+
+- No dump on a second replay. Symptom: 0 bytes on the UART. Root cause: opening the serial port did not reset the
+  design (contrary to the 2026-11-04 note), so the capture was still full. A 5 s wait after the open still got no
+  dump. Fix: `eth-check` reprograms the FPGA per replay and waits until the host interface regains its address
+  (the link drops for 2.3–3.2 s).
+- Wrong dumps with all samples present. Symptom: 1,082 mismatches from output 5; 1,328 from 6; 1,112 from 133;
+  1,034 from 13,059. Root cause: whole datagrams reordered before the board. The model fed the snippet with
+  datagrams 0↔1, order 2,0,1,3, 1↔2 and 102↔103 reproduces each exactly (the last checked bit for bit against the
+  saved dump). Not fixed: the ingest releases datagrams in arrival order by design (ADR 0011). Pinning gs-replay
+  with taskset changed nothing (3 of 20 at 5.6×), so it was taken out.
+- Lost datagrams (no dump), 6 of 120 replays. Every one came on a link that took ≥ 3.1 s to return after
+  programming. A 3 s wait after the link returns did not help. In 15 reprogrammings Windows reported 100 Mb/s
+  full duplex every time, but none of those link-ups was slow. Cause open; the board counters (Phase E stats
+  packet) or a Windows pktmon capture would settle it.
+- `make sim` 356 s with frame sync, so `test_fec_framesync` moved to `make sim-slow`, which `make ci` runs. Not
+  re-timed: the machine was at load average 16 from other sessions.

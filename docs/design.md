@@ -71,10 +71,13 @@ The ROM top is single-clock (100 MHz, `clk100_i`); the Ethernet top's core domai
 
 `rtl/top/arty_ddc_rom_top.sv`: `iq_rom_source` (64 K-sample cu8 snippet in BRAM) → `ddc_top` → `capture_dump`
 (16 K-word BRAM) → `uart_tx` (115,200 baud). Dump format: `"DDC1"` | u32 n | n × u32 `{Q, I}` | u32 CRC-32, all
-little-endian. **Opening the board's serial port resets the design** and starts a dump (observed 2026-11-04; the
-mechanism is not established), so the host discards any dump whose CRC fails. `make board prog board-check`.
+little-endian. **Opening the board's serial port reset the design** and started a dump on 2026-11-04 (mechanism not
+established), so the host discards any dump whose CRC fails. On 2026-11-07 it did *not* reset `arty_ddc_eth_top`
+(see below). `make board prog board-check`.
 
 Over Ethernet (`rtl/top/arty_ddc_eth_top.sv`, ADR 0011): MII → fpga-eth-core `eth_rx` → `udp_rx` (239.1.1.1:26400)
 → `iq_udp_ingest` (docs/protocol.md datagrams → `{Q_u8, I_u8}`, whole datagrams only) → the same `ddc_top`,
-`capture_dump` and dump format. The capture fills from the replay, not on reset; the host opens the port first (the
-reset), waits for the MAC, then runs `gs-replay`. `make board BOARD_TOP=arty_ddc_eth_top`, `prog`, `eth-check`.
+`capture_dump` and dump format. The capture fills from the replay, not on reset. Opening the serial port did not
+reset this design (a second replay got no dump, the capture still full), so `eth-check` reprograms the FPGA before
+each replay, waits until the link is back (~2.6 s; the host interface loses its address meanwhile), opens the port
+and runs `gs-replay`. `make board BOARD_TOP=arty_ddc_eth_top`, `prog`, `eth-check`.

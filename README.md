@@ -35,7 +35,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → Costas + Farrow/Gardner → encoded-ASM sync → Viterbi → NRZ-M → derandomizer → RS×4. **In RTL: the DDC (on the board); the sync chain, RRC → AGC → Costas → Farrow/Gardner (simulation), whose output decodes to the sent frames ([sync_chain_rtl_decode.csv](data/results/sync_chain_rtl_decode.csv)); the frame sync and the Viterbi decoder (simulation), chained after the sync chain: from DDC output to frame bits that match the sent frames ([rx_chain_rtl_decode.csv](data/results/rx_chain_rtl_decode.csv)).** The rest is in the model |
 | **Real passes decoded** | 0. No recording yet; capture kit arrives about 2026-11-25 |
 | **CADU match vs. SatDump** | Synthetic recording: SatDump decoded 258 / 295 / 226 of 300 frames in three runs, **every decoded frame matching** ([satdump_crosscheck.csv](data/results/satdump_crosscheck.csv)). Real pass: `[TBD]` |
-| **DDC on the board** | **16,384 / 16,384 outputs bit-exact** vs. the model, over UART ([ddc_board.csv](data/results/ddc_board.csv)) and again over JTAG/ILA ([ddc_board_ila.csv](data/results/ddc_board_ila.csv)); 100 MHz, synthetic input |
+| **DDC on the board** | **16,384 / 16,384 outputs bit-exact** vs. the model, over UART ([ddc_board.csv](data/results/ddc_board.csv)) and again over JTAG/ILA ([ddc_board_ila.csv](data/results/ddc_board_ila.csv)); **fed over Ethernet by `gs-replay`, 37 of 40 replays bit-exact at 1×, 5× and 5.6× real time**; the other 3 lost or reordered datagrams on the host side ([ddc_board_eth.csv](data/results/ddc_board_eth.csv)); 100 MHz, synthetic input |
 | **DDC throughput** | 9.0 clocks per input sample: **10.8× real time** at 100 MHz, RTL simulation ([ddc_rtl_sim.csv](data/results/ddc_rtl_sim.csv)) |
 | **Coding gain at BER 10⁻⁵** | Model only, before NRZ-M: 10⁻⁵ at 4.28 dB with 4-bit soft decisions (4.15 dB unquantized) against 9.59 dB for uncoded OQPSK theory, a 5.3 dB gain (5.4 dB unquantized) ([soft_width_ber.csv](data/results/soft_width_ber.csv)). Hardware: `[TBD]` |
 | **Viterbi throughput and headroom** | RTL decoder bit-exact with the model, errors included; **96 clocks per bit, 14.5× real time** at 100 MHz, RTL simulation ([viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv)). Hardware BER: `[TBD]` |
@@ -492,6 +492,8 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 | Chain to the Viterbi decoded | 3 of 3 frames match a frame sent before RS (5 sent; cold start); 24,960 bits bit-exact | 145,642 samples; sink held until stalls reach the input; NRZ-M and derandomizer in the model | [rx_chain_rtl_decode.csv](data/results/rx_chain_rtl_decode.csv) |
 | DDC on the board (UART) | 16,384 / 16,384 bit-exact | 65,536-sample snippet, 8 dB | [ddc_board.csv](data/results/ddc_board.csv) |
 | DDC on the board (ILA) | 16,384 / 16,384 bit-exact | Same snippet, JTAG | [ddc_board_ila.csv](data/results/ddc_board_ila.csv) |
+| DDC on the board over Ethernet | 37 / 40 replays bit-exact (1×: 8/10, 5×: 9/10, 5.6×: 20/20); 2 lost a datagram, 1 arrived with datagrams 102 and 103 swapped (reproduced exactly by the model) | Same snippet, `gs-replay` → eth-core → `iq_udp_ingest`, FPGA reprogrammed per replay | [ddc_board_eth.csv](data/results/ddc_board_eth.csv) |
+| Ethernet board top timing | WNS +1.495 ns, WHS +0.041 ns; 1,611 LUT, 18 RAMB36 + 2 RAMB18, 6 DSP | `arty_ddc_eth_top`, 100 MHz, placed and routed | [board_arty_ddc_eth_top.csv](data/results/board_arty_ddc_eth_top.csv) |
 | `gs-replay` on loopback | 68,266 / 68,266 in order, byte-exact at 1× and 5× | 34 s synthetic recording, WSL2 | [gs_replay_loopback.csv](data/results/gs_replay_loopback.csv) |
 | Real passes decoded / CADU match vs. SatDump | `[TBD]` | — | — |
 | Hardware BER: uncoded, Viterbi, Viterbi + RS | `[TBD]` | — | — |
@@ -511,8 +513,13 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 - **Throughput figures are partly arithmetic.** The DDC's 10.8× is measured in simulation. The 5.69× Ethernet
   ceiling and the Viterbi estimate are calculated.
 - **Hold slack on the ILA build is +0.024 ns:** positive but thin. It's the debug build only.
-- **Why opening the serial port resets the board design is not established.** The CRC on the UART dump makes the
-  check immune to it.
+- **Ethernet replays fail intermittently on the host side:** 3 of 40 replays of the snippet lost a datagram or
+  delivered two out of order, at any speed tested; every dump that came back is either bit-exact or exactly the
+  model's output for the reordered input. Where the losses happen is open until the board's counters reach the
+  host (Phase E stats packet). Replays of a real pass will need the gap counter, not luck.
+- **Opening the serial port reset the ROM design on 2026-11-04 but not the Ethernet design on 2026-11-07; why is
+  not established.** The CRC on the UART dump makes the check immune to a reset, and `eth-check` reprograms the FPGA
+  before each replay rather than rely on one.
 - **72k mode only.** If the satellite switches to 80k (interleaved) mode, this receiver won't decode it.
 - **No fuzzing yet.** The fuzz target is the radio-packet parser in `gs-rx` (Phase F), which doesn't exist; `make fuzz` fails as not implemented.
 
