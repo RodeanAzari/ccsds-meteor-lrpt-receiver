@@ -9,10 +9,8 @@ Current state, next steps and key decisions only (≤ 150 lines). Measurements l
   Kit (RTL-SDR Blog V3 + SAWbird+ NOAA) arrives about 2026-11-25.
 - **Phase A:** float and bit-true models complete through the Viterbi on synthetic signals (BER matches theory;
   SatDump decodes our synthetic recording with every frame matching). Needs a real recording.
-- **Phase B:** DDC bit-exact on the board from BRAM (UART and ILA) and over Ethernet (`arty_ddc_eth_top`, ADR 0011):
-  37 of 40 `gs-replay` replays bit-exact at 1×, 5×, 5.6× (`ddc_board_eth.csv`); the other 3 lost or reordered
-  datagrams on the host side (log 2026-11-07). Every §9 item done; **waiting on you** for the two new captures in
-  `docs/portfolio-todo.md` (board photo still deferred), then Phase B can close. Fuzzing waits for `gs-rx` (Phase F).
+- **Phase B: DONE 2026-11-07** (tag `v0.1-ddc`). DDC bit-exact on the board from BRAM and over Ethernet (37/40
+  replays; host-side losses/reordering open, see Open questions). Fuzzing moves with `gs-rx` to Phase F.
 - **Phase C:** sync chain in RTL (`rtl/sync/sync_top.sv`: RRC → AGC → Costas → Farrow/Gardner), every block and the
   chain bit-exact in simulation, OOC 100 MHz met. `make sim-full` decodes the chain's output from reset: first CADU
   out of RTL. Lock range ±15 kHz (set by the coarse estimator's window), lock in 16–35 ms, Doppler tracking 0.84 Hz

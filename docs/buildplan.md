@@ -355,11 +355,11 @@ Every phase's DoD includes:
 - [ ] Bit-true version defined; `fixed-point.md` started
 - [ ] Media: model constellation before and after carrier lock
 
-### Phase B — DDC
-- [ ] Ingest conversion, NCO, mixer, CIC, compensation FIR; bit-exact against the model
-- [ ] `gs-replay` written
-- [ ] On hardware: first from the BRAM ROM, then over Ethernet from `gs-replay`
-- [ ] Media: spectrum before and after DDC (plot); ILA capture of baseband I/Q
+### Phase B — DDC (done 2026-11-07)
+- [x] Ingest conversion, NCO, mixer, CIC, compensation FIR; bit-exact against the model
+- [x] `gs-replay` written
+- [x] On hardware: first from the BRAM ROM, then over Ethernet from `gs-replay`
+- [x] Media: spectrum before and after DDC (plot); ILA capture of baseband I/Q
 
 ### Phase C — Synchronization
 - [ ] RRC, Farrow + Gardner (OQPSK approach per ADR), OQPSK alignment, Costas, AGC

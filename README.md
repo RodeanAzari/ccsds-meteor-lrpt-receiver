@@ -7,10 +7,11 @@ Digilent Arty A7-100T with C++ ground-station tools around it. Recordings are ca
 the board over UDP, and decoded down to CCSDS frames: digital downconversion, timing and carrier recovery, frame
 sync, Viterbi K=7 r½, derandomization and Reed-Solomon RS(255,223)×4.
 
-**Status: Phase B of six.** The full receive chain exists as a Python model. It decodes synthetic signals end to end
+**Status: Phase B (the DDC) done; C and D in progress.** The full receive chain exists as a Python model. It decodes synthetic signals end to end
 and agrees with BER theory, and SatDump, the reference decoder, decodes the model's synthetic recording with every
 frame matching. The first RTL block, the **digital downconverter, runs on the board at 100 MHz** and matches the
-bit-true model on **all 16,384 outputs, read back two independent ways** (UART and JTAG/ILA). The synchronization
+bit-true model on **all 16,384 outputs, read back two independent ways** (UART and JTAG/ILA), and again when the
+samples arrive over Ethernet from `gs-replay`. The synchronization
 chain (matched filter, AGC, Costas, Farrow/Gardner) is in RTL and bit-exact in simulation, and its output decodes to
 the frames that were sent. No real satellite recording has been decoded yet; the capture kit arrives around 2026-11-25.
 
@@ -52,7 +53,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 |---|---|---|
 | 0 — Signal spec + capture kit | **In progress** | [signal-spec.md](docs/signal-spec.md) from SatDump's source; not yet confirmed on a real signal |
 | A — Python golden model | **In progress** | Float and bit-true chains decode synthetic signals; real recording pending |
-| B — Digital downconverter | **In progress** | Bit-exact on the board; Ethernet replay waits on `eth-core-v0.1` |
+| B — Digital downconverter | **Done** (2026-11-07) | Bit-exact on the board from BRAM (UART and ILA) and over Ethernet from `gs-replay` (37 of 40 replays; the rest lost or reordered datagrams on the host side) |
 | C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. Real recording pending |
 | D — Viterbi + frame sync | **In progress** | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios); chain test next |
 | E — Reed-Solomon + real decode | Not started | — |
@@ -587,8 +588,14 @@ rather than pretending.
 
 1. **A real recording:** capture a pass (or find a public 72k recording), decode it with SatDump, and confirm the
    spec and the model on it (Phases 0 and A).
-2. **Phase C:** lock on a real recording; the sync chain on the board once Ethernet replay is available.
+2. **Phase C:** lock on a real recording; the sync chain on the board, fed by the Ethernet replay that works now.
 3. **Phase D:** hardware BER, and the unbounded path-metric proof (bounded to 8 steps today).
 4. **Phase E:** a Reed-Solomon decoder shared with another project, and a real pass decoded on the FPGA bit-for-bit
    against SatDump.
 5. **Phase F:** `gs-rx`, `gs-diff`, `gs-view`, a fuzzed parser, and the hero image and demo video.
+
+## License
+
+[MIT](LICENSE), for everything in this repository. The `rtl/eth/` submodule is a separate repository,
+[fpga-eth-core](https://github.com/RodeanAzari/fpga-eth-core), under its own terms. The Arty pin assignments in
+`constr/` follow Digilent's Arty-A7-100-Master.xdc (MIT).
