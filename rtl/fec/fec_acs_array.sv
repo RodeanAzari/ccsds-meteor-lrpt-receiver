@@ -79,6 +79,44 @@ module fec_acs_array #(
         if (s_tvalid_i && s_tready_o) m_tdata_o <= dec_d;
     end
 
+`ifndef SYNTHESIS
+    // ADR 0006 bound: any two path metrics differ by at most SPREAD = (K - 1) * BM_MAX (every state is reachable from
+    // the best state K - 1 steps back). Any two ACS candidates then differ by at most SPREAD + BM_MAX, which a_width
+    // keeps below 2^(PM_BITS-1), so every modulo compare picks what an unbounded compare would.
+    // a_spread checks all 2,016 pairs at once: with each metric taken relative to state 0 as a PM_BITS-bit signed
+    // value, max - min <= SPREAD. That is the same condition, since pairs within SPREAD < 2^(PM_BITS-1) don't wrap, and
+    // a violation shows before anything can wrap (the spread grows by at most BM_MAX per step).
+    // tb/formal/fec_acs_array.sby: a_hold proven; a_spread holds 8 steps from reset; its unbounded proof is open.
+    localparam int BM_MAX = 2 * ((1 << SOFT_BITS) - 1);  // viterbi_fixed.max_branch_metric()
+    localparam int SPREAD = 6 * BM_MAX;                   // K - 1 = 6 (signal-spec.md)
+
+    int rel_max, rel_min;
+
+    always_comb begin
+        rel_max = 0;
+        rel_min = 0;
+        for (int s = 1; s < N_STATES; s++) begin
+            if (int'($signed(pm_q[s] - pm_q[0])) > rel_max) rel_max = int'($signed(pm_q[s] - pm_q[0]));
+            if (int'($signed(pm_q[s] - pm_q[0])) < rel_min) rel_min = int'($signed(pm_q[s] - pm_q[0]));
+        end
+    end
+
+    always_ff @(posedge clk_i) begin
+        a_width: assert (SPREAD + BM_MAX < (1 << (PM_BITS - 1)));
+`ifndef ACS_HOLD_ONLY  // fec_acs_array.sby task hold proves a_hold alone
+        if (!rst_i) a_spread: assert (rel_max - rel_min <= SPREAD);
+`endif
+    end
+
+    // A metric changes only on an input handshake, so stalls add no metric values: the spread checks may step every
+    // clock (fec_acs_array.sby, tasks bmc4/step and hold).
+    for (genvar s = 0; s < N_STATES; s++) begin : g_hold
+        always_ff @(posedge clk_i) begin
+            if (!rst_i && $past(!rst_i) && !$past(s_tvalid_i && s_tready_o)) assert (pm_q[s] == $past(pm_q[s]));
+        end
+    end
+`endif
+
 endmodule
 
 `default_nettype wire

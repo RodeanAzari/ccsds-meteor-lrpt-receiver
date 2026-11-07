@@ -1,0 +1,39 @@
+# ADR 0006: modulo path metrics stay within the spread bound (K - 1) * BM_MAX = 180 (4-bit soft, 9-bit metrics).
+#
+# make formal runs hold and bmc4:
+#   hold  proven (k-induction): with free handshakes, a stall changes no metric, so a harness that steps every
+#         clock reaches every metric state the array can. Leaves the spread assertions out (ACS_HOLD_ONLY): through
+#         stalls, k cycles of k-induction can be one state.
+#   bmc4  bounded: no input sequence breaks the bound within 8 steps of reset (~12 min).
+# step is the unbounded proof (k-induction, depth 8; every state is reachable from the best state 6 steps back and
+# no 1-step invariant of this form closes). It is OPEN: on 2026-11-06 its base case passed and its induction had not
+# finished after 6.5 hours (docs/viterbi.md). Run it by hand: sby -f fec_acs_array.sby step.
+# Engine bitwuzla: yices took 9 minutes to reach base-case step 7.
+[tasks]
+hold
+bmc4
+step
+
+[options]
+hold: mode prove
+hold: depth 3
+bmc4: mode bmc
+bmc4: depth 8
+step: mode prove
+step: depth 8
+
+[engines]
+smtbmc bitwuzla
+
+[script]
+~hold: read -formal fec_bm.sv fec_acs.sv fec_acs_array.sv
+~hold: read -formal -D ALWAYS_STEP fec_acs_array_fv.sv
+hold: read -formal -D ACS_HOLD_ONLY fec_bm.sv fec_acs.sv fec_acs_array.sv
+hold: read -formal fec_acs_array_fv.sv
+prep -top fec_acs_array_fv
+
+[files]
+../../rtl/fec/fec_bm.sv
+../../rtl/fec/fec_acs.sv
+../../rtl/fec/fec_acs_array.sv
+fec_acs_array_fv.sv

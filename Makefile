@@ -150,6 +150,14 @@ ci: lint-py lint model-test sim gs-test gs-lint
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build sim_build
 
+# SymbiYosys (buildplan §8.3), ~12 min: the path-metric hold proof and 8-step bounded check (tb/formal/
+# fec_acs_array.sby; its unbounded task, step, is open and run by hand). Run directories and log in build/formal/.
+formal:
+	@mkdir -p build/formal
+	cd tb/formal && sby -f --prefix ../../build/formal/fec_acs_array fec_acs_array.sby hold bmc4 \
+		> ../../build/formal/fec_acs_array.log 2>&1 || { grep -E 'summary|DONE|ERROR' ../../build/formal/fec_acs_array.log | tail -20; exit 1; }
+	@grep -E 'DONE' build/formal/fec_acs_array.log
+
 # Fail loudly instead of pretending these work.
-cov formal fuzz synth impl reports:
+cov fuzz synth impl reports:
 	@echo "make $@: not implemented yet (needs RTL or C++ from a later phase)" >&2; exit 1

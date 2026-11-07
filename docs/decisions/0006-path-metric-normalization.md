@@ -32,3 +32,14 @@ at most 7·BMmax. Modulo comparison is correct while that is below 2^(bits−1):
   decoder bit for bit over 32 × 4,096 bits at both widths. The largest spread seen is 48 (3-bit, bound 84) and 104
   (4-bit, bound 180). Registers narrower than the observed spread break decoding, so the check is not vacuous.
 - `data/results/soft_width_ber.csv`: every BER point was decoded with modulo metrics at the derived width.
+
+## Amendment (2026-11-06): formal status
+
+The bound is now SVA in `fec_acs_array.sv`: every pair of metrics within ±(K − 1)·BMmax, checked as max − min of
+the metrics relative to state 0, and (K − 1)·BMmax + BMmax < 2^(bits−1). It runs in every simulation. `make formal`
+(`tb/formal/fec_acs_array.sby`) proves that a stall changes no metric, and finds no input sequence that breaks the
+bound within 8 steps of reset at 4 bits. **The unbounded proof is open**: k-induction needs 7 unrolled steps of the
+64-state array (first written as 2,016 pair assertions) and had not finished after 6.5 hours (`docs/viterbi.md`). Planted bugs:
+no metric reset and a metric one bit too narrow are caught; a sign-extended branch metric needs 14 or more steps to
+break the bound, beyond the bounded depth. The decision stands. In the model recurrence, the spread reaches
+4·BMmax at most, a third below the bound the width is sized for.
