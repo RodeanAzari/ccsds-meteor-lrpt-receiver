@@ -114,11 +114,12 @@ board-check:
 	PYTHONPATH=. $(PY) scripts/ddc_board.py check $(SERIAL)
 
 # After `make board BOARD_TOP=arty_ddc_eth_top prog` (and the board claim): stream the snippet with gs-replay and
-# compare the dump. IFACE = the host's IP on the cable to the Arty; SPEED = times real time (docs/protocol.md).
+# compare the dump. IFACE = the host's IP on the cable to the Arty; SPEED = times real time, comma list (one replay each).
 IFACE ?=
 SPEED ?= 1
 eth-check: gs
-	PYTHONPATH=. $(PY) scripts/ddc_board.py eth-check $(SERIAL) --iface $(IFACE) --speed $(SPEED)
+	PYTHONPATH=. $(PY) scripts/ddc_board.py eth-check $(SERIAL) --iface $(IFACE) --speed $(SPEED) \
+		--bit build/board/$(BOARD_TOP).bit
 
 # After `make board ILA=1` (and the board claim): program, capture every DDC output with the ILA, compare.
 ila-capture:
