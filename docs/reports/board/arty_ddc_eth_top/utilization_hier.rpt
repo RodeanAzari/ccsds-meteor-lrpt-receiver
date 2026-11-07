@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
-| Date         : Sat Nov  7 11:50:02 2026
+| Date         : Sat Nov  7 14:33:41 2026
 | Host         : RodeanStation running 64-bit Ubuntu 26.04 LTS
 | Command      : report_utilization -hierarchical -file /home/rodea/CCSDS/docs/reports/board/arty_ddc_eth_top/utilization_hier.rpt
 | Design       : arty_ddc_eth_top
@@ -19,24 +19,29 @@ Table of Contents
 1. Utilization by Hierarchy
 ---------------------------
 
-+----------------------+---------------+------------+------------+---------+------+------+--------+--------+------------+
-|       Instance       |     Module    | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
-+----------------------+---------------+------------+------------+---------+------+------+--------+--------+------------+
-| arty_ddc_eth_top     |         (top) |       1611 |       1607 |       0 |    4 | 2596 |     18 |      2 |          6 |
-|   (arty_ddc_eth_top) |         (top) |         12 |         12 |       0 |    0 |   56 |      0 |      0 |          0 |
-|   u_cap              |  capture_dump |        105 |        105 |       0 |    0 |   93 |     16 |      0 |          0 |
-|   u_ddc              |       ddc_top |        973 |        973 |       0 |    0 | 1648 |      0 |      1 |          6 |
-|     u_cic            |       ddc_cic |        278 |        278 |       0 |    0 |  434 |      0 |      0 |          0 |
-|     u_fir            |  ddc_comp_fir |        393 |        393 |       0 |    0 | 1033 |      0 |      0 |          2 |
-|     u_ingest         |    ddc_ingest |        138 |        138 |       0 |    0 |  104 |      0 |      0 |          0 |
-|     u_mixer          | ddc_nco_mixer |        166 |        166 |       0 |    0 |   77 |      0 |      1 |          4 |
-|   u_eth_rx           |        eth_rx |        194 |        190 |       0 |    4 |  262 |      2 |      0 |          0 |
-|     u_fifo           |    async_fifo |         43 |         43 |       0 |    0 |  108 |      1 |      0 |          0 |
-|     u_buf            |  frame_buffer |         64 |         64 |       0 |    0 |   64 |      1 |      0 |          0 |
-|     u_fcs            | eth_fcs_check |         57 |         53 |       0 |    4 |   52 |      0 |      0 |          0 |
-|   u_ingest           | iq_udp_ingest |        101 |        101 |       0 |    0 |  247 |      0 |      1 |          0 |
-|   u_udp_rx           |        udp_rx |        203 |        203 |       0 |    0 |  259 |      0 |      0 |          0 |
-+----------------------+---------------+------------+------------+---------+------+------+--------+--------+------------+
++----------------------+----------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|       Instance       |           Module           | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++----------------------+----------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| arty_ddc_eth_top     |                      (top) |       2426 |       2395 |       0 |   31 | 4674 |     18 |      4 |          6 |
+|   (arty_ddc_eth_top) |                      (top) |         11 |         11 |       0 |    0 |  533 |      0 |      0 |          0 |
+|   u_cap              |               capture_dump |        104 |        104 |       0 |    0 |   93 |     16 |      0 |          0 |
+|   u_ddc              |                    ddc_top |        974 |        974 |       0 |    0 | 1648 |      0 |      1 |          6 |
+|     u_cic            |                    ddc_cic |        278 |        278 |       0 |    0 |  434 |      0 |      0 |          0 |
+|     u_fir            |               ddc_comp_fir |        395 |        395 |       0 |    0 | 1033 |      0 |      0 |          2 |
+|     u_ingest         |                 ddc_ingest |        138 |        138 |       0 |    0 |  104 |      0 |      0 |          0 |
+|     u_mixer          |              ddc_nco_mixer |        165 |        165 |       0 |    0 |   77 |      0 |      1 |          4 |
+|   u_eth_rx           |                     eth_rx |        236 |        232 |       0 |    4 |  273 |      2 |      0 |          0 |
+|     u_fifo           |                 async_fifo |         56 |         56 |       0 |    0 |  108 |      1 |      0 |          0 |
+|     u_buf            |               frame_buffer |         68 |         68 |       0 |    0 |   66 |      1 |      0 |          0 |
+|     u_fcs            |              eth_fcs_check |         67 |         63 |       0 |    4 |   53 |      0 |      0 |          0 |
+|   u_eth_tx           |                     eth_tx |        129 |        129 |       0 |    0 |  168 |      0 |      1 |          0 |
+|     u_mii_tx         |                     mii_tx |         85 |         85 |       0 |    0 |   55 |      0 |      0 |          0 |
+|     u_fifo           | async_fifo__parameterized0 |         42 |         42 |       0 |    0 |  108 |      0 |      1 |          0 |
+|   u_ingest           |              iq_udp_ingest |        175 |        175 |       0 |    0 |  311 |      0 |      1 |          0 |
+|   u_stats            |               stats_packet |        337 |        331 |       0 |    6 |  791 |      0 |      0 |          0 |
+|   u_udp_rx           |                     udp_rx |        219 |        219 |       0 |    0 |  421 |      0 |      0 |          0 |
+|   u_udp_tx           |                     udp_tx |        218 |        197 |       0 |   21 |  402 |      0 |      1 |          0 |
++----------------------+----------------------------+------------+------------+---------+------+------+--------+--------+------------+
 * Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
 
 

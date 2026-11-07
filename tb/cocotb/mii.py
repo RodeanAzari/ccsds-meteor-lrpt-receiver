@@ -53,3 +53,46 @@ async def send_mii(rx_clk: Any, rxd: Any, rx_dv: Any, frame: bytes, ifg_nibbles:
     rxd.value = 0
     for _ in range(ifg_nibbles - 1):
         await FallingEdge(rx_clk)
+
+
+async def collect_mii_tx(tx_clk: Any, txd: Any, tx_en: Any, frames: list[bytes]) -> None:
+    """Forever: append each frame the DUT transmits (preamble and SFD included), sampled mid-cycle on tx_clk's
+    falling edge (the MAC launches on the rising edge), nibbles low first."""
+    nibbles: list[int] = []
+    while True:
+        await FallingEdge(tx_clk)
+        if int(tx_en.value):
+            nibbles.append(int(txd.value))
+        elif nibbles:
+            if len(nibbles) % 2:
+                raise AssertionError(f"odd nibble count {len(nibbles)} in a transmitted frame")
+            frames.append(bytes(nibbles[k] | (nibbles[k + 1] << 4) for k in range(0, len(nibbles), 2)))
+            nibbles = []
+
+
+def parse_udp_frame(wire: bytes) -> dict[str, Any]:
+    """A transmitted frame (with preamble/SFD) -> its addresses and UDP payload. Raises on a bad preamble, FCS,
+    IPv4 header checksum or length."""
+    if wire[:8] != PREAMBLE_SFD:
+        raise AssertionError(f"bad preamble/SFD {wire[:8].hex()}")
+    frame = wire[8:]
+    if len(frame) < 64:
+        raise AssertionError(f"frame of {len(frame)} bytes is under the 64-byte minimum")
+    if zlib.crc32(frame[:-4]) != struct.unpack("<I", frame[-4:])[0]:
+        raise AssertionError("bad FCS")
+    if frame[12:14] != b"\x08\x00":
+        raise AssertionError(f"ethertype {frame[12:14].hex()}, not IPv4")
+    ip = frame[14:34]
+    if ip[0] != 0x45 or ip[9] != 17:
+        raise AssertionError("not IPv4/UDP without options")
+    if ip_checksum(ip) != 0:
+        raise AssertionError("bad IPv4 header checksum")
+    total = struct.unpack(">H", ip[2:4])[0]
+    sport, dport, ulen = struct.unpack(">HHH", frame[34:40])
+    if ulen != total - 20:
+        raise AssertionError(f"UDP length {ulen} vs. IP total {total}")
+    return {
+        "dst_mac": frame[0:6], "src_mac": frame[6:12],
+        "src_ip": int.from_bytes(ip[12:16], "big"), "dst_ip": int.from_bytes(ip[16:20], "big"),
+        "sport": sport, "dport": dport, "payload": frame[42:42 + ulen - 8],
+    }

@@ -10,14 +10,15 @@
 // Replay to a freshly reset board (RESET button): the DDC's state and the expected seq start from zero.
 // BTN0 sends the capture again.
 //
-// Ingest and link errors (iq_udp_ingest bad/gap counters; eth_rx CRC, rx_er, overflow; udp_rx checksum and
-// malformed) light LD7 until reset. The counters go back to the host with the Phase E stats packet
-// (docs/protocol.md); here, a bit-exact capture already proves its datagrams arrived whole and in order.
+// Stats back to the host (docs/protocol.md "Stats", type 1): every STATS_PERIOD, once a replay datagram has arrived,
+// stats_packet -> udp_tx -> eth_tx -> MII TX sends the ingest, eth_rx and udp_rx counters to the sender of the last
+// good replay datagram (learned MAC/IP), UDP port STATS_PORT. Ingest and link errors (ingest bad/gap; eth_rx CRC,
+// rx_er, overflow; udp_rx checksum and malformed; TX underrun) also light LD7 until reset.
 // LEDs: LD4 heartbeat, LD5 capture full, LD6 dumping, LD7 sticky error.
 //
-// Clocks: one 100 MHz core domain from the MMCM (clk_gen_eth) for everything after eth_rx's FIFO, plus the
-// PHY's 25 MHz rx_clk inside eth_rx. Start-up per the fpga-eth-core consumer guide: PHY reset released 10 ms,
-// MAC 200 ms after the MMCM locks. The transmit pins are idle (Phase E uses them); MDIO is unused (PHY straps).
+// Clocks: one 100 MHz core domain from the MMCM (clk_gen_eth) for everything between eth_rx's and eth_tx's FIFOs,
+// plus the PHY's 25 MHz rx_clk and tx_clk inside them. Start-up per the fpga-eth-core consumer guide: PHY reset
+// released 10 ms, MAC 200 ms after the MMCM locks. MDIO is unused (PHY straps).
 module arty_ddc_eth_top #(
     parameter int          N_OUT            = 16384,         // DDC outputs captured = 65,536 samples / 4
     parameter logic [31:0] FREQ_WORD        = 32'h2580_0000, // 150 kHz at 1.024 MS/s = 600 * 2^20 (ADR 0003)
@@ -27,6 +28,9 @@ module arty_ddc_eth_top #(
     parameter logic [47:0] OWN_MAC          = 48'h02_00_0A_0B_0C_0D,  // locally administered; unused for multicast
     parameter logic [31:0] GROUP_IP         = 32'hEF_01_01_01,        // 239.1.1.1, docs/protocol.md
     parameter logic [15:0] UDP_PORT         = 16'd26400,              // docs/protocol.md
+    parameter logic [31:0] OWN_IP           = 32'hC0_A8_0A_02,        // 192.168.10.2, docs/protocol.md (stats source)
+    parameter logic [15:0] STATS_PORT       = 16'd26401,              // docs/protocol.md
+    parameter int          STATS_PERIOD     = 10_000_000,             // 100 ms at 100 MHz, docs/protocol.md
     parameter string       NCO_LUT_FILE     = "nco_lut.mem",
     parameter string       COMP_TAP_FILE    = "comp_fir_taps.mem"
 ) (
@@ -42,6 +46,7 @@ module arty_ddc_eth_top #(
     input  wire logic       eth_rx_dv_i,
     input  wire logic [3:0] eth_rxd_i,
     input  wire logic       eth_rxerr_i,
+    input  wire logic       eth_tx_clk_i,
     output      logic       eth_tx_en_o,
     output      logic [3:0] eth_txd_o,
     output      logic       eth_mdc_o
@@ -50,7 +55,7 @@ module arty_ddc_eth_top #(
     localparam int START_W = $clog2(MAC_START_CYCLES + 1);
 
     // ------------------------------------------------------------------------------------ clocks and resets
-    logic clk, locked, rst, mii_rst;
+    logic clk, locked, rst, mii_rst, mii_tx_rst;
 
     clk_gen_eth u_clk (
         .clk100_i      (clk100_i),
@@ -90,9 +95,13 @@ module arty_ddc_eth_top #(
         .rst_o       (mii_rst)
     );
 
-    assign eth_tx_en_o = 1'b0;
-    assign eth_txd_o   = 4'd0;
-    assign eth_mdc_o   = 1'b0;
+    reset_sync u_rst_mii_tx (
+        .clk_i       (eth_tx_clk_i),
+        .rst_async_i (mac_rst_q),
+        .rst_o       (mii_tx_rst)
+    );
+
+    assign eth_mdc_o = 1'b0;
 
     // -------------------------------------------------------------------------------------- receive path
     logic [7:0] f_tdata;
@@ -239,6 +248,111 @@ module arty_ddc_eth_top #(
         .txd_o      (uart_txd_o)
     );
 
+    // ------------------------------------------------------------------------------------------ counters
+    // Cumulative since the MAC left reset, mod 2^32. Order = docs/protocol.md "Stats" field table.
+    localparam int N_STATS = 17;
+    logic [31:0] cnt_q [4:16];   // fields 4..16; 0..3 are the ingest's own counters
+    logic        tx_underrun;
+
+    always_ff @(posedge clk) begin
+        if (mac_rst_q) begin
+            for (int k = 4; k <= 16; k++) cnt_q[k] <= '0;
+        end else begin
+            cnt_q[4]  <= cnt_q[4]  + 32'(e_ok);
+            cnt_q[5]  <= cnt_q[5]  + 32'(e_crc);
+            cnt_q[6]  <= cnt_q[6]  + 32'(e_rxerr);
+            cnt_q[7]  <= cnt_q[7]  + 32'(e_runt);
+            cnt_q[8]  <= cnt_q[8]  + 32'(e_over);
+            if (e_ovf) cnt_q[9] <= cnt_q[9] + 32'(e_ovf_frames);
+            cnt_q[10] <= cnt_q[10] + 32'(u_ok);
+            cnt_q[11] <= cnt_q[11] + 32'(u_filt);
+            cnt_q[12] <= cnt_q[12] + 32'(u_csum);
+            cnt_q[13] <= cnt_q[13] + 32'(u_mal);
+            if (32'(fifo_level) > cnt_q[14]) cnt_q[14] <= 32'(fifo_level);
+            cnt_q[15] <= cnt_q[15] + 32'(bb_tvalid && bb_tready);
+            cnt_q[16] <= cnt_q[16] + 32'(tx_underrun);
+        end
+    end
+
+    logic [N_STATS*32-1:0] stats;
+    always_comb begin
+        stats[0*32 +: 32] = ok_cnt;
+        stats[1*32 +: 32] = bad_cnt;
+        stats[2*32 +: 32] = gap_cnt;
+        stats[3*32 +: 32] = lost_cnt;
+        for (int k = 4; k < N_STATS; k++) stats[k*32 +: 32] = cnt_q[k];
+    end
+
+    // ------------------------------------------------------------------------------------- transmit path
+    // Reply address: the sender of the last datagram udp_rx accepted (its src_* are stable through the datagram
+    // and still valid on the ok_o pulse that ends it). Taken from replay datagrams only (udp_rx filters the rest).
+    logic [47:0] peer_mac_q;
+    logic [31:0] peer_ip_q;
+    logic        peer_valid_q;
+
+    always_ff @(posedge clk) begin
+        if (mac_rst_q) begin
+            peer_valid_q <= 1'b0;
+        end else if (u_ok) begin
+            peer_mac_q   <= src_mac;
+            peer_ip_q    <= src_ip;
+            peer_valid_q <= 1'b1;
+        end
+    end
+
+    logic [7:0] sp_tdata, t_tdata;
+    logic       sp_tvalid, sp_tready, sp_tlast, t_tvalid, t_tready, t_tlast, t_sent, t_over;
+
+    stats_packet #(
+        .N_FIELDS (N_STATS),
+        .PERIOD   (STATS_PERIOD)
+    ) u_stats (
+        .clk_i      (clk),
+        .rst_i      (mac_rst_q),
+        .enable_i   (peer_valid_q),
+        .fields_i   (stats),
+        .m_tdata_o  (sp_tdata),
+        .m_tvalid_o (sp_tvalid),
+        .m_tready_i (sp_tready),
+        .m_tlast_o  (sp_tlast)
+    );
+
+    udp_tx u_udp_tx (
+        .clk_i      (clk),
+        .rst_i      (mac_rst_q),
+        .cfg_mac_i  (OWN_MAC),
+        .cfg_ip_i   (OWN_IP),
+        .s_tdata_i  (sp_tdata),
+        .s_tvalid_i (sp_tvalid),
+        .s_tready_o (sp_tready),
+        .s_tlast_i  (sp_tlast),
+        .s_tuser_i  (1'b0),
+        .dst_mac_i  (peer_mac_q),
+        .dst_ip_i   (peer_ip_q),
+        .dst_port_i (STATS_PORT),
+        .src_port_i (UDP_PORT),
+        .m_tdata_o  (t_tdata),
+        .m_tvalid_o (t_tvalid),
+        .m_tready_i (t_tready),
+        .m_tlast_o  (t_tlast),
+        .sent_o     (t_sent),
+        .oversize_o (t_over)
+    );
+
+    eth_tx u_eth_tx (
+        .clk_i       (clk),
+        .rst_i       (mac_rst_q),
+        .s_tdata_i   (t_tdata),
+        .s_tvalid_i  (t_tvalid),
+        .s_tready_o  (t_tready),
+        .s_tlast_i   (t_tlast),
+        .underrun_o  (tx_underrun),
+        .mii_clk_i   (eth_tx_clk_i),
+        .mii_rst_i   (mii_tx_rst),
+        .mii_txd_o   (eth_txd_o),
+        .mii_tx_en_o (eth_tx_en_o)
+    );
+
     // ------------------------------------------------------------------------------------------ status
     // Runts and oversize frames are not counted: other hosts' traffic on the cable can produce them.
     // Datagrams for other groups/ports (u_filt) are not errors either.
@@ -247,7 +361,8 @@ module arty_ddc_eth_top #(
 
     always_ff @(posedge clk) begin
         if (mac_rst_q) err_q <= 1'b0;
-        else if (e_crc || e_rxerr || e_ovf || u_csum || u_mal || bad_cnt != '0 || gap_cnt != '0) err_q <= 1'b1;
+        else if (e_crc || e_rxerr || e_ovf || u_csum || u_mal || tx_underrun || bad_cnt != '0 || gap_cnt != '0)
+            err_q <= 1'b1;
     end
 
     always_ff @(posedge clk) begin
@@ -257,10 +372,10 @@ module arty_ddc_eth_top #(
 
     assign led_o = {err_q, busy, full, beat_q[26]};
 
-    // Unused outputs, kept visible for the ILA and the Phase E stats packet.
+    // Unused outputs: the RX timestamp, the replay's source/destination ports, the TX frame-sent and oversize
+    // pulses (the stats payload is 84 bytes, far below 1,472).
     logic unused;
-    assign unused = ^{sfd, e_ok, e_runt, e_over, e_ovf_frames, fifo_level, u_ok, u_filt, src_mac, src_ip,
-                      src_port, dst_port, ok_cnt, lost_cnt};
+    assign unused = ^{sfd, src_port, dst_port, t_sent, t_over};
 
 endmodule
 

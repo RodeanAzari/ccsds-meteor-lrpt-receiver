@@ -55,6 +55,7 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_fec_soft_quant": ("fec_soft_quant", ["rtl/fec/fec_soft_quant.sv"], [{}]),
     "test_fec_framesync": ("fec_framesync", FRAMESYNC_SRCS, [FRAMESYNC_PARAMS]),
     "test_fec_framesync_fifo": ("fec_framesync", FRAMESYNC_SRCS, [{**FRAMESYNC_PARAMS, "DEPTH": 131072}]),
+    "test_stats_packet": ("stats_packet", ["rtl/io/stats_packet.sv"], [{"N_FIELDS": 17, "PERIOD": 60}]),
     "test_iq_udp_ingest": ("iq_udp_ingest", ["rtl/io/iq_udp_ingest.sv"], [{"DEPTH": 1024}, {"DEPTH": 512}]),
     "test_arty_ddc_rom_top": (
         "arty_ddc_rom_top",
@@ -73,9 +74,9 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
         "arty_ddc_eth_top",
         ["tb/models/MMCME2_BASE.sv", "tb/models/BUFG.sv", "tb/models/ODDR.sv", "rtl/lib/xilinx/clk_gen_eth.sv",
          "rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_udp_ingest.sv", "rtl/io/capture_dump.sv",
-         "rtl/io/uart_tx.sv"]
+         "rtl/io/uart_tx.sv", "rtl/io/stats_packet.sv"]
         + [f"rtl/eth/rtl/{f}.sv" for f in ("async_fifo", "mii_rx", "rx_ovf_guard", "crc32_d8", "eth_fcs_check",
-                                           "frame_buffer", "eth_rx", "udp_rx")]
+                                           "frame_buffer", "eth_rx", "udp_rx", "udp_tx", "mii_tx", "eth_tx")]
         + [f"rtl/ddc/{f}.sv" for f in ("ddc_ingest", "ddc_nco_mixer", "ddc_cic", "ddc_comp_fir", "ddc_top")]
         + ["rtl/top/arty_ddc_eth_top.sv"],
         [{
@@ -83,6 +84,7 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
             "CLKS_PER_BIT": 8,  # tb/cocotb/ddc_board.py CLKS_PER_BIT
             "PHY_RST_CYCLES": 100,
             "MAC_START_CYCLES": 400,  # test_arty_ddc_eth_top.py MAC_START_CYCLES
+            "STATS_PERIOD": 20000,  # test_arty_ddc_eth_top.py STATS_PERIOD
             "NCO_LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"',
             "COMP_TAP_FILE": f'"{ROOT / "rtl/ddc/comp_fir_taps.mem"}"',
         }],

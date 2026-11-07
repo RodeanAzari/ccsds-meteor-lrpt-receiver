@@ -41,6 +41,7 @@ from model import ddc_fixed as m
 from model.channel import TxConfig, apply_carrier, awgn, modulate, noise_sigma, to_cu8
 from model.coding import build_cadus, encode_stream
 from model.receiver import RxConfig
+from scripts.board_stats import StatsListener
 
 N_SAMPLES = 65536  # 64 ms at 1.024 MS/s; must match arty_ddc_rom_top N_SAMPLES
 SEED = 2026
@@ -56,6 +57,10 @@ IFACE_DOWN_WAIT_S = 3.0  # after programming, how long to watch for the link (an
 # After the host address returns, before the replay. At 1 s, 6 of 40 replays lost datagrams at the start, each on a
 # slow link-up (>= 3.1 s after programming); earlier runs also reordered the first datagrams (2026-11-07).
 MAC_START_WAIT_S = 3.0
+STATS_WAIT_S = 1.0  # stats come every 100 ms
+# Board counters recorded per replay (scripts/board_stats.py FIELDS; blank if no stats packet arrived).
+STATS_COLUMNS = ("ingest_ok", "ingest_bad", "ingest_gap", "ingest_lost", "eth_ok", "eth_crc_err", "eth_rx_err",
+                 "eth_ovf_lost", "udp_ok", "rx_fifo_hwm", "ddc_out", "tx_underrun")
 DUMP_WAIT_S = 20.0  # a 16,384-word dump takes 5.7 s at 115,200 baud; none by then means the capture never filled
 ILA_PLOT_SAMPLES = 512  # 2 ms at 256 kS/s
 
@@ -217,6 +222,7 @@ def eth_check(port: str, iface: str, speeds: list[str], bit: str | None, n: int 
     cu8.write_bytes(snippet(n).tobytes())
     rows: list[list[object]] = []
     failed = 0
+    listener = StatsListener()  # the board sends its counters to the replay's sender (docs/protocol.md "Stats")
     for speed in speeds:
         if bit is not None:
             subprocess.run(["openFPGALoader", "-b", "arty_a7_100t", bit], capture_output=True, check=True)
@@ -242,14 +248,23 @@ def eth_check(port: str, iface: str, speeds: list[str], bit: str | None, n: int 
             got, n_bad, first = compare(dump, n, DUMP_ETH.with_suffix(f".{len(rows)}.bin"))
             got_n = got.shape[0]
         rate = re.search(r"rate=(\d+) S/s \(([\d.]+)x", said[0]) if said else None
+        # Counters after the replay: a packet that started after the dump (or the timeout) has them all.
+        st = listener.latest
+        st = listener.wait_newer(st.pkt_seq if st is not None else -1, STATS_WAIT_S)
+        if st is None:
+            print("no stats packet from the board (Hyper-V firewall rule for 192.168.10.2? docs/protocol.md)",
+                  flush=True)
+        else:
+            print("stats: " + " ".join(f"{k}={st.fields[k]}" for k in STATS_COLUMNS), flush=True)
         rows.append([speed, rate.group(2) if rate else "", "yes" if dump is not None else "no", got_n, n_bad, first,
+                     *(st.fields[k] if st is not None else "" for k in STATS_COLUMNS),
                      n, n // 512, f"{m.freq_word(CFG.tune_offset_hz, CFG.fs):08x}", 100, BAUD])
         failed |= n_bad != 0
+    listener.close()
     write_result(
         "ddc_board_eth",
-        ["replay_speed", "achieved_speed", "dump", "outputs", "mismatches", "first_mismatch", "n_input_samples",
-         "datagrams",
-         "freq_word_hex", "clk_mhz", "baud"],
+        ["replay_speed", "achieved_speed", "dump", "outputs", "mismatches", "first_mismatch", *STATS_COLUMNS,
+         "n_input_samples", "datagrams", "freq_word_hex", "clk_mhz", "baud"],
         rows,
         f"snippet seed {SEED}, {EBN0_DB} dB, carrier {CARRIER_HZ / 1e3:.0f} kHz (scripts/ddc_board.py), streamed "
         f"by gs-replay (achieved_speed: its own report) over 100 Mb/s Ethernet to arty_ddc_eth_top on the Arty "
