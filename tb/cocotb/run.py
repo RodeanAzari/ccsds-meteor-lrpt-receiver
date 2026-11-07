@@ -22,6 +22,9 @@ SYNC_TOP_PARAMS: dict[str, int | str] = {
 FRAMESYNC_SRCS = [f"rtl/fec/{f}.sv" for f in ("fec_fs_correlator", "fec_fs_fsm", "fec_fs_window", "fec_framesync")]
 FRAMESYNC_PARAMS: dict[str, int | str] = {"PATTERN_FILE": f'"{ROOT / "rtl/fec/asm_patterns.mem"}"'}
 
+# fpga-rs-core at its tag (submodule rtl/rs); the package first
+RS_SRCS = [f"rtl/rs/rtl/{f}.sv" for f in ("rs_gf_pkg", "rs_syndrome", "rs_ribm", "rs_chien_forney", "rs_decoder")]
+
 # test module -> (toplevel, sources, parameter sets)
 NCO_LUT = {"LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"'}
 
@@ -53,6 +56,8 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
         [{}],
     ),
     "test_fec_soft_quant": ("fec_soft_quant", ["rtl/fec/fec_soft_quant.sv"], [{}]),
+    "test_fec_frame_extract": ("fec_frame_extract", ["rtl/fec/fec_frame_extract.sv"], [{}]),
+    "test_fec_cadu": ("fec_cadu", [*RS_SRCS, "rtl/fec/fec_cadu.sv"], [{}]),
     "test_fec_framesync": ("fec_framesync", FRAMESYNC_SRCS, [FRAMESYNC_PARAMS]),
     "test_fec_framesync_fifo": ("fec_framesync", FRAMESYNC_SRCS, [{**FRAMESYNC_PARAMS, "DEPTH": 131072}]),
     "test_stats_packet": ("stats_packet", ["rtl/io/stats_packet.sv"], [{"N_FIELDS": 18, "PERIOD": 60}]),

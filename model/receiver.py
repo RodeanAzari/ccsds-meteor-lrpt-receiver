@@ -15,7 +15,6 @@ from scipy import signal
 
 from model.channel import RRC_ALPHA, SYMBOL_RATE, Complex, Floats, rrc
 from model.coding import (
-    ASM_BYTES,
     ASM_TRANSIENT_SYMBOLS,
     CADU_BITS,
     CADU_BYTES,
@@ -23,9 +22,7 @@ from model.coding import (
     RS_INTERLEAVE,
     RS_K,
     encoded_asm_pattern,
-    lrpt_rs,
-    nrzm_decode,
-    randomize,
+    frame_to_cadu,
     viterbi_decode,
 )
 
@@ -292,8 +289,6 @@ def decode_frames(soft: Floats, frames: list[tuple[int, bool, bool]], cfg: RxCon
     """Viterbi, NRZ-M, ASM check, derandomize, RS on the frames a frame sync found: (start, alternate, swap)."""
     margin = cfg.viterbi_margin_bits * 2
     usable = [f for f in frames if f[0] >= margin + 2 and f[0] + CODED_FRAME_SYMBOLS + margin <= soft.size]
-    asm_bits = np.unpackbits(np.frombuffer(ASM_BYTES, dtype=np.uint8))
-    rs = lrpt_rs()
     n = len(usable)
     cadus = np.zeros((n, CADU_BYTES), dtype=np.uint8)
     corrections = np.zeros((n, RS_INTERLEAVE), dtype=np.int64)
@@ -307,17 +302,10 @@ def decode_frames(soft: Floats, frames: list[tuple[int, bool, bool]], cfg: RxCon
         decoded = viterbi_decode(blocks)
         for j in range(len(batch)):
             first = cfg.viterbi_margin_bits
-            bits = nrzm_decode(decoded[j, first : first + CADU_BITS], int(decoded[j, first - 1]))
-            frame = np.packbits(bits)
             f = chunk + j
-            asm_errors[f] = int(np.count_nonzero(bits[:32] != asm_bits))
-            body = randomize(frame[4:])
-            cadus[f, :4] = frame[:4]
-            cadus[f, 4:] = body
-            for c in range(RS_INTERLEAVE):
-                word, count = rs.decode(body[c::RS_INTERLEAVE].tolist())
-                corrections[f, c] = count
-                cadus[f, 4 + c :: RS_INTERLEAVE] = word
+            cadus[f], asm_errors[f], corrections[f] = frame_to_cadu(
+                decoded[j, first : first + CADU_BITS], int(decoded[j, first - 1])
+            )
     return RxResult(
         cadus=cadus,
         rs_corrections=corrections,
