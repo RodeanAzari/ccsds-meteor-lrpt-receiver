@@ -1,7 +1,8 @@
 PY := .venv/bin/python
-RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' | sort)
-# rtl/eth (fpga-eth-core at its tag) and tb/models (vendor-primitive stand-ins) resolve instances only; not linted.
-RTL_DIRS := $(sort $(dir $(RTL))) rtl/eth/rtl/ tb/models/
+RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' -not -path 'rtl/rs/*' | sort)
+# rtl/eth, rtl/rs (fpga-eth-core, fpga-rs-core at their tags; linted in their own repos) and tb/models
+# (vendor-primitive stand-ins) resolve instances only.
+RTL_DIRS := $(sort $(dir $(RTL))) rtl/eth/rtl/ rtl/rs/rtl/ tb/models/
 
 .PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results fec-rtl-results synth-ooc board prog board-check eth-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study sync-lock-study framesync-study plots synthetic-iq gs-replay-results gs-lint ci clean \
         sim-slow sim-full cov formal gs gs-test fuzz synth impl reports

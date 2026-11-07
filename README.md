@@ -68,13 +68,15 @@ measurement and bug: [docs/log.md](docs/log.md).
 
 ### Shared components
 
-Two blocks come from companion repositories. Both are built and released by another project (an FPGA order book),
-and this repo uses them only at tagged releases, never copied in:
+Three blocks come from companion repositories, used only at tagged releases, never copied in. fpga-eth-core and
+tb-common are built and released by another project (an FPGA order book); fpga-rs-core is released from this project
+and also serves a SerDes project as its KP4 FEC decoder:
 
 | Repository | What it provides here | How it is pinned |
 |---|---|---|
 | [**fpga-eth-core**](https://github.com/RodeanAzari/fpga-eth-core) | 10/100 MII MAC, CRC-32, async FIFO, IPv4/UDP RX/TX: the link that carries IQ from `gs-replay` to the board and decoded CADUs back | Git submodule at `rtl/eth/`, at `eth-core-v0.2`. RX (`eth_rx` → `udp_rx`) feeds the DDC in `arty_ddc_eth_top`; TX is for Phase E |
 | [**tb-common**](https://github.com/RodeanAzari/tb-common) | Shared cocotb helpers: AXI-Stream source and sink with random valid/ready backpressure, an in-order scoreboard, seeded per-test RNG. Every block-level cocotb test in `tb/cocotb/` drives and checks its block through them (the board-top tests drive the MII pins and decode the UART pin themselves) | `pip install` from git at `tb-common-v0.1`, pinned in [`requirements.txt`](requirements.txt) |
+| [**fpga-rs-core**](https://github.com/RodeanAzari/fpga-rs-core) | Parameterized Reed-Solomon decoder (riBM, one symbol per clock), verified at CCSDS RS(255,223) and KP4 RS(544,514): the RS stage after the derandomizer, one instance with the ×4 deinterleave around it ([ADR 0012](docs/decisions/0012-rs-instance-count.md)) | Git submodule at `rtl/rs/`, at `rs-core-v1.0` |
 
 ## Architecture
 
