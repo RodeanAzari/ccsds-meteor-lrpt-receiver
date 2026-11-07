@@ -1,6 +1,7 @@
-"""Build and run the cocotb regression with Verilator: python tb/cocotb/run.py [--full | test_module ...]
+"""Build and run the cocotb regression with Verilator: python tb/cocotb/run.py [--slow | --full | test_module ...]
 
-No arguments runs TESTS (make sim, < 5 min). --full runs FULL_TESTS, the long runs (make sim-full)."""
+No arguments runs TESTS except SLOW (make sim, < 5 min). --slow runs SLOW (make sim-slow, part of make ci).
+--full runs FULL_TESTS, the long runs (make sim-full)."""
 
 from __future__ import annotations
 
@@ -97,6 +98,10 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
 }
 
 
+# In TESTS but left out of make sim to keep it under 5 min; make ci still runs them (make sim-slow).
+SLOW = ["test_fec_framesync"]  # ~100 s
+
+
 # Long runs, make sim-full only (CLAUDE.md §6: make sim stays under 5 min)
 FULL_TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_sync_top_full": ("sync_top", SYNC_TOP_SRCS, [SYNC_TOP_PARAMS]),
@@ -116,10 +121,14 @@ def main(names: list[str]) -> int:
     failed = 0
     if names == ["--full"]:
         names = list(FULL_TESTS)
+    elif names == ["--slow"]:
+        names = SLOW
+    elif not names:
+        names = [t for t in TESTS if t not in SLOW]
     # The tests import the bit-true model from the repo root. The runner builds the simulator's PYTHONPATH from
     # sys.path, so the paths go there. results.xml goes into the build directory.
     sys.path[:0] = [str(ROOT), str(ROOT / "tb" / "cocotb")]
-    for name in names or list(TESTS):
+    for name in names:
         top, srcs, param_sets = {**TESTS, **FULL_TESTS}[name]
         for params in param_sets:
             tag = "_".join(f"{k}{v}" for k, v in params.items() if isinstance(v, int)) or "default"

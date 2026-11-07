@@ -154,13 +154,13 @@ SymbiYosys, Python 3 (NumPy, SciPy, matplotlib, pytest), C++20/CMake/GoogleTest/
 SatDump 1.2.2 (stable release, not the V2 alpha; golden decoder), `rtl_sdr`. Versions pinned in `docs/toolchain.md`.
 
 ```
-make setup  lint  lint-py  sim (< 5 min)  sim-full (long runs)  model-test  gs  gs-test  gs-lint  ci
+make setup  lint  lint-py  sim (< 5 min)  sim-slow  sim-full (long runs)  model-test  gs  gs-test  gs-lint  ci
 make synth-ooc TOP=<top>   make board [ILA=1]  prog  board-check  ila-capture
 make formal  ddc-rtl-results  sync-rtl-results  gs-replay-results  synthetic-iq  ber (model)  *-study  plots  clean
 not yet implemented (fail loudly): cov  fuzz  synth  impl  reports
 ```
 
-- `make ci` = lint-py, lint, model-test, sim, gs-test, gs-lint; GitHub Actions runs it on every push.
+- `make ci` = lint-py, lint, model-test, sim, sim-slow (`test_fec_framesync`, ~100 s), gs-test, gs-lint; GitHub Actions runs it on every push.
   **A broken CI gets fixed before anything else.**
 - Vivado runs in batch mode via `syn/` Tcl, no GUI-only steps. Targets must work from a clean checkout. Planned
   targets and CI contents: buildplan §6.

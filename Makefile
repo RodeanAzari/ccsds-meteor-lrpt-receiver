@@ -4,7 +4,7 @@ RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' | sort)
 RTL_DIRS := $(sort $(dir $(RTL))) rtl/eth/rtl/ tb/models/
 
 .PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results fec-rtl-results synth-ooc board prog board-check eth-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study sync-lock-study framesync-study plots synthetic-iq gs-replay-results gs-lint ci clean \
-        sim-full cov formal gs gs-test fuzz synth impl reports
+        sim-slow sim-full cov formal gs gs-test fuzz synth impl reports
 
 setup:
 	git submodule update --init
@@ -56,6 +56,10 @@ lint:
 # cocotb regression, bit-exact against the bit-true model (CLAUDE.md §8.2).
 sim:
 	$(PY) tb/cocotb/run.py
+
+# The slowest unit tests (tb/cocotb/run.py SLOW), kept out of make sim's 5-minute budget but run by make ci.
+sim-slow:
+	$(PY) tb/cocotb/run.py --slow
 
 # Long runs (CLAUDE.md §6): the sync chain's output decoded end to end (~4 min), and the chain through the Viterbi
 # (~10 min). Results: make sync-rtl-results, make fec-rtl-results.
@@ -156,7 +160,7 @@ gs-replay-results: gs
 	PYTHONPATH=. $(PY) scripts/gs_replay_results.py
 
 # Only what exists so far. Grows with each phase.
-ci: lint-py lint model-test sim gs-test gs-lint
+ci: lint-py lint model-test sim sim-slow gs-test gs-lint
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build sim_build

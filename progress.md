@@ -84,6 +84,6 @@ Traps to remember (beyond CLAUDE.md §12):
 - Board Ethernet from WSL2: UDP multicast may need mirrored networking mode. Test when `eth-core-v0.1` lands.
 - Coarse estimate in hardware vs. on the host (ADR 0002). Decide in Phase C.
 - What in the board resets the design when the serial port opens. Not established; harmless with the CRC.
-- `make sim` takes 356 s against a 5-minute budget (322 s before 2026-11-07). Move `test_fec_framesync` (98 s) to
-  `sim-full`, or raise the budget? Your call.
+- `make sim` without `test_fec_framesync` (now `make sim-slow`, still in `make ci`): re-time on a quiet machine; it
+  measured 385 s at load average 16 on 2026-11-07 (expected ~260 s quiet: 356 − 98).
 - `make formal` in CI (buildplan §6 lists it): ~25 min and oss-cad-suite in the container. Local only for now; your call.
