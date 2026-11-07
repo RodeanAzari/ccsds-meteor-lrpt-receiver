@@ -4,7 +4,7 @@ reference parser.
 Why it matters: the host reads loss counters from these packets. A packet whose fields come from different clocks,
 a truncated or interleaved packet under backpressure, or a skipped pkt_seq would make the counters lie. The fields
 here change every clock (field k = cycle + k), so any packet not snapshotted on one clock shows f[k] - f[0] != k.
-PERIOD (60) is shorter than a packet (84 bytes) and the sink stalls at random, so ticks arrive while a packet is
+PERIOD (60) is shorter than a packet (88 bytes) and the sink stalls at random, so ticks arrive while a packet is
 still going out: the pending path must delay the next packet, not drop, cut or merge it.
 """
 
@@ -18,7 +18,7 @@ from tb_common.axis import AxisSink
 
 from scripts.board_stats import FIELDS, parse_stats
 
-N = 17  # tb/cocotb/run.py N_FIELDS
+N = 18  # tb/cocotb/run.py N_FIELDS
 PERIOD = 60  # tb/cocotb/run.py PERIOD
 
 
@@ -66,13 +66,13 @@ def check(pkts: list[bytes], min_gap: int, exact: bool = False) -> None:
 
 @test()
 async def full_rate_sink(dut) -> None:
-    """Sink always ready: a packet (84 beats) is longer than PERIOD, so a tick always arrives during it and every
-    packet but the first starts from that pending tick on the previous packet's last beat: exactly 84 clocks apart.
+    """Sink always ready: a packet (88 beats) is longer than PERIOD, so a tick always arrives during it and every
+    packet but the first starts from that pending tick on the previous packet's last beat: exactly 88 clocks apart.
     Without the pending tick they would be 2 x PERIOD = 120 apart."""
-    check(await run(dut, "stats_full", 1.0, 20), 84, exact=True)
+    check(await run(dut, "stats_full", 1.0, 20), 88, exact=True)
 
 
 @test()
 async def stalling_sink(dut) -> None:
     """Random stalls: packets stay whole, in order, each self-consistent."""
-    check(await run(dut, "stats_stall", 0.4, 15), 84)
+    check(await run(dut, "stats_stall", 0.4, 15), 88)

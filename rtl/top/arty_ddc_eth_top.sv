@@ -52,7 +52,8 @@ module arty_ddc_eth_top #(
     output      logic       eth_mdc_o
 );
 
-    localparam int START_W = $clog2(MAC_START_CYCLES + 1);
+    localparam int START_W     = $clog2(MAC_START_CYCLES + 1);
+    localparam int FIFO_ADDR_W = 11;  // eth_rx RX FIFO, 2 KB: the fpga-eth-core examples' size
 
     // ------------------------------------------------------------------------------------ clocks and resets
     logic clk, locked, rst, mii_rst, mii_tx_rst;
@@ -77,13 +78,33 @@ module arty_ddc_eth_top #(
     logic               mac_rst_q;
     /* verilator lint_on SYNCASYNCNET */
 
+    // Stopgap for fpga-coord request 0005 (until eth-core holds the MAC in reset until link-up): if the PHY's
+    // link-up corrupts eth_rx's RX FIFO, its level reads above the FIFO's depth, which no real fill can reach.
+    // Then the MAC alone goes through its reset again (start_q back to PHY_RST_CYCLES: the PHY stays out of reset
+    // and keeps its link), and the restart is counted (stats field mac_restarts).
+    // Feeds the MAC reset, which is by design the async reset request into the rx/tx_clk domains (see mac_rst_q).
+    /* verilator lint_off SYNCASYNCNET */
+    logic [11:0] fifo_level /*verilator forceable*/;  // forced by test_arty_ddc_eth_top.py
+    /* verilator lint_on SYNCASYNCNET */
+    logic        fifo_corrupt;
+    logic [31:0] mac_restarts_q;
+    // Only while the MAC runs (start_q at its end state): the restart moves start_q away at once, so one event
+    // counts once even though mac_rst_q follows a cycle later and the bad level persists until the reset lands.
+    assign fifo_corrupt = start_q == START_W'(MAC_START_CYCLES) && !mac_rst_q && fifo_level > 12'(1 << FIFO_ADDR_W);
+
     always_ff @(posedge clk) begin
         if (rst) begin
-            start_q    <= '0;
-            eth_rstn_o <= 1'b0;
-            mac_rst_q  <= 1'b1;
+            start_q        <= '0;
+            eth_rstn_o     <= 1'b0;
+            mac_rst_q      <= 1'b1;
+            mac_restarts_q <= '0;
         end else begin
-            if (start_q != START_W'(MAC_START_CYCLES)) start_q <= start_q + START_W'(1);
+            if (fifo_corrupt) begin
+                start_q        <= START_W'(PHY_RST_CYCLES);
+                mac_restarts_q <= mac_restarts_q + 32'd1;
+            end else if (start_q != START_W'(MAC_START_CYCLES)) begin
+                start_q <= start_q + START_W'(1);
+            end
             eth_rstn_o <= start_q >= START_W'(PHY_RST_CYCLES);
             mac_rst_q  <= start_q != START_W'(MAC_START_CYCLES);
         end
@@ -108,11 +129,10 @@ module arty_ddc_eth_top #(
     logic       f_tvalid, f_tready, f_tlast;
     logic       e_ok, e_crc, e_rxerr, e_runt, e_over, e_ovf;
     logic [7:0] e_ovf_frames;
-    logic [11:0] fifo_level;
     logic       sfd;
 
     eth_rx #(
-        .FIFO_ADDR_W (11)  // 2 KB, the fpga-eth-core examples' size
+        .FIFO_ADDR_W (FIFO_ADDR_W)
     ) u_eth_rx (
         .mii_clk_i    (eth_rx_clk_i),
         .mii_rst_i    (mii_rst),
@@ -250,8 +270,8 @@ module arty_ddc_eth_top #(
 
     // ------------------------------------------------------------------------------------------ counters
     // Cumulative since the MAC left reset, mod 2^32. Order = docs/protocol.md "Stats" field table.
-    localparam int N_STATS = 17;
-    logic [31:0] cnt_q [4:16];   // fields 4..16; 0..3 are the ingest's own counters
+    localparam int N_STATS = 18;
+    logic [31:0] cnt_q [4:16];   // fields 4..16; 0..3 are the ingest's own counters, 17 the MAC restarts
     logic        tx_underrun;
 
     always_ff @(posedge clk) begin
@@ -280,7 +300,8 @@ module arty_ddc_eth_top #(
         stats[1*32 +: 32] = bad_cnt;
         stats[2*32 +: 32] = gap_cnt;
         stats[3*32 +: 32] = lost_cnt;
-        for (int k = 4; k < N_STATS; k++) stats[k*32 +: 32] = cnt_q[k];
+        for (int k = 4; k <= 16; k++) stats[k*32 +: 32] = cnt_q[k];
+        stats[17*32 +: 32] = mac_restarts_q;
     end
 
     // ------------------------------------------------------------------------------------- transmit path

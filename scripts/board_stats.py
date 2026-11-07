@@ -24,7 +24,7 @@ FIELDS = (
     "ingest_ok", "ingest_bad", "ingest_gap", "ingest_lost",
     "eth_ok", "eth_crc_err", "eth_rx_err", "eth_runt", "eth_oversize", "eth_ovf_lost",
     "udp_ok", "udp_filtered", "udp_ip_csum_err", "udp_malformed",
-    "rx_fifo_hwm", "ddc_out", "tx_underrun",
+    "rx_fifo_hwm", "ddc_out", "tx_underrun", "mac_restarts",
 )
 
 

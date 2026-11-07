@@ -23,8 +23,9 @@ def test_fields_in_protocol_order() -> None:
     assert s.fields["ingest_ok"] == 0x01020304  # field 0
     assert s.fields["ingest_lost"] == 0x01020307  # field 3
     assert s.fields["eth_ovf_lost"] == 0x0102030D  # field 9
-    assert s.fields["tx_underrun"] == 0x01020314  # field 16, the last of version 1
-    assert len(packet(values)) == 84  # docs/protocol.md packet size
+    assert s.fields["tx_underrun"] == 0x01020314  # field 16
+    assert s.fields["mac_restarts"] == 0x01020315  # field 17, the last so far
+    assert len(packet(values)) == 88  # docs/protocol.md packet size
 
 
 def test_appended_fields_are_ignored() -> None:
@@ -35,10 +36,10 @@ def test_appended_fields_are_ignored() -> None:
 @pytest.mark.parametrize(
     "data, why",
     [
-        (packet([0] * 17, ptype=2), "type"),
-        (packet([0] * 17, version=2), "version"),
-        (packet([0] * 17, n=18), "n = 18"),
-        (packet([0] * 17)[:-1], "bytes for n"),
+        (packet([0] * 18, ptype=2), "type"),
+        (packet([0] * 18, version=2), "version"),
+        (packet([0] * 18, n=19), "n = 19"),
+        (packet([0] * 18)[:-1], "bytes for n"),
         (b"\x01\x01", "short"),
     ],
 )

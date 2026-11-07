@@ -19,6 +19,7 @@ from typing import Any
 import numpy as np
 from cocotb import start_soon, test
 from cocotb.clock import Clock
+from cocotb.handle import Force, Release
 from cocotb.triggers import ClockCycles
 from ddc_board import N_SIM, expected_sim, uart_bytes
 from mii import collect_mii_tx, parse_udp_frame, send_mii, udp_frame
@@ -164,3 +165,30 @@ async def gaps_and_bad_datagrams_counted(dut) -> None:
     check_counts(await settled_stats(dut, tx), ingest_ok=3, ingest_bad=1, ingest_gap=1, ingest_lost=2, eth_ok=4,
                  udp_ok=4, ddc_out=3 * SAMPLES // 4)
     assert int(dut.led_o.value) & LED_ERR, "a gap and a bad datagram did not light the error LED"
+
+
+@test(timeout_time=20, timeout_unit="ms")
+async def corrupt_rx_fifo_restarts_mac_only(dut) -> None:
+    """Request 0005 stopgap: an RX FIFO level above its 2,048-byte depth (seen on the board after some link-ups)
+    must put the MAC through reset again, without touching the PHY reset (the link must survive), and be counted
+    once. Forced for a few cycles (a full FIFO, 2,048, first: legal, no restart), then the replay must still decode
+    bit-exact with mac_restarts = 1."""
+    tx = await start(dut)
+    dut.fifo_level.value = Force(2048)  # exactly full: legal, must not restart anything
+    await ClockCycles(dut.clk100_i, 8)
+    assert int(dut.mac_rst_q.value) == 0, "a full (2,048-byte) FIFO restarted the MAC"
+    dut.fifo_level.value = Force(4095)
+    await ClockCycles(dut.clk100_i, 4)
+    dut.fifo_level.value = Release()
+    await ClockCycles(dut.clk100_i, 4)
+    assert int(dut.mac_rst_q.value) == 1, "MAC not put back into reset"
+    for _ in range(MAC_START_CYCLES):
+        assert int(dut.eth_rstn_o.value) == 1, "PHY reset asserted: the link would drop"
+        await ClockCycles(dut.clk100_i, 1)
+        if int(dut.mac_rst_q.value) == 0:
+            break
+    assert int(dut.mac_rst_q.value) == 0, "MAC did not come out of reset again"
+    for d in datagrams():
+        await send(dut, d)
+    await check_dump(dut)
+    check_counts(await settled_stats(dut, tx), ingest_ok=4, eth_ok=4, udp_ok=4, ddc_out=N_SIM // 4, mac_restarts=1)

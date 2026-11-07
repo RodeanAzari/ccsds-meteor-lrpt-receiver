@@ -60,7 +60,7 @@ MAC_START_WAIT_S = 3.0
 STATS_WAIT_S = 1.0  # stats come every 100 ms
 # Board counters recorded per replay (scripts/board_stats.py FIELDS; blank if no stats packet arrived).
 STATS_COLUMNS = ("ingest_ok", "ingest_bad", "ingest_gap", "ingest_lost", "eth_ok", "eth_crc_err", "eth_rx_err",
-                 "eth_ovf_lost", "udp_ok", "rx_fifo_hwm", "ddc_out", "tx_underrun")
+                 "eth_ovf_lost", "udp_ok", "rx_fifo_hwm", "ddc_out", "tx_underrun", "mac_restarts")
 DUMP_WAIT_S = 20.0  # a 16,384-word dump takes 5.7 s at 115,200 baud; none by then means the capture never filled
 ILA_PLOT_SAMPLES = 512  # 2 ms at 256 kS/s
 

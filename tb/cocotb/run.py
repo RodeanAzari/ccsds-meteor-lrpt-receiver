@@ -55,7 +55,7 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_fec_soft_quant": ("fec_soft_quant", ["rtl/fec/fec_soft_quant.sv"], [{}]),
     "test_fec_framesync": ("fec_framesync", FRAMESYNC_SRCS, [FRAMESYNC_PARAMS]),
     "test_fec_framesync_fifo": ("fec_framesync", FRAMESYNC_SRCS, [{**FRAMESYNC_PARAMS, "DEPTH": 131072}]),
-    "test_stats_packet": ("stats_packet", ["rtl/io/stats_packet.sv"], [{"N_FIELDS": 17, "PERIOD": 60}]),
+    "test_stats_packet": ("stats_packet", ["rtl/io/stats_packet.sv"], [{"N_FIELDS": 18, "PERIOD": 60}]),
     "test_iq_udp_ingest": ("iq_udp_ingest", ["rtl/io/iq_udp_ingest.sv"], [{"DEPTH": 1024}, {"DEPTH": 512}]),
     "test_arty_ddc_rom_top": (
         "arty_ddc_rom_top",

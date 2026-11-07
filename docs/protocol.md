@@ -68,8 +68,9 @@ the first `n` fields it knows and ignores the rest. Fields, in order (`rtl/top/a
 | 14 | `rx_fifo_hwm` | `eth_rx` | RX async FIFO high-water mark, bytes (a level, not a count) |
 | 15 | `ddc_out` | `ddc_top` | DDC output samples handed to the capture |
 | 16 | `tx_underrun` | `eth_tx` | Transmit underruns (must stay 0) |
+| 17 | `mac_restarts` | top | Times the MAC was put through reset again because the RX FIFO level read above its depth (request 0005 stopgap). **Not reset by a MAC restart**, unlike fields 0–16 |
 
-Packet size: 16 + 4 × 17 = 84 bytes. Parsed by `scripts/board_stats.py`.
+Packet size: 16 + 4 × 18 = 88 bytes. Parsed by `scripts/board_stats.py`.
 
 ## CADU (board → host), type 2
 

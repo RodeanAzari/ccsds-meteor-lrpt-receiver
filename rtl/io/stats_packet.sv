@@ -5,9 +5,10 @@
 //   type | version | n = N_FIELDS | pkt_seq (u32) | uptime (u64) | N_FIELDS x u32 counters, all big-endian.
 // Header and counters are captured together into one shift register when the packet starts, so the counters in a
 // packet are from the same clock. If the sink stalls past the next tick, that tick is kept (one pending) and the
-// packet goes out as soon as the current one ends: packets are late, never interleaved or truncated.
+// packet goes out as soon as the current one ends: packets are late, never interleaved or truncated. A reset
+// mid-packet (the MAC restart in arty_ddc_eth_top) abandons that packet; udp_tx is reset with it.
 module stats_packet #(
-    parameter int         N_FIELDS = 17,
+    parameter int         N_FIELDS = 18,
     parameter int         PERIOD   = 10_000_000,  // 100 ms at 100 MHz, docs/protocol.md STATS_PERIOD
     parameter logic [7:0] TYPE     = 8'd1,        // docs/protocol.md: 1 = stats
     parameter logic [7:0] VERSION  = 8'd1         // docs/protocol.md
@@ -71,7 +72,7 @@ module stats_packet #(
     end
 
     assign m_tdata_o  = pkt_q[LEN*8-1 -: 8];
-    assign m_tvalid_o = left_q != '0;
+    assign m_tvalid_o = left_q != '0 && !rst_i;  // AXI4-Stream: TVALID low during reset, even mid-packet
     assign m_tlast_o  = left_q == LW'(1);
 
 `ifndef SYNTHESIS
