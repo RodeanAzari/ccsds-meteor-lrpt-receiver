@@ -53,7 +53,9 @@ DUMP = Path("build/board/ddc_dump.bin")
 DUMP_ETH = Path("build/board/ddc_eth_dump.bin")  # one file per replay: ddc_eth_dump.<row>.bin
 GS_REPLAY = Path("build/gs-Release/gs-replay")  # make gs
 IFACE_DOWN_WAIT_S = 3.0  # after programming, how long to watch for the link (and host address) to drop
-MAC_START_WAIT_S = 1.0  # arty_ddc_eth_top releases the MAC 200 ms after reset
+# After the host address returns, before the replay. At 1 s, 6 of 40 replays lost datagrams at the start, each on a
+# slow link-up (>= 3.1 s after programming); earlier runs also reordered the first datagrams (2026-11-07).
+MAC_START_WAIT_S = 3.0
 DUMP_WAIT_S = 20.0  # a 16,384-word dump takes 5.7 s at 115,200 baud; none by then means the capture never filled
 ILA_PLOT_SAMPLES = 512  # 2 ms at 256 kS/s
 
