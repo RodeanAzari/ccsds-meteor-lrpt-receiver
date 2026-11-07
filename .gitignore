@@ -28,3 +28,7 @@ vivado_*
 *.hw/
 *.ip_user_files/
 *.sim/
+
+# Local working notes for Claude Code sessions, kept out of the repo (user, 2026-11-07)
+CLAUDE.md
+progress.md

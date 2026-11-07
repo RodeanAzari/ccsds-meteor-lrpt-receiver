@@ -60,7 +60,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | F — C++ ground station | Not started (`gs-replay` done in B) | — |
 
 Architecture, ADR summary and clock-domain crossings: [docs/design.md](docs/design.md). Lab notebook with every
-measurement and bug: [docs/log.md](docs/log.md). Current state and next steps: [progress.md](progress.md).
+measurement and bug: [docs/log.md](docs/log.md).
 
 **Blocked on another project:** streaming full passes to the board needs the shared Ethernet core
 [`fpga-eth-core`](https://github.com/RodeanAzari/fpga-eth-core) at tag `eth-core-v0.1`, and sending frames back needs
