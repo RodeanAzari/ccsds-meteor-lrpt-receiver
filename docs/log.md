@@ -775,3 +775,24 @@ changed, not committed as results): 39/40 and 34/40.
   packet) or a Windows pktmon capture would settle it.
 - `make sim` 356 s with frame sync, so `test_fec_framesync` moved to `make sim-slow`, which `make ci` runs. Not
   re-timed: the machine was at load average 16 from other sessions.
+
+## 2026-11-07 (cont.): Phase E step 1, stats packets; where the replay faults come from
+
+Stats packets (docs/protocol.md type 1) from the board over eth-core TX: 18 counters every 100 ms to the
+replay's sender. On hardware they arrived the first time. The counters split the replay faults in two:
+
+- **Reordering, host side.** Faulty dumps with all datagrams present had no Ethernet errors and ingest gap 3 /
+  lost 2: one adjacent swap, already wrong on the cable.
+- **"Lost datagram" was a board bug.** Symptom: the no-dump replays reported eth_ok ~1.4e8 and eth_ovf_lost ~3e9
+  after seconds, RX FIFO high-water 4,095 (depth 2,048), ddc_out 0xFFFFFF. Root cause: eth_rx's RX FIFO comes up
+  corrupted at PHY link-up. Reproduced without any replay traffic in 1 of 20 reprograms, again on a 3.1 s
+  link-up. The MAC leaves reset 200 ms after programming (eth-core's documented sequence), long before the link
+  comes up. Fix: reported to P2 (request 0005: hold the MAC in reset until link-up, via MDIO). Stopgap in the
+  top: a level above the depth restarts the MAC only, counted in `mac_restarts`.
+- Bugs found on the way, each by a test: `stats_packet` drove TVALID in reset (a sink took a beat while the
+  test's second run reset it); the stopgap first counted one event twice (`mac_rst_q` lags a cycle). Verilator
+  ignores VPI forces unless the net is marked `/*verilator forceable*/`.
+- Result (`ddc_board_eth.csv`, commit 4462a51): 38/40 bit-exact, 2 host reorderings, 0 losses, `mac_restarts` 0.
+  All link-ups took 2.1–2.6 s this time, against 2.4–6.8 s in the campaign before, so no corruption occurred and
+  the stopgap did not fire: on hardware it is untested.
+- `CLAUDE.md` and `progress.md` are no longer tracked (the user's call); history still has them.
