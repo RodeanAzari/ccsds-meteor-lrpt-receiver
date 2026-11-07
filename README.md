@@ -397,8 +397,8 @@ absolute deadlines computed from the packet index, so jitter doesn't accumulate 
 achieved rate, and a partial final datagram is reported, never silently dropped.
 
 **Measured on loopback** ([gs_replay_loopback.csv](data/results/gs_replay_loopback.csv)): the 34 s synthetic
-recording, 68,266 datagrams at 1× and 5×, all in order and byte-exact, 1.00× and 5.00× achieved. Not yet measured
-over Ethernet to the board.
+recording, 68,266 datagrams at 1× and 5×, all in order and byte-exact, 1.00× and 5.00× achieved. To the board over
+Ethernet: see [On the board](#on-the-board).
 
 `gs-rx`, `gs-diff`, `gs-view` and the fuzzed packet parser: `[TBD]` (Phase F).
 
@@ -435,13 +435,24 @@ cycles, 16,384 deep, so one capture holds every output. Trigger and capture sett
 
 The x-axis is the ILA sample index: one DDC output each, 3.906 µs apart at 256 kS/s.
 
+**Over Ethernet.** `arty_ddc_eth_top` takes the same snippet from `gs-replay` instead of BRAM: 100 Mb/s MII →
+fpga-eth-core `eth_rx` → `udp_rx` → `iq_udp_ingest` → the same DDC, capture and UART dump (ADR 0011).
+`make eth-check` reprograms the FPGA before each replay, waits for the link, streams the snippet and compares the
+dump. 37 of 40 replays were bit-exact at 1×, 5× and 5.6× real time ([ddc_board_eth.csv](data/results/ddc_board_eth.csv));
+the other three lost or reordered datagrams before the board (see Limitations).
+
+![make eth-check at 1× and 5× real time, both 16,384 outputs with 0 mismatches](docs/media/2026-11-07_phase-b_eth-check-terminal.png)
+
+![The Arty A7-100T with the Ethernet and USB cables in after a replay: LD4 heartbeat and LD5 capture full on, LD7 error off](docs/media/2026-11-07_phase-b_arty-ethernet.webp)
+
 ## Demos
 
 | Demo | Command | On-board result |
 |---|---|---|
 | DDC bit-exactness over UART | `make board prog board-check` | 16,384 outputs, 0 mismatches |
 | DDC bit-exactness over JTAG | `make board ILA=1 && make ila-capture` | 16,384 outputs, 0 mismatches |
-| Replay a recording over UDP | `build/gs-Release/gs-replay FILE.cu8 [--speed X]` | Loopback only, until `eth-core-v0.1` |
+| DDC bit-exactness over Ethernet | `make board BOARD_TOP=arty_ddc_eth_top && make eth-check BOARD_TOP=arty_ddc_eth_top IFACE=<host IP on the cable> SPEED=1,5` | 16,384 outputs, 0 mismatches per replay (37 of 40) |
+| Replay a recording over UDP | `build/gs-Release/gs-replay FILE.cu8 [--speed X]` | Into the board's DDC (row above) |
 | Demo video | — | `[TBD]` (Phase F) |
 
 Claim the shared board first: `python3 ~/fpga-coord/coord.py board claim P3 "<reason>"`.

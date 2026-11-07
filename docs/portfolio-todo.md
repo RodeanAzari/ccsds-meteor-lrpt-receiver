@@ -31,9 +31,9 @@ real recording once there is one.
       (`docs/media/2026-11-05_phase-b_board-check-terminal.png`)
 - [ ] Deferred by the user on 2026-11-05 (not needed for now): Photo: the Arty running the bring-up design, LD4–LD6 lit (heartbeat, snippet played, capture full), USB cable
       to the host visible
-- [ ] Screenshot (you): terminal running `make eth-check BOARD_TOP=arty_ddc_eth_top IFACE=169.254.235.36 SPEED=1,5`
+- [x] Screenshot (you): terminal running `make eth-check BOARD_TOP=arty_ddc_eth_top IFACE=169.254.235.36 SPEED=1,5`
       showing "link up", the gs-replay lines and "16384 outputs, 0 mismatches" for both
       (`docs/media/2026-11-07_phase-b_eth-check-terminal.png`). Claim the board first.
-- [ ] Photo (you): the Arty with the Ethernet cable and USB cable in, LD4 (heartbeat) and LD5 (capture full) lit
-      after a replay (`docs/media/2026-11-07_phase-b_arty-ethernet.jpg`)
+- [x] Photo (you): the Arty with the Ethernet cable and USB cable in, LD4 (heartbeat) and LD5 (capture full) lit
+      after a replay (`docs/media/2026-11-07_phase-b_arty-ethernet.webp`; LD7 error off)
 
