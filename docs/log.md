@@ -859,3 +859,24 @@ Stats fields 18–24 appended (`cadus_sent`, frame-sync counters, `flag_ovf`, `l
   rx_config_pkg linted alone fails UNUSEDPARAM (inline waiver in the generated file); `board_rx.py check` first
   wrote one row per call, losing the first replay's row (now one row per replay in one call).
 - Open: `board_arty_ddc_eth_top.md` still has a `[TBD]` interpretation (from 2026-11-07).
+
+## 2026-11-08 (cont.): BER campaign groundwork; ingest reorder buffer
+
+Tagged `v0.4-rs` (whole receiver decodes on the board). `v0.2-sync-lock` and `v0.3-viterbi` don't exist yet:
+Phases C and D wait on a real recording and hardware BER, so the tags are out of order.
+
+- Why the reorder buffer first: host swaps (ingest_gap 3–21 per replay at 5×) each corrupt 0.5 ms of signal;
+  RS corrections were 0 in every replay without swaps. For BER that is a floor of ~1e-5–1e-4 pre-RS. The user
+  chose the RTL fix (ADR 0013) over discarding replays or fixing the host.
+- `iq_udp_ingest`: 4 slots by seq, released in seq order; loss skipped once a datagram 4 ahead arrives; late and
+  duplicates dropped (`ingest_late`, stats field 25; stats version 2). Bugs on the way: `dist` is an SV keyword;
+  my hand-computed gap count (6) was wrong, the model's 9 right; the old drain window (sized for 2 slots and a
+  fast sink) timed out at 4 slots with a half-speed sink; the late-datagram test first let a planted bug pass at
+  4 slots (the repeat arrived while its slot was still full), reworked so the slot has drained.
+- `fec_cadu RS_WRITEBACK = 0`: CADUs leave pre-RS with the RS status, for the Viterbi-only curve. A first planted
+  bug (parameter ignored) only tripped Verilator's UNUSEDPARAM; replaced by one that keeps it referenced.
+- `scripts/ber_board.py`: 4 cached clean waveforms (modulate() takes ~215 s per 34 s of signal: exact RRC per
+  sample) + fresh noise per recording; both builds per recording; Hamming matching to sent frames.
+- Board builds: normal receiver WNS +0.224 ns (worst path fec_cadu LUTRAM → RS syndromes, 82% routing; was +0.580
+  with the old ingest), 13,597 LUT, 8 RAMB36 + 7 RAMB18. Pre-RS build (`BOARD_SUFFIX=_prers`): `[TBD]`.
+- Not run: hardware recheck of the reorder buffer and the BER campaign. The board was held by P7 from 14:10.
