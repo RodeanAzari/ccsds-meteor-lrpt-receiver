@@ -4,6 +4,8 @@
 #   make board          (top arty_ddc_rom_top; generates the ROM snippet first)
 #   make board BOARD_TOP=arty_ddc_eth_top   (Ethernet-fed; no ROM. Adds fpga-eth-core's rtl/ at its tag, the MII
 #                        constraints constr/arty_eth.xdc and eth-core's async_fifo.xdc scoped to async_fifo)
+#   make board BOARD_TOP=arty_rx_eth_top BOARD_GENERICS="FREQ_WORD=32'h..."   (the whole receiver; NCO word per
+#                        recording from scripts/board_rx.py freq-word)
 #   make board ILA=1    (same, plus an ILA on the DDC output, inserted here after synthesis; the RTL is unchanged.
 #                        Outputs <top>_ila.bit / .ltx and reports under docs/reports/board/<top>_ila/)
 #
@@ -32,6 +34,9 @@ set srcs [lsort [concat [glob -nocomplain [file join $root rtl * *.sv]] \
     [glob -nocomplain [file join $root rtl lib xilinx *.sv]]]]
 set srcs [lsearch -all -inline -not -glob $srcs */rtl/eth/*]
 if {$eth} { lappend srcs {*}[lsort [glob [file join $root rtl eth rtl *.sv]]] }  ;# fpga-eth-core at its tag
+lappend srcs {*}[lsort [glob [file join $root rtl rs rtl *.sv]]]                  ;# fpga-rs-core at its tag
+# Packages (rx_config_pkg, rs_gf_pkg) before the files that import them
+set srcs [concat [lsearch -all -inline -glob $srcs *_pkg.sv] [lsearch -all -inline -not -glob $srcs *_pkg.sv]]
 read_verilog -sv $srcs
 foreach f [glob -nocomplain [file join $root rtl * *.mem]] { read_mem $f }
 if {$rom ne "none"} { read_mem [file normalize $rom] }  ;# the ROM_FILE default "iq_rom.mem" resolves to this file
@@ -41,7 +46,13 @@ if {$eth} {
     read_xdc -ref async_fifo [file join $root rtl eth constr async_fifo.xdc]
 }
 
-synth_design -top $top -part $part -flatten_hierarchy rebuilt
+# Optional environment BOARD_GENERICS: space-separated NAME=VALUE top parameter overrides (e.g. the NCO word for a
+# recording, scripts/board_rx.py freq-word), recorded in the build's summary.
+set generics {}
+if {[info exists ::env(BOARD_GENERICS)]} {
+    foreach g $::env(BOARD_GENERICS) { lappend generics -generic $g }
+}
+synth_design -top $top -part $part -flatten_hierarchy rebuilt {*}$generics
 
 # Debug build only (CLAUDE.md §3.8): ILA on the DDC output handshake. Storage qualification keeps only beats
 # where the DDC output handshakes, so 16,384 entries hold every output of the 65,536-sample snippet.
@@ -91,6 +102,7 @@ puts $f "part $part"
 puts $f "vivado [version -short]"
 puts $f "clk_mhz 100"
 puts $f "wns_ns $wns"
+if {[llength $generics]} { puts $f "generics $::env(BOARD_GENERICS)" }
 close $f
 puts "BOARD $name: WNS $wns ns, WHS $whs ns"
 if {$wns < 0 || $whs < 0} { error "timing not met: no bitstream written" }

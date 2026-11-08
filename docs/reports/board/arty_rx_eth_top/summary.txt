@@ -1,0 +1,6 @@
+top arty_rx_eth_top
+part xc7a100tcsg324-1
+vivado 2025.2
+clk_mhz 100
+wns_ns 0.580
+generics FREQ_WORD=32'h25C11200

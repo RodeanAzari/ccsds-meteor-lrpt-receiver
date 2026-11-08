@@ -59,7 +59,12 @@ def main(argv: list[str]) -> int:
             + (f' GENERICS="{s["generics"]}" NAME={top}' if "generics" in s else ""),
             "out-of-context place and route",
         ),
-        "board": (f"board_{top}", "make board", "board-level place and route (constr/arty_a7_100t.xdc)"),
+        "board": (
+            f"board_{top}",
+            f"make board BOARD_TOP={top.removesuffix('_ila')}" + (" ILA=1" if top.endswith("_ila") else "")
+            + (f' BOARD_GENERICS="{s["generics"]}"' if "generics" in s else ""),
+            "board-level place and route (constr/arty_a7_100t.xdc)",
+        ),
     }[kind]
     write_result(
         name,

@@ -4,7 +4,7 @@ RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' -not -path 'rtl/rs/*
 # (vendor-primitive stand-ins) resolve instances only.
 RTL_DIRS := $(sort $(dir $(RTL))) rtl/eth/rtl/ rtl/rs/rtl/ tb/models/
 
-.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results fec-rtl-results synth-ooc board prog board-check eth-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study sync-lock-study framesync-study plots synthetic-iq gs-replay-results gs-lint ci clean \
+.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results fec-rtl-results rx-top-rtl-results synth-ooc board prog board-check eth-check rx-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study sync-lock-study framesync-study plots synthetic-iq gs-replay-results gs-lint ci clean \
         sim-slow sim-full cov formal gs gs-test fuzz synth impl reports
 
 setup:
@@ -82,6 +82,10 @@ sync-rtl-results:
 fec-rtl-results:
 	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_fec_viterbi test_fec_framesync test_rx_chain_full
 
+# The board top (arty_rx_eth_top) from MII in to CADU packets out, in rx_top_rtl_decode.csv (a sim-full run, ~5 min).
+rx-top-rtl-results:
+	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_arty_rx_eth_top_full
+
 # Out-of-context synth + place + route of one block at 100 MHz (CLAUDE.md §6). Reports: docs/reports/ooc/$(TOP)/.
 TOP ?= ddc_top
 # Optional: GENERICS="NAME=VALUE ..." parameter overrides, NAME=<result name> (default TOP) for such a variant.
@@ -95,6 +99,7 @@ synth-ooc:
 
 # Phase B board bring-up: ROM snippet -> DDC -> UART (rtl/top/arty_ddc_rom_top.sv). `make board prog board-check`.
 # BOARD_TOP=arty_ddc_eth_top: the same DDC fed over Ethernet by gs-replay (no ILA variant); see `make eth-check`.
+# BOARD_TOP=arty_rx_eth_top: the whole receiver; BOARD_GENERICS="FREQ_WORD=..." per recording (scripts/board_rx.py).
 BOARD_TOP ?= arty_ddc_rom_top
 SERIAL ?= /dev/ttyUSB1
 ILA ?= 0
@@ -102,7 +107,7 @@ BOARD_NAME := $(BOARD_TOP)$(if $(filter 1,$(ILA)),_ila)
 BOARD_ROM := $(if $(findstring _eth_,$(BOARD_TOP)),none,rom/iq_rom.mem)
 board:
 	PYTHONPATH=. $(PY) scripts/ddc_board.py rom build/board/rom/iq_rom.mem
-	cd build/board && ../../scripts/vivado.sh -mode batch -source ../../syn/impl_board.tcl \
+	cd build/board && BOARD_GENERICS="$(BOARD_GENERICS)" ../../scripts/vivado.sh -mode batch -source ../../syn/impl_board.tcl \
 		-tclargs $(BOARD_TOP) $(BOARD_ROM) $(if $(filter 1,$(ILA)),ila) > $(BOARD_NAME).log 2>&1 \
 		|| { tail -30 $(BOARD_NAME).log; exit 1; }
 	@grep "^BOARD " build/board/$(BOARD_NAME).log
@@ -122,6 +127,14 @@ SPEED ?= 1
 eth-check: gs
 	PYTHONPATH=. $(PY) scripts/ddc_board.py eth-check $(SERIAL) --iface $(IFACE) --speed $(SPEED) \
 		--bit build/board/$(BOARD_TOP).bit
+
+# After `make board BOARD_TOP=arty_rx_eth_top` with BOARD_GENERICS from scripts/board_rx.py freq-word REC (and the
+# board claim): program, replay REC, receive its CADUs and stats, compare with TRUTH. One replay per SPEED.
+REC ?= data/synthetic/synthetic_seed2026_1024000SPS.cu8
+TRUTH ?= data/synthetic/synthetic_seed2026_truth.cadu
+rx-check: gs
+	PYTHONPATH=. $(PY) scripts/board_rx.py check $(REC) $(TRUTH) --iface $(IFACE) --speed $(SPEED) \
+		--bit build/board/arty_rx_eth_top.bit
 
 # After `make board ILA=1` (and the board claim): program, capture every DDC output with the ILA, compare.
 ila-capture:

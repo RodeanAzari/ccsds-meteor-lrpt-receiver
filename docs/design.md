@@ -82,3 +82,13 @@ Over Ethernet (`rtl/top/arty_ddc_eth_top.sv`, ADR 0011): MII → fpga-eth-core `
 reset this design (a second replay got no dump, the capture still full), so `eth-check` reprograms the FPGA before
 each replay, waits until the link is back (~2.6 s; the host interface loses its address meanwhile), opens the port
 and runs `gs-replay`. `make board BOARD_TOP=arty_ddc_eth_top`, `prog`, `eth-check`.
+
+The whole receiver (`rtl/top/arty_rx_eth_top.sv`) keeps that Ethernet plumbing and replaces the capture with `rx_chain`:
+`iq_udp_ingest` → `ddc_top` → `rx_chain` → `cadu_packet` (type 2) and `stats_packet` (type 1, fields 18–24 added) → `pkt_arb2`
+(whole packets, round robin; eth-core's `udp_tx` takes one payload per tlast and has no arbiter) → `udp_tx`. No new
+clock crossing. The NCO word is a build parameter set per recording from the host's coarse estimate
+(`scripts/board_rx.py freq-word`, `BOARD_GENERICS`); loop gains, threshold, flywheel and traceback depth come from
+`rx_config_pkg.sv`, generated from the model. Nothing is dropped inside: a slow stage stalls back to the ingest ring,
+and past it eth_rx counts lost frames. `make board BOARD_TOP=arty_rx_eth_top BOARD_GENERICS=...`, `rx-check`.
+The Ethernet start-up and the request-0005 stopgap are duplicated from `arty_ddc_eth_top`: fold both into one
+shared block when P2's fix lands and the stopgap goes.

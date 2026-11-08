@@ -6,6 +6,19 @@
 - [ ] Screenshot: SatDump waterfall during your own pass
 - [ ] Image: SatDump's decoded image from that pass
 
+## Phase E (whole receiver on the board)
+
+First decode on hardware, 2026-11-08: the synthetic recording replayed through `arty_rx_eth_top`, CADUs back over
+Ethernet (`board_rx_eth.csv`). Claim the board first.
+
+- [ ] Screenshot (you): terminal running `make rx-check IFACE=169.254.235.36 SPEED=1` showing "link up", the
+      gs-replay line and the "CADU packets ... match the truth" summary
+- [ ] Photo (you): the Arty during a replay, LD5 (frame sync locked) lit and LD6 toggling per CADU (LD7 latches on any
+      ingest gap, so it lights when the host reorders datagrams; `rx-check` prints `ingest_gap`)
+- [ ] Screenshot: Vivado device view of `arty_rx_eth_top` (buildplan §9 Phase E media), from
+      `build/board/arty_rx_eth_top` after `make board BOARD_TOP=arty_rx_eth_top`
+- [ ] Real-decode stats from a real pass (Phase 0 recording first)
+
 ## Phase C (synchronization)
 
 No physical captures in this phase. The generated media below come from synthetic signals; regenerate them from the

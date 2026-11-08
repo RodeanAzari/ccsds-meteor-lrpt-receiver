@@ -25,6 +25,23 @@ FRAMESYNC_PARAMS: dict[str, int | str] = {"PATTERN_FILE": f'"{ROOT / "rtl/fec/as
 # fpga-rs-core at its tag (submodule rtl/rs); the package first
 RS_SRCS = [f"rtl/rs/rtl/{f}.sv" for f in ("rs_gf_pkg", "rs_syndrome", "rs_ribm", "rs_chien_forney", "rs_decoder")]
 
+# Ethernet board tops: clocking models, eth-core (rtl/eth at its tag), ingest and stats
+ETH_TOP_SRCS = (
+    ["tb/models/MMCME2_BASE.sv", "tb/models/BUFG.sv", "tb/models/ODDR.sv", "rtl/lib/xilinx/clk_gen_eth.sv",
+     "rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_udp_ingest.sv", "rtl/io/stats_packet.sv"]
+    + [f"rtl/eth/rtl/{f}.sv" for f in ("async_fifo", "mii_rx", "rx_ovf_guard", "crc32_d8", "eth_fcs_check",
+                                       "frame_buffer", "eth_rx", "udp_rx", "udp_tx", "mii_tx", "eth_tx")]
+)
+DDC_SRCS = [f"rtl/ddc/{f}.sv" for f in ("ddc_ingest", "ddc_nco_mixer", "ddc_cic", "ddc_comp_fir", "ddc_top")]
+RX_CHAIN_SRCS = (
+    SYNC_TOP_SRCS
+    + ["rtl/fec/fec_soft_quant.sv"]
+    + FRAMESYNC_SRCS
+    + [f"rtl/fec/{f}.sv" for f in ("fec_bm", "fec_acs", "fec_acs_array", "fec_traceback", "fec_viterbi")]
+    + RS_SRCS
+    + ["rtl/fec/fec_frame_extract.sv", "rtl/fec/fec_cadu.sv", "rtl/top/rx_chain.sv"]
+)
+
 # test module -> (toplevel, sources, parameter sets)
 NCO_LUT = {"LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"'}
 
@@ -79,13 +96,7 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     ),
     "test_arty_ddc_eth_top": (
         "arty_ddc_eth_top",
-        ["tb/models/MMCME2_BASE.sv", "tb/models/BUFG.sv", "tb/models/ODDR.sv", "rtl/lib/xilinx/clk_gen_eth.sv",
-         "rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_udp_ingest.sv", "rtl/io/capture_dump.sv",
-         "rtl/io/uart_tx.sv", "rtl/io/stats_packet.sv"]
-        + [f"rtl/eth/rtl/{f}.sv" for f in ("async_fifo", "mii_rx", "rx_ovf_guard", "crc32_d8", "eth_fcs_check",
-                                           "frame_buffer", "eth_rx", "udp_rx", "udp_tx", "mii_tx", "eth_tx")]
-        + [f"rtl/ddc/{f}.sv" for f in ("ddc_ingest", "ddc_nco_mixer", "ddc_cic", "ddc_comp_fir", "ddc_top")]
-        + ["rtl/top/arty_ddc_eth_top.sv"],
+        [*ETH_TOP_SRCS, "rtl/io/capture_dump.sv", "rtl/io/uart_tx.sv", *DDC_SRCS, "rtl/top/arty_ddc_eth_top.sv"],
         [{
             "N_OUT": 512,  # tb/cocotb/ddc_board.py N_SIM / 4
             "CLKS_PER_BIT": 8,  # tb/cocotb/ddc_board.py CLKS_PER_BIT
@@ -98,7 +109,7 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     ),
     "test_ddc_top": (
         "ddc_top",
-        [f"rtl/ddc/{f}.sv" for f in ("ddc_ingest", "ddc_nco_mixer", "ddc_cic", "ddc_comp_fir", "ddc_top")],
+        DDC_SRCS,
         [{
             "NCO_LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"',
             "COMP_TAP_FILE": f'"{ROOT / "rtl/ddc/comp_fir_taps.mem"}"',
@@ -114,15 +125,22 @@ SLOW = ["test_fec_framesync"]  # ~100 s
 # Long runs, make sim-full only (CLAUDE.md §6: make sim stays under 5 min)
 FULL_TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_sync_top_full": ("sync_top", SYNC_TOP_SRCS, [SYNC_TOP_PARAMS]),
-    "test_rx_chain_full": (
-        "rx_chain",
-        SYNC_TOP_SRCS
-        + ["rtl/fec/fec_soft_quant.sv"]
-        + FRAMESYNC_SRCS
-        + [f"rtl/fec/{f}.sv" for f in ("fec_bm", "fec_acs", "fec_acs_array", "fec_traceback", "fec_viterbi")]
-        + RS_SRCS
-        + ["rtl/fec/fec_frame_extract.sv", "rtl/fec/fec_cadu.sv", "rtl/top/rx_chain.sv"],
-        [{**SYNC_TOP_PARAMS, **FRAMESYNC_PARAMS}],
+    "test_rx_chain_full": ("rx_chain", RX_CHAIN_SRCS, [{**SYNC_TOP_PARAMS, **FRAMESYNC_PARAMS}]),
+    "test_arty_rx_eth_top_full": (
+        "arty_rx_eth_top",
+        list(dict.fromkeys(  # in order, once each: ddc_comp_fir is both the DDC's FIR and the RRC's
+            ["rtl/top/rx_config_pkg.sv", *ETH_TOP_SRCS, *DDC_SRCS, *RX_CHAIN_SRCS, "rtl/io/cadu_packet.sv",
+             "rtl/io/pkt_arb2.sv", "rtl/top/arty_rx_eth_top.sv"])),
+        [{
+            "FREQ_WORD": 0x25C0_EE00,  # test_arty_rx_eth_top_full.py FREQ_WORD (coarse estimate of its stimulus)
+            "PHY_RST_CYCLES": 100,
+            "MAC_START_CYCLES": 400,  # test_arty_rx_eth_top_full.py MAC_START_CYCLES
+            "STATS_PERIOD": 20000,  # test_arty_rx_eth_top_full.py STATS_PERIOD
+            "NCO_LUT_FILE": f'"{ROOT / "rtl/ddc/nco_lut.mem"}"',
+            "COMP_TAP_FILE": f'"{ROOT / "rtl/ddc/comp_fir_taps.mem"}"',
+            **SYNC_TOP_PARAMS,
+            **FRAMESYNC_PARAMS,
+        }],
     ),
 }
 

@@ -21,18 +21,24 @@ OFFSET_HZ = 1000.0
 RAMP_HZ_S = 30.0
 
 
-def ddc_input(frames: int, seed: int) -> tuple[np.ndarray, np.ndarray, RxConfig, set[bytes]]:
-    """Bit-true DDC output (sync_top's input) of `frames` CADUs; the config carries the coarse-tuned NCO."""
+def raw_input(frames: int, seed: int) -> tuple[np.ndarray, RxConfig, set[bytes]]:
+    """The recording (cu8, interleaved I/Q) of `frames` CADUs, the config before the coarse estimate, and the data
+    bytes sent."""
     tx = TxConfig(timing_offset_sym=0.37, clock_ppm=20.0)
     plain, on_air = build_cadus(frames, seed)
     sigma = noise_sigma(6.0, tx.fs)
     x = awgn(apply_carrier(modulate(encode_stream(on_air), tx), tx.fs, TUNE_HZ + OFFSET_HZ, RAMP_HZ_S, 0.7),
              sigma, seed)
-    raw = to_cu8(x, full_scale=4 * sigma)
-    cfg = RxConfig(fs=tx.fs, tune_offset_hz=TUNE_HZ)
+    return to_cu8(x, full_scale=4 * sigma), RxConfig(fs=tx.fs, tune_offset_hz=TUNE_HZ), \
+        {bytes(p) for p in data_bytes(plain)}
+
+
+def ddc_input(frames: int, seed: int) -> tuple[np.ndarray, np.ndarray, RxConfig, set[bytes]]:
+    """Bit-true DDC output (sync_top's input) of `frames` CADUs; the config carries the coarse-tuned NCO."""
+    raw, cfg, truth = raw_input(frames, seed)
     tuned = replace(cfg, tune_offset_hz=sync_fixed.coarse_tune_hz(raw, cfg))
     i, q = ddc_fixed.ddc_fixed_rails(raw, tuned)
-    return i, q, tuned, {bytes(p) for p in data_bytes(plain)}
+    return i, q, tuned, truth
 
 
 def expected(i: np.ndarray, q: np.ndarray, cfg: RxConfig) -> tuple[np.ndarray, np.ndarray]:

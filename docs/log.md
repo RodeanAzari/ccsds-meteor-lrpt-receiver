@@ -837,3 +837,25 @@ equal to `cadu_fixed.cadus_from_windows()`; 5/5 are frames sent; RS 0 corrected 
   and wrote `RodeanStation.log`; now `=` (command-line override still works).
 - `make sim`: all pass, 8 min 54 s, on a machine also running Vivado, sim-full and another project's sims; the
   < 5 min budget needs a quiet-machine re-time (already an open question).
+
+## 2026-11-08 (cont.): Phase E step 4, the whole receiver on the board
+
+`arty_rx_eth_top`: eth-core RX → ingest → DDC → `rx_chain` → `cadu_packet` + `stats_packet` → `pkt_arb2` (new:
+whole-packet round robin, eth-core has no arbiter) → `udp_tx`. Loop gains etc. from `rx_config_pkg.sv`, generated
+by `gen_rtl_tables.py` (staleness-checked); NCO word per recording via `BOARD_GENERICS` (`board_rx.py freq-word`).
+Stats fields 18–24 appended (`cadus_sent`, frame-sync counters, `flag_ovf`, `len_err`).
+
+- Sim (`make rx-top-rtl-results`, ~5 min): 1,137 datagrams at line rate (5.69×), 3/3 CADU packets bit-exact,
+  501 stats packets intact, 0 loss, eth_rx FIFO high-water 1 B (`rx_top_rtl_decode.csv`). Planted bugs caught:
+  `cadus_sent` counting stats packets; NCO word negated (0 CADUs). A first try at the latter (DDC on the default
+  word, parameter unused) only tripped Verilator's UNUSEDPARAM: not a test result, replaced.
+- Board build: WNS +0.580 ns, WHS +0.007 ns (DDC ingest → mixer), 13,543 LUT, 7 RAMB36 + 8 RAMB18, 29 DSP, 0
+  critical warnings (`board_arty_rx_eth_top.csv`).
+- **First decode on hardware.** Synthetic recording (300 CADUs, 8 dB): first replay 298 CADUs, 297 matching truth,
+  4 codewords failed, ingest_gap 12 (host reordering). Campaign (`board_rx_eth.csv`): 15/15 replays at 1×, 5×,
+  5.6× give 298/298 matching, 0 codewords failed; RS corrections 0 whenever ingest_gap = 0, 9–84 otherwise. The
+  reorderings are the only damage; a reordering buffer in the ingest would remove it.
+- Bugs on the way: `ddc_comp_fir.sv` listed twice in the top's sim sources (DDC and RRC share it: MODDUP); the
+  rx_config_pkg linted alone fails UNUSEDPARAM (inline waiver in the generated file); `board_rx.py check` first
+  wrote one row per call, losing the first replay's row (now one row per replay in one call).
+- Open: `board_arty_ddc_eth_top.md` still has a `[TBD]` interpretation (from 2026-11-07).
