@@ -34,7 +34,8 @@ module arty_rx_eth_top
     parameter string       NCO_LUT_FILE     = "nco_lut.mem",
     parameter string       COMP_TAP_FILE    = "comp_fir_taps.mem",
     parameter string       RRC_TAP_FILE     = "rrc_taps.mem",     // scripts/gen_rtl_tables.py
-    parameter string       PATTERN_FILE     = "asm_patterns.mem"  // scripts/gen_rtl_tables.py
+    parameter string       PATTERN_FILE     = "asm_patterns.mem", // scripts/gen_rtl_tables.py
+    parameter bit          RS_WRITEBACK     = 1'b1                // 0: CADUs leave pre-RS, status kept (BER builds)
 ) (
     input  wire logic       clk100_i,      // E3, 100 MHz oscillator
     input  wire logic       ck_rst_n_i,    // C2, RESET button, active-low
@@ -240,7 +241,8 @@ module arty_rx_eth_top
         .RRC_TAP_FILE (RRC_TAP_FILE),
         .NCO_LUT_FILE (NCO_LUT_FILE),
         .PATTERN_FILE (PATTERN_FILE),
-        .COUNT_BITS   (32)  // stats fields are u32 counters
+        .COUNT_BITS   (32),  // stats fields are u32 counters
+        .RS_WRITEBACK (RS_WRITEBACK)
     ) u_rx (
         .clk_i            (clk),
         .rst_i            (mac_rst_q),

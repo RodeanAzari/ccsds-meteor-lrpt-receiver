@@ -16,7 +16,8 @@ module rx_chain #(
     parameter string NCO_LUT_FILE = "nco_lut.mem",       // scripts/gen_rtl_tables.py
     parameter string PATTERN_FILE = "asm_patterns.mem",  // scripts/gen_rtl_tables.py
     parameter int    SOFT_BITS    = 4,                   // ADR 0005
-    parameter int    COUNT_BITS   = 16                   // fec_framesync
+    parameter int    COUNT_BITS   = 16,                  // fec_framesync
+    parameter bit    RS_WRITEBACK = 1'b1                 // fec_cadu: 0 for pre-RS BER builds
 ) (
     input  wire logic                  clk_i,
     input  wire logic                  rst_i,
@@ -152,7 +153,8 @@ module rx_chain #(
     );
 
     fec_cadu #(
-        .COUNT_BITS (COUNT_BITS)
+        .COUNT_BITS   (COUNT_BITS),
+        .RS_WRITEBACK (RS_WRITEBACK)
     ) u_cadu (
         .clk_i      (clk_i),
         .rst_i      (rst_i),

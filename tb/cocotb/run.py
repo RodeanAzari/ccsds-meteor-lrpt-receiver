@@ -74,7 +74,7 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     ),
     "test_fec_soft_quant": ("fec_soft_quant", ["rtl/fec/fec_soft_quant.sv"], [{}]),
     "test_fec_frame_extract": ("fec_frame_extract", ["rtl/fec/fec_frame_extract.sv"], [{}]),
-    "test_fec_cadu": ("fec_cadu", [*RS_SRCS, "rtl/fec/fec_cadu.sv"], [{}]),
+    "test_fec_cadu": ("fec_cadu", [*RS_SRCS, "rtl/fec/fec_cadu.sv"], [{}, {"RS_WRITEBACK": 0}]),
     "test_fec_framesync": ("fec_framesync", FRAMESYNC_SRCS, [FRAMESYNC_PARAMS]),
     "test_fec_framesync_fifo": ("fec_framesync", FRAMESYNC_SRCS, [{**FRAMESYNC_PARAMS, "DEPTH": 131072}]),
     "test_stats_packet": ("stats_packet", ["rtl/io/stats_packet.sv"], [{"N_FIELDS": 18, "PERIOD": 60}]),

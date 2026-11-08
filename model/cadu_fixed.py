@@ -39,12 +39,12 @@ class CaduOut:
         return word
 
 
-def cadus_from_windows(bits: Bits, wins: list[Window]) -> list[CaduOut]:
-    """bits: decode_windows(wins), one row per window."""
+def cadus_from_windows(bits: Bits, wins: list[Window], writeback: bool = True) -> list[CaduOut]:
+    """bits: decode_windows(wins), one row per window. writeback: coding.frame_to_cadu()."""
     out = []
     for row, w in zip(bits, wins, strict=True):
         data, asm_errors, corrections = frame_to_cadu(
-            row[FRAME_FIRST_BIT : FRAME_FIRST_BIT + CADU_BITS], int(row[FRAME_FIRST_BIT - 1])
+            row[FRAME_FIRST_BIT : FRAME_FIRST_BIT + CADU_BITS], int(row[FRAME_FIRST_BIT - 1]), writeback
         )
         out.append(CaduOut(data, w.alternate, w.swap, w.flywheel, asm_errors, corrections))
     return out

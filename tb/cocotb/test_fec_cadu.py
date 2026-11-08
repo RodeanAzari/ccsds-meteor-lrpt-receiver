@@ -3,11 +3,13 @@
 Why it matters: this is where SatDump's CADUs are reproduced byte for byte. A PN that restarts on the wrong bit,
 an interleave address off by one, or a codeword written back to the wrong place each corrupt every frame, while a
 status word that misreports corrections hides it. The error patterns (0..17 byte errors per codeword, ASM bit errors)
-check that the right codeword gets each correction and that an uncorrectable one comes out as received.
+check that the right codeword gets each correction and that an uncorrectable one comes out as received. Also built
+with RS_WRITEBACK = 0 (the pre-RS BER build): the same status, but every byte as received, derandomized.
 """
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import numpy as np
@@ -21,6 +23,7 @@ from model.cadu_fixed import CaduOut
 from model.coding import CADU_BITS, build_cadus, frame_to_cadu, nrzm_encode
 
 FRAMES = 6
+WRITEBACK = os.environ.get("PARAM_RS_WRITEBACK", "1") != "0"  # tb/cocotb/run.py parameter set
 
 
 def _frames(seed: int) -> list[tuple[np.ndarray, tuple[bool, bool, bool]]]:  # type: ignore[type-arg]
@@ -48,7 +51,7 @@ def _frames(seed: int) -> list[tuple[np.ndarray, tuple[bool, bool, bool]]]:  # t
 
 
 def _expected(bits: np.ndarray, flags: tuple[bool, bool, bool]) -> tuple[list[int], int]:  # type: ignore[type-arg]
-    data, asm_errors, corrections = frame_to_cadu(nrzm_encode(bits), 0)  # undoes to `bits` exactly
+    data, asm_errors, corrections = frame_to_cadu(nrzm_encode(bits), 0, WRITEBACK)  # undoes to `bits` exactly
     c = CaduOut(data, *flags, asm_errors, corrections)
     return data.tolist(), c.status_word()
 

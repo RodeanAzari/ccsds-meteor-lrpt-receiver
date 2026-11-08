@@ -8,7 +8,8 @@
 //        CCSDS PN (h(x) = x^8+x^7+x^5+x^3+1, all ones at bit 32; coding.pn_table()). Packed into bytes, written in
 //        arrival order.
 //   RS:  the body read codeword by codeword (byte 4 + 4n + b, b = 0..3, n = 0..254) into fpga-rs-core rs_decoder,
-//        its output written back to the same addresses; per codeword {fail, corrected} kept.
+//        its output written back to the same addresses (unless RS_WRITEBACK = 0, for pre-RS BER); per codeword
+//        {fail, corrected} kept either way.
 //   TX:  bytes 0..1023 out with the status on tuser; then RX again (s_tready is low outside RX: backpressure into
 //        the Viterbi, which at ~96 clocks per bit has ~400x the time this takes; ADR 0012).
 //
@@ -20,7 +21,8 @@
 module fec_cadu #(
     parameter int          FRAME_BITS = 8192,          // model/coding.py CADU_BITS
     parameter logic [31:0] ASM        = 32'h1ACFFC1D,  // model/coding.py ASM, docs/signal-spec.md
-    parameter int          COUNT_BITS = 16
+    parameter int          COUNT_BITS = 16,
+    parameter bit          RS_WRITEBACK = 1'b1          // 0: status kept, body leaves as received (pre-RS BER)
 ) (
     input  wire logic                  clk_i,
     input  wire logic                  rst_i,
@@ -135,7 +137,7 @@ module fec_cadu #(
         if (phase_q == RX) begin
             wr_en = rx_accept && bit_q[2:0] == 3'd7;
         end else if (phase_q == RS) begin
-            wr_en   = rs_m_valid;
+            wr_en   = RS_WRITEBACK && rs_m_valid;
             wr_addr = ADDR_BITS'(4 + 4 * int'(wn_q) + int'(wc_q));
             wr_data = rs_m_data;
         end

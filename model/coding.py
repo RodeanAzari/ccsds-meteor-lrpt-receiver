@@ -57,12 +57,13 @@ def randomize(body: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
     return out
 
 
-def frame_to_cadu(bits: Bits, prev: int) -> tuple[npt.NDArray[np.uint8], int, list[int]]:
+def frame_to_cadu(bits: Bits, prev: int, writeback: bool = True) -> tuple[npt.NDArray[np.uint8], int, list[int]]:
     """One frame's 8,192 Viterbi bits (and the bit before them, for NRZ-M) to a CADU: NRZ-M, ASM check,
     derandomize bytes 4..1023, RS per interleave branch (codeword b, byte n at 4 + 4n + b).
 
     Returns (cadu, ASM bit errors, corrections per codeword). The ASM stays as received; an uncorrectable codeword
-    (-1) stays as received, derandomized, as SatDump leaves it.
+    (-1) stays as received, derandomized, as SatDump leaves it. writeback=False: corrections are counted but the
+    body stays as received (fec_cadu RS_WRITEBACK = 0, for pre-RS BER on the board).
     """
     plain = nrzm_decode(bits, prev)
     frame = np.packbits(plain)
@@ -73,7 +74,8 @@ def frame_to_cadu(bits: Bits, prev: int) -> tuple[npt.NDArray[np.uint8], int, li
     for c in range(RS_INTERLEAVE):
         word, count = rs.decode(body[c::RS_INTERLEAVE].tolist())
         corrections.append(count)
-        body[c::RS_INTERLEAVE] = word
+        if writeback:
+            body[c::RS_INTERLEAVE] = word
     cadu: npt.NDArray[np.uint8] = np.concatenate((frame[:4], body))
     return cadu, asm_errors, corrections
 
