@@ -80,7 +80,9 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_stats_packet": ("stats_packet", ["rtl/io/stats_packet.sv"], [{"N_FIELDS": 18, "PERIOD": 60}]),
     "test_cadu_packet": ("cadu_packet", ["rtl/io/cadu_packet.sv"], [{}]),
     "test_pkt_arb2": ("pkt_arb2", ["rtl/io/pkt_arb2.sv"], [{}]),
-    "test_iq_udp_ingest": ("iq_udp_ingest", ["rtl/io/iq_udp_ingest.sv"], [{"DEPTH": 1024}, {"DEPTH": 512}]),
+    "test_iq_udp_ingest": (
+        "iq_udp_ingest", ["rtl/io/iq_udp_ingest.sv"], [{"DEPTH": 2048}, {"DEPTH": 1024}, {"DEPTH": 512}]
+    ),
     "test_arty_ddc_rom_top": (
         "arty_ddc_rom_top",
         ["rtl/lib/reset_sync.sv", "rtl/lib/cdc_sync_bit.sv", "rtl/io/iq_rom_source.sv", "rtl/io/capture_dump.sv",
@@ -181,6 +183,8 @@ def main(names: list[str]) -> int:
                 test_module=name,
                 test_dir=build_dir,
                 build_dir=build_dir,
+                # integer parameters visible to the test as PARAM_<NAME> (e.g. a model that depends on DEPTH)
+                extra_env={f"PARAM_{k}": str(v) for k, v in params.items() if isinstance(v, int)},
             )
             _, fails = get_results(results)
             failed += fails

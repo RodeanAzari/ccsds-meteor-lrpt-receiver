@@ -18,16 +18,16 @@ from dataclasses import dataclass, field
 
 HDR = struct.Struct(">BBHIQ")  # type, version, n, pkt_seq, uptime
 TYPE_STATS = 1
-VERSION = 1
+VERSION = 2  # docs/protocol.md: ingest_gap/ingest_lost redefined with the reorder buffer (ADR 0013)
 PORT = 26401
-# Field order of version 1 (docs/protocol.md "Stats"); later tops append, never reorder.
+# Field order (docs/protocol.md "Stats"); later tops append, never reorder.
 FIELDS = (
     "ingest_ok", "ingest_bad", "ingest_gap", "ingest_lost",
     "eth_ok", "eth_crc_err", "eth_rx_err", "eth_runt", "eth_oversize", "eth_ovf_lost",
     "udp_ok", "udp_filtered", "udp_ip_csum_err", "udp_malformed",
     "rx_fifo_hwm", "ddc_out", "tx_underrun", "mac_restarts",
-    # arty_rx_eth_top only (n = 25)
-    "cadus_sent", "fs_locked", "fs_dropped", "fs_slips", "fs_early", "flag_ovf", "len_err",
+    # arty_rx_eth_top only (n = 26)
+    "cadus_sent", "fs_locked", "fs_dropped", "fs_slips", "fs_early", "flag_ovf", "len_err", "ingest_late",
 )
 
 
@@ -39,7 +39,7 @@ class Stats:
 
 
 def parse_stats(data: bytes) -> Stats:
-    """Raises ValueError on anything that is not a well-formed version-1 stats packet."""
+    """Raises ValueError on anything that is not a well-formed version-2 stats packet."""
     if len(data) < HDR.size:
         raise ValueError(f"short packet: {len(data)} bytes")
     ptype, version, n, pkt_seq, uptime = HDR.unpack_from(data)

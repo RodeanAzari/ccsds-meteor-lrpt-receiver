@@ -11,7 +11,7 @@ module stats_packet #(
     parameter int         N_FIELDS = 18,
     parameter int         PERIOD   = 10_000_000,  // 100 ms at 100 MHz, docs/protocol.md STATS_PERIOD
     parameter logic [7:0] TYPE     = 8'd1,        // docs/protocol.md: 1 = stats
-    parameter logic [7:0] VERSION  = 8'd1         // docs/protocol.md
+    parameter logic [7:0] VERSION  = 8'd2         // docs/protocol.md (ADR 0013)
 ) (
     input  wire logic                     clk_i,
     input  wire logic                     rst_i,

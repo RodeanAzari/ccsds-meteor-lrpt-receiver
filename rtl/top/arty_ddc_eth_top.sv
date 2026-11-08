@@ -190,7 +190,7 @@ module arty_ddc_eth_top #(
 
     logic [15:0] iq_tdata;
     logic        iq_tvalid, iq_tready;
-    logic [31:0] ok_cnt, bad_cnt, gap_cnt, lost_cnt;
+    logic [31:0] ok_cnt, bad_cnt, gap_cnt, lost_cnt, late_cnt;
 
     iq_udp_ingest u_ingest (
         .clk_i      (clk),
@@ -206,7 +206,8 @@ module arty_ddc_eth_top #(
         .ok_cnt_o   (ok_cnt),
         .bad_cnt_o  (bad_cnt),
         .gap_cnt_o  (gap_cnt),
-        .lost_cnt_o (lost_cnt)
+        .lost_cnt_o (lost_cnt),
+        .late_cnt_o (late_cnt)
     );
 
     // ----------------------------------------------------------------------------- DDC, capture, readout
@@ -396,7 +397,7 @@ module arty_ddc_eth_top #(
     // Unused outputs: the RX timestamp, the replay's source/destination ports, the TX frame-sent and oversize
     // pulses (the stats payload is 84 bytes, far below 1,472).
     logic unused;
-    assign unused = ^{sfd, src_port, dst_port, t_sent, t_over};
+    assign unused = ^{sfd, src_port, dst_port, t_sent, t_over, late_cnt};  // late: stats n = 18 here
 
 endmodule
 

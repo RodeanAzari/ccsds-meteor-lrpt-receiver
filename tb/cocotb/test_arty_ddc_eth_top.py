@@ -155,16 +155,19 @@ async def bad_and_foreign_frames_ignored(dut) -> None:
 
 @test(timeout_time=10, timeout_unit="ms")
 async def gaps_and_bad_datagrams_counted(dut) -> None:
-    """Datagrams 0, 1, then a short one, then 4 (2 and 3 never sent): the ingest counts one bad datagram, one gap
-    and two lost; only the three good datagrams' samples reach the DDC (3 x 512 / 4 outputs)."""
+    """Datagrams 0, 1, then a short one, then 4 and 7 (2, 3, 5 and 6 never sent). With the reorder buffer (ADR 0013,
+    4 slots, window [head, head + 4)) 4 waits for 2 and 3 until 7 needs the window: 2 and 3 are skipped (two lost),
+    4 is released, and 7 waits for 5 and 6. Counts: one bad, gaps at 4 and 7, two lost; the samples of 0, 1 and 4
+    reach the DDC (3 x 512 / 4 outputs), none of the short one's or 7's (test_iq_udp_ingest.ingest_model agrees)."""
     tx = await start(dut)
     ds = datagrams()
     await send(dut, ds[0])
     await send(dut, ds[1])
     await send(dut, ds[2][:-1])  # one byte short
     await send(dut, (4).to_bytes(8, "big") + ds[3][8:])
-    check_counts(await settled_stats(dut, tx), ingest_ok=3, ingest_bad=1, ingest_gap=1, ingest_lost=2, eth_ok=4,
-                 udp_ok=4, ddc_out=3 * SAMPLES // 4)
+    await send(dut, (7).to_bytes(8, "big") + ds[2][8:])
+    check_counts(await settled_stats(dut, tx), ingest_ok=4, ingest_bad=1, ingest_gap=2, ingest_lost=2, eth_ok=5,
+                 udp_ok=5, ddc_out=3 * SAMPLES // 4)
     assert int(dut.led_o.value) & LED_ERR, "a gap and a bad datagram did not light the error LED"
 
 

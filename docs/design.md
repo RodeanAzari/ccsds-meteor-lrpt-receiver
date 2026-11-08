@@ -19,6 +19,7 @@ and lists clock-domain crossings.
 | [0010](decisions/0010-streaming-frame-sync.md) | Streaming frame sync: 4-bit correlation normalized over its own 52 symbols, 4-deep verify queue, slips followed within ±2 symbols; per-frame Viterbi windows from a 32k-symbol ring (amendment) | `framesync_fixed.csv` |
 | [0011](decisions/0011-ethernet-ingest.md) | Ethernet ingest: one 100 MHz core domain; each datagram held in a BRAM ring and released only if whole | `test_iq_udp_ingest.py`, `ddc_board_eth.csv` |
 | [0012](decisions/0012-rs-instance-count.md) | One fpga-rs-core RS decoder; deinterleave ×4 and re-interleave in one buffer around it | fpga-rs-core `docs/reports/ooc/` |
+| [0013](decisions/0013-ingest-reorder-buffer.md) | Ingest reorder buffer: 4 datagram slots by `seq`, released in order; losses skipped, late datagrams dropped | `test_iq_udp_ingest.py` |
 
 Still required (CLAUDE.md §5.5): interpolator type, Berlekamp–Massey variant, RS instance count, phase-ambiguity
 strategy. The interpolator (Catmull-Rom cubic) and phase-ambiguity strategy (4 hypotheses on the

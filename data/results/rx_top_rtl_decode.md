@@ -1,6 +1,6 @@
 # rx_top_rtl_decode
 
-- **Commit:** `013d5e35b508ab358698d313480ed8a11dbc5c99 (with uncommitted changes)`
+- **Commit:** `a0275e4e150d355a7a3f4d7d264e4d930a722f74 (with uncommitted changes)`
 - **Command:** `make rx-top-rtl-results`
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Verilator 5.050, cocotb 2.1.0
 - **Input:** synthetic, seed 20 in tb/cocotb/test_arty_rx_eth_top_full.py via sync_chain.raw_input() (5 CADUs of OQPSK at 6 dB Eb/N0, 151 kHz + 30 Hz/s, 0.37 symbol late, 20 ppm clock, cu8), as replay datagrams over MII at the 100 Mb/s line rate; arty_rx_eth_top from reset. No real recording.

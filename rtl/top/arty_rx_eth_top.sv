@@ -7,7 +7,7 @@
 //                                                                   stats_packet -> pkt_arb2 -> udp_tx -> eth_tx
 //
 // Every CADU goes to the host as a type 2 packet (docs/protocol.md "CADU"), stats every STATS_PERIOD as type 1 with
-// the receiver's counters appended (fields 18-24), both to the sender of the last good replay datagram, UDP port
+// the receiver's counters appended (fields 18-25), both to the sender of the last good replay datagram, UDP port
 // STATS_PORT. Nothing is dropped inside the design: a slow stage stalls the ones before it back to the ingest ring;
 // once that is full, eth_rx loses whole frames and counts them (stats eth_ovf_lost), and the replay's seq gaps show
 // up in ingest_gap/ingest_lost. Replay to a freshly reset board (RESET button): the chain starts from reset and the
@@ -192,7 +192,7 @@ module arty_rx_eth_top
 
     logic [15:0] iq_tdata;
     logic        iq_tvalid, iq_tready;
-    logic [31:0] ok_cnt, bad_cnt, gap_cnt, lost_cnt;
+    logic [31:0] ok_cnt, bad_cnt, gap_cnt, lost_cnt, late_cnt;
 
     iq_udp_ingest u_ingest (
         .clk_i      (clk),
@@ -208,7 +208,8 @@ module arty_rx_eth_top
         .ok_cnt_o   (ok_cnt),
         .bad_cnt_o  (bad_cnt),
         .gap_cnt_o  (gap_cnt),
-        .lost_cnt_o (lost_cnt)
+        .lost_cnt_o (lost_cnt),
+        .late_cnt_o (late_cnt)
     );
 
     // ------------------------------------------------------------------------------------- DDC, receiver
@@ -273,8 +274,8 @@ module arty_rx_eth_top
 
     // ------------------------------------------------------------------------------------------ counters
     // Cumulative since the MAC left reset, mod 2^32. Order = docs/protocol.md "Stats" field table.
-    localparam int N_STATS = 25;
-    logic [31:0] cnt_q [4:18];   // fields 4..16, 18; 0..3 are the ingest's, 17 the MAC restarts, 19..24 rx_chain's
+    localparam int N_STATS = 26;
+    logic [31:0] cnt_q [4:18];   // fields 4..16, 18; 0..3 are the ingest's, 17 the MAC restarts, 19..24 rx_chain's, 25 the ingest's late count
     logic        tx_underrun;
 
     always_ff @(posedge clk) begin
@@ -313,6 +314,7 @@ module arty_rx_eth_top
         stats[22*32 +: 32] = fs_early;
         stats[23*32 +: 32] = flag_ovf;
         stats[24*32 +: 32] = len_err;
+        stats[25*32 +: 32] = late_cnt;
     end
 
     // ------------------------------------------------------------------------------------- transmit path
@@ -426,7 +428,7 @@ module arty_rx_eth_top
 
     always_ff @(posedge clk) begin
         if (mac_rst_q) err_q <= 1'b0;
-        else if (e_crc || e_rxerr || e_ovf || u_csum || u_mal || tx_underrun || bad_cnt != '0 || gap_cnt != '0 ||
+        else if (e_crc || e_rxerr || e_ovf || u_csum || u_mal || tx_underrun || bad_cnt != '0 || lost_cnt != '0 ||
                  flag_ovf != '0 || len_err != '0)
             err_q <= 1'b1;
     end

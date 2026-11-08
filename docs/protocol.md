@@ -19,8 +19,12 @@ One UDP datagram carries 512 consecutive samples of the recording.
 - **Receiver:** `rtl/io/iq_udp_ingest.sv` (ADR 0011). It releases a datagram's samples only if the datagram is exactly
   1,032 bytes and `udp_rx` did not flag it truncated; otherwise none of them reach the DDC and it is counted as bad.
   The first expected `seq` after reset is 0.
-- **Gaps:** the receiver counts `seq` jumps (CLAUDE.md §3 INGEST gap counter). A gap of *g* datagrams is `512 g`
-  lost samples. The host sends whole datagrams only; a final partial datagram is not sent, and `gs-replay` reports
+- **Order (ADR 0013):** the receiver releases datagrams in `seq` order, whatever order they arrive in, within a window
+  of 4 (`DEPTH` / 512): datagrams swapped by the host's network stack reach the DDC in file order. One that has not
+  arrived when a datagram 4 further on needs the window is skipped (lost); one that turns up after that, or a
+  duplicate, is dropped (late).
+- **Gaps:** the receiver counts arrival discontinuities, skipped datagrams and late ones (CLAUDE.md §3 INGEST gap
+  counter; stats fields 2, 3, 25). A loss of *g* datagrams is `512 g` missing samples. The host sends whole datagrams only; a final partial datagram is not sent, and `gs-replay` reports
   it on stderr.
 - **Rate:** 2,000 datagrams/s at 1.024 MS/s real time. On the wire, 1,032 B of payload costs 1,098 B with
   UDP/IP/Ethernet headers, FCS, preamble and inter-frame gap, so 100 Mb/s carries at most 100 / (1,098 × 8 × 2,000)
@@ -34,7 +38,7 @@ Every board → host datagram starts with this 16-byte header. All fields big-en
 | Bytes | Field | Notes |
 |---|---|---|
 | 0 | `type`, u8 | 1 = stats. 2 = CADU |
-| 1 | `version`, u8 | 1. Changes only if existing fields change meaning; new fields are appended, never reordered |
+| 1 | `version`, u8 | Stats: 2 (fields 2 and 3 redefined with the reorder buffer, ADR 0013); CADU: 1. Changes only if existing fields change meaning; new fields are appended, never reordered |
 | 2–3 | `n`, u16 | Number of u32 fields after the header (stats) or payload bytes (other types) |
 | 4–7 | `pkt_seq`, u32 | Packets of this type sent since reset, starting at 0 |
 | 8–15 | `uptime`, u64 | Core clock cycles (100 MHz) since the MAC left reset, sampled when the packet starts |
@@ -48,14 +52,14 @@ Every board → host datagram starts with this 16-byte header. All fields big-en
 Sent every 100 ms (`STATS_PERIOD`) once a replay sender is known. Payload: `n` u32 counters, cumulative since reset,
 modulo 2³², snapshotted together on the packet's first byte, so one packet is self-consistent. The receiver uses
 the first `n` fields it knows and ignores the rest. Fields, in order: 0–17 from both Ethernet tops
-(`rtl/top/arty_ddc_eth_top.sv`, `n` = 18), 18–24 appended by the receiver top (`rtl/top/arty_rx_eth_top.sv`, `n` = 25):
+(`rtl/top/arty_ddc_eth_top.sv`, `n` = 18), 18–25 appended by the receiver top (`rtl/top/arty_rx_eth_top.sv`, `n` = 26):
 
 | # | Field | Source | Meaning |
 |---|---|---|---|
-| 0 | `ingest_ok` | `iq_udp_ingest` | Replay datagrams released to the DDC |
+| 0 | `ingest_ok` | `iq_udp_ingest` | Replay datagrams placed for release to the DDC |
 | 1 | `ingest_bad` | `iq_udp_ingest` | Datagrams dropped: wrong length or truncated |
-| 2 | `ingest_gap` | `iq_udp_ingest` | Good datagrams whose `seq` was not the expected one |
-| 3 | `ingest_lost` | `iq_udp_ingest` | Sum of forward `seq` jumps: datagrams that never arrived |
+| 2 | `ingest_gap` | `iq_udp_ingest` | Datagrams placed whose `seq` was not the previous placed one + 1: arrived out of order, or after a loss |
+| 3 | `ingest_lost` | `iq_udp_ingest` | Datagrams skipped: not arrived when a datagram 4 further on needed the window (version 1: sum of forward `seq` jumps) |
 | 4 | `eth_ok` | `eth_rx` | Frames with good FCS |
 | 5 | `eth_crc_err` | `eth_rx` | Frames with bad FCS |
 | 6 | `eth_rx_err` | `eth_rx` | Frames with `rx_er` or an odd nibble count |
@@ -77,8 +81,9 @@ the first `n` fields it knows and ignores the rest. Fields, in order: 0–17 fro
 | 22 | `fs_early` | `fec_framesync` | Frames not emitted: their Viterbi run-in would start before the first symbol |
 | 23 | `flag_ovf` | `fec_frame_extract` | Window-flag FIFO overflows (must stay 0) |
 | 24 | `len_err` | `fec_cadu` | Frames whose `tlast` disagreed with the 8,192-bit count (must stay 0) |
+| 25 | `ingest_late` | `iq_udp_ingest` | Good datagrams dropped: behind the window, or duplicates |
 
-Packet size: 16 + 4 × `n` bytes (88 or 116). Parsed by `scripts/board_stats.py`.
+Packet size: 16 + 4 × `n` bytes (88 or 120). Parsed by `scripts/board_stats.py`.
 
 ## CADU (board → host), type 2
 

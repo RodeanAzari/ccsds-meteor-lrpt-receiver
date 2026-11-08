@@ -1,17 +1,23 @@
-"""iq_udp_ingest: IQ replay datagrams (docs/protocol.md) -> {Q, I} samples, against a model of the format.
+"""iq_udp_ingest: IQ replay datagrams (docs/protocol.md) -> {Q, I} samples, against a model of the format and of
+the reorder buffer (ADR 0013).
 
 Why it matters: the board can only be bit-exact against the model if the DDC sees exactly the file's samples, in
 order, with nothing from a damaged datagram. A sample let through from a short or truncated datagram shifts every
-later sample index (seq * 512) and the whole comparison fails for a reason that isn't in the DDC. The gap counters
-are how a hardware run proves nothing was lost on the link, so their values must be exact, not just non-zero.
+later sample index (seq * 512) and the whole comparison fails for a reason that isn't in the DDC. The host's network
+stack swaps datagrams now and then (board_rx_eth.csv: up to 21 per 34 s replay at 5x); each swap released in arrival
+order corrupts 1 ms of signal, a burst of errors that would put a floor under every hardware BER point. Within the
+window the ingest must undo the swap; beyond it, a missing datagram must be skipped, not wait forever, and a late
+one dropped, not released out of order. The counters are how a hardware run proves nothing was lost on the link, so
+their values must be exact, not just non-zero.
 
-The expected output is built from the protocol spec, not from the RTL: the concatenated samples of the good
-datagrams. Runs at DEPTH 1024 (two datagrams) and DEPTH 512 (= SAMPLES, the smallest legal ring, where a stalled
-sink fills the ring mid-datagram).
+The expected output comes from `ingest_model`, written from the rules in the RTL header (ADR 0013), not from its
+code: datagrams in arrival order, placed by seq, released in seq order. Runs at DEPTH 2048 (4 slots, the default),
+1024 (2 slots) and 512 (one slot: no reordering possible, a swap costs a datagram).
 """
 
 from __future__ import annotations
 
+import os
 import random
 from dataclasses import dataclass
 
@@ -49,19 +55,38 @@ def dgram(rng: random.Random, seq: int, length: int = LEN, truncated: bool = Fal
     return Dgram((seq.to_bytes(8, "big") + body)[:length], truncated)
 
 
-def expected_counts(dgrams: list[Dgram]) -> dict[str, int]:
-    ok = bad = gap = lost = 0
-    expect = 0
+def ingest_model(dgrams: list[Dgram], nslot: int) -> tuple[list[int], dict[str, int]]:
+    """Released samples and counters, from the RTL header's rules (ADR 0013)."""
+    out: list[int] = []
+    slots: dict[int, Dgram] = {}
+    c = {"ok_cnt_o": 0, "bad_cnt_o": 0, "gap_cnt_o": 0, "lost_cnt_o": 0, "late_cnt_o": 0}
+    head = nxt = 0
+
+    def release() -> None:
+        nonlocal head
+        while head in slots:
+            out.extend(slots.pop(head).samples())
+            head += 1
+
     for d in dgrams:
+        if len(d.payload) > 8 and d.seq >= head + nslot:  # beyond the window: move it, good or not
+            while d.seq >= head + nslot:
+                if head in slots:
+                    release()
+                else:
+                    c["lost_cnt_o"] += 1
+                    head += 1
         if not d.good:
-            bad += 1
-            continue
-        ok += 1
-        if d.seq != expect:
-            gap += 1
-            lost += max(0, d.seq - expect)
-        expect = d.seq + 1
-    return {"ok_cnt_o": ok, "bad_cnt_o": bad, "gap_cnt_o": gap, "lost_cnt_o": lost}
+            c["bad_cnt_o"] += 1
+        elif d.seq < head or d.seq in slots:
+            c["late_cnt_o"] += 1
+        else:
+            c["ok_cnt_o"] += 1
+            c["gap_cnt_o"] += d.seq != nxt
+            nxt = d.seq + 1
+            slots[d.seq] = d
+            release()
+    return out, c
 
 
 async def run(dut, name: str, dgrams: list[Dgram], p_valid: float, p_ready: float, stall: int = 0) -> None:
@@ -74,11 +99,11 @@ async def run(dut, name: str, dgrams: list[Dgram], p_valid: float, p_ready: floa
     await ClockCycles(dut.clk_i, 3)
     dut.rst_i.value = 0
 
+    nslot = int(os.environ.get("PARAM_DEPTH", "2048")) // SAMPLES  # tb/cocotb/run.py; 2048 is the RTL default
+    want, counts = ingest_model(dgrams, nslot)
     sb = InOrderScoreboard(name)
-    for d in dgrams:
-        if d.good:
-            for w in d.samples():
-                sb.expect(w)
+    for w in want:
+        sb.expect(w)
     sink = AxisSink(dut, dut.clk_i, "m_", rng=rng, p_ready=0.0 if stall else p_ready,
                     callback=lambda f: sb.observe(f[0].data))
     refused = 0
@@ -100,17 +125,22 @@ async def run(dut, name: str, dgrams: list[Dgram], p_valid: float, p_ready: floa
              for d in dgrams for k, b in enumerate(d.payload)]
     await AxisSource(dut, dut.clk_i, "s_", rng=rng, p_valid=p_valid).send(beats)
     sink.p_ready = p_ready
-    for _ in range(4 * SAMPLES * 3 + 100):
+    # Drain: up to the whole ring plus a datagram, at 3 clocks per sample at best and 1/p_ready slower
+    for _ in range(int((nslot + 1) * SAMPLES * 3 / max(p_ready, 0.1)) + 100):
         if sb.pending == 0:
             break
         await RisingEdge(dut.clk_i)
     await ClockCycles(dut.clk_i, 20)  # nothing extra may come out after the last expected sample
     sb.check_done()
-    for sig, want in expected_counts(dgrams).items():
+    for sig, n in counts.items():
         got = int(getattr(dut, sig).value)
-        assert got == want, f"{sig} = {got}, expected {want}"
+        assert got == n, f"{sig} = {got}, expected {n}"
     if stall:
         assert refused > 0, "the stalled sink never back-pressured the input: the stall test tested nothing"
+
+
+def nslot() -> int:
+    return int(os.environ.get("PARAM_DEPTH", "2048")) // SAMPLES
 
 
 @test(timeout_time=5, timeout_unit="ms")  # a deadlocked ring fails instead of hanging
@@ -118,13 +148,15 @@ async def clean_stream(dut) -> None:
     """In-order datagrams with random gaps and stalls: every sample out in order, counters ok only.
     Twelve datagrams wrap the ring several times."""
     rng = random.Random(1)
-    await run(dut, "ingest_clean", [dgram(rng, s) for s in range(12)], p_valid=0.7, p_ready=0.6)
+    ds = [dgram(rng, s) for s in range(12)]
+    assert ingest_model(ds, nslot())[1]["ok_cnt_o"] == 12
+    await run(dut, "ingest_clean", ds, p_valid=0.7, p_ready=0.6)
 
 
-@test(timeout_time=5, timeout_unit="ms")  # a deadlocked ring fails instead of hanging
-async def damaged_and_out_of_sequence(dut) -> None:
-    """One bad datagram of each kind between good ones (none of their samples may appear), plus a forward jump of
-    3, a repeat and a backward seq. Damaged datagrams don't advance the expected seq."""
+@test(timeout_time=5, timeout_unit="ms")
+async def damaged_datagrams_dropped(dut) -> None:
+    """One bad datagram of each kind between good ones: none of their samples may appear, and the good datagram
+    with the same seq that follows takes the slot."""
     rng = random.Random(2)
     ds = [
         dgram(rng, 0),
@@ -135,23 +167,64 @@ async def damaged_and_out_of_sequence(dut) -> None:
         dgram(rng, 3, truncated=True),      # right length, udp_rx says truncated
         dgram(rng, 3, length=3),            # shorter than the seq field
         dgram(rng, 3, length=LEN - 2),      # whole samples, one short of SAMPLES
-        dgram(rng, 7),                      # seq 3..6 missing: one gap, 4 lost
-        dgram(rng, 8),
-        dgram(rng, 8),                      # repeat: gap, no loss
-        dgram(rng, 5),                      # backward: gap, no loss
-        dgram(rng, 6),
-        dgram(rng, 9, length=1),
+        dgram(rng, 3),
+        dgram(rng, 4, length=1),
     ]
-    assert expected_counts(ds) == {"ok_cnt_o": 8, "bad_cnt_o": 6, "gap_cnt_o": 3, "lost_cnt_o": 4}
+    assert ingest_model(ds, nslot())[1] == {"ok_cnt_o": 4, "bad_cnt_o": 6, "gap_cnt_o": 0, "lost_cnt_o": 0,
+                                            "late_cnt_o": 0}
     await run(dut, "ingest_damaged", ds, p_valid=0.8, p_ready=0.7)
+
+
+@test(timeout_time=5, timeout_unit="ms")
+async def swaps_released_in_seq_order(dut) -> None:
+    """What the host does (board_rx_eth.csv): adjacent swaps, and one jump of two. Inside the window every sample
+    must come out in file order with nothing lost; with one slot a swap costs the overtaken datagram."""
+    rng = random.Random(4)
+    order = [0, 2, 1, 3, 4, 6, 5, 7, 10, 8, 9, 11]
+    ds = [dgram(rng, s) for s in order]
+    samples, c = ingest_model(ds, nslot())
+    if nslot() >= 4:
+        assert samples == [w for s in range(12) for w in next(d for d in ds if d.seq == s).samples()]
+        assert c == {"ok_cnt_o": 12, "bad_cnt_o": 0, "gap_cnt_o": 9, "lost_cnt_o": 0, "late_cnt_o": 0}
+    if nslot() == 1:
+        assert c["late_cnt_o"] == 4 and c["lost_cnt_o"] == 4  # 1, 5, 8, 9: skipped, then late
+    await run(dut, "ingest_swaps", ds, p_valid=0.9, p_ready=0.7)
+
+
+@test(timeout_time=5, timeout_unit="ms")
+async def loss_skipped_late_and_duplicates_dropped(dut) -> None:
+    """A datagram that never arrives is skipped once one NSLOT further on needs the window, so the stream goes on;
+    when it turns up afterwards it is late and dropped, as is a repeat. A bad datagram far ahead still moves the
+    window (its seq is read before the ingest can know it is bad)."""
+    rng = random.Random(5)
+    ds = [dgram(rng, 0), dgram(rng, 2), dgram(rng, 3), dgram(rng, 4), dgram(rng, 5), dgram(rng, 6),
+          dgram(rng, 1),                     # 1 never came in time: skipped, now late
+          dgram(rng, 6),                     # duplicate
+          dgram(rng, 12, truncated=True),    # bad, but far ahead: the window moves to it
+          dgram(rng, 9), dgram(rng, 12)]
+    _, c = ingest_model(ds, nslot())
+    assert c["lost_cnt_o"] >= 1 and c["late_cnt_o"] >= 2 and c["bad_cnt_o"] == 1
+    await run(dut, "ingest_loss", ds, p_valid=0.8, p_ready=0.8)
 
 
 @test(timeout_time=5, timeout_unit="ms")  # a deadlocked ring fails instead of hanging
 async def stalled_sink_fills_ring(dut) -> None:
     """The DDC stops taking samples for longer than the ring holds: s_tready must drop, then everything comes out
-    in order once it resumes. Bad datagrams while full (truncated; too long, whose extra bytes arrive after its samples
-filled the ring) must still rewind, not wedge."""
+    in order once it resumes. Bad datagrams while full (truncated; too long) must still be consumed, not wedge."""
     rng = random.Random(3)
     ds = [dgram(rng, 0), dgram(rng, 1), dgram(rng, 2, truncated=True), dgram(rng, 2, length=LEN + 5), dgram(rng, 2),
-          dgram(rng, 3)]
-    await run(dut, "ingest_stall", ds, p_valid=1.0, p_ready=0.8, stall=8 * SAMPLES)
+          dgram(rng, 3), dgram(rng, 4), dgram(rng, 5)]
+    await run(dut, "ingest_stall", ds, p_valid=1.0, p_ready=0.8, stall=16 * SAMPLES)
+
+
+@test(timeout_time=5, timeout_unit="ms")
+async def late_datagram_leaves_no_trace(dut) -> None:
+    """A late repeat after its slot has drained: dropped whole, so the datagram that next owns the slot
+    (seq + NSLOT) is placed and released normally, and nothing extra comes out. Truncated datagrams (bad, behind
+    the window, so harmless) keep the input busy while the ring drains."""
+    rng = random.Random(6)
+    ds = ([dgram(rng, s) for s in (0, 1, 2, 3)] + [dgram(rng, 0, truncated=True) for _ in range(8)]
+          + [dgram(rng, 1)] + [dgram(rng, s) for s in range(4, 12)])
+    _, c = ingest_model(ds, nslot())
+    assert c == {"ok_cnt_o": 12, "bad_cnt_o": 8, "gap_cnt_o": 0, "lost_cnt_o": 0, "late_cnt_o": 1}
+    await run(dut, "ingest_late", ds, p_valid=1.0, p_ready=1.0)

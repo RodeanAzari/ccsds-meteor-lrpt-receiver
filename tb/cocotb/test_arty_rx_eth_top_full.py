@@ -133,7 +133,7 @@ async def recording_in_cadus_out(dut) -> None:
     stats = [parse_stats(p) for p in packets(1)]
     assert [s.pkt_seq for s in stats] == list(range(len(stats))), "stats pkt_seq not consecutive from 0"
     last = stats[-1]
-    assert len(last.fields) == len(FIELDS) == 25
+    assert len(last.fields) == len(FIELDS) == 26
     want = {"ingest_ok": n_dgram, "eth_ok": n_dgram, "udp_ok": n_dgram, "ddc_out": n_dgram * SAMPLES // 4,
             "cadus_sent": len(cadus), "fs_locked": 1, "fs_dropped": res.dropped, "fs_slips": res.slips,
             "fs_early": early}

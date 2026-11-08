@@ -10,7 +10,7 @@ import pytest
 from scripts.board_stats import FIELDS, parse_stats
 
 
-def packet(values: list[int], ptype: int = 1, version: int = 1, n: int | None = None) -> bytes:
+def packet(values: list[int], ptype: int = 1, version: int = 2, n: int | None = None) -> bytes:
     n = len(values) if n is None else n
     hdr = bytes([ptype, version]) + n.to_bytes(2, "big") + (7).to_bytes(4, "big") + (123456789).to_bytes(8, "big")
     return hdr + b"".join(v.to_bytes(4, "big") for v in values)
@@ -28,7 +28,8 @@ def test_fields_in_protocol_order() -> None:
     assert s.fields["cadus_sent"] == 0x01020316  # field 18, the first appended by arty_rx_eth_top
     assert s.fields["fs_locked"] == 0x01020317  # field 19
     assert s.fields["len_err"] == 0x0102031C  # field 24
-    assert len(FIELDS) == 25 and len(packet(values)) == 116  # docs/protocol.md packet size
+    assert s.fields["ingest_late"] == 0x0102031D  # field 25
+    assert len(FIELDS) == 26 and len(packet(values)) == 120  # docs/protocol.md packet size
 
 
 def test_ddc_top_packet_has_the_first_18() -> None:
@@ -47,7 +48,7 @@ def test_appended_fields_are_ignored() -> None:
     "data, why",
     [
         (packet([0] * 18, ptype=2), "type"),
-        (packet([0] * 18, version=2), "version"),
+        (packet([0] * 18, version=1), "version"),  # version 1 counted gaps differently
         (packet([0] * 18, n=19), "n = 19"),
         (packet([0] * 18)[:-1], "bytes for n"),
         (b"\x01\x01", "short"),
