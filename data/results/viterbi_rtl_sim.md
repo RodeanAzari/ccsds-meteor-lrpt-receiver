@@ -1,6 +1,6 @@
 # viterbi_rtl_sim
 
-- **Commit:** `a60830a0c33d9eecd620cca77be37c51e047e286 (with uncommitted changes)`
+- **Commit:** `5eb6de3ecb0a023b79d1d9e332a6cbf93a99a328 (with uncommitted changes)`
 - **Command:** `make fec-rtl-results`
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Verilator 5.050, cocotb 2.1.0
 - **Input:** synthetic, seeds 61-62 in tb/cocotb/test_fec_viterbi.py via fec_vectors.py (random bits, K=7 r=1/2, antipodal at rail rms ONE + AWGN, 4-bit quantized); traceback depth 96 from state 0. No real recording.

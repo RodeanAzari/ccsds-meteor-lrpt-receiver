@@ -818,3 +818,22 @@ New repo [fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core) (P3 owns it
 - OOC 100 MHz, xc7a100t: CCSDS WNS +1.457 ns, 4,142 LUT, 1,766 FF, 1.5 BRAM36; KP4 +1.168 ns, 5,558 LUT,
   2,066 FF, 3.5 BRAM36; 0 DSP (fpga-rs-core `docs/reports/ooc/`).
 - Not yet: tag `rs-core-v1.0`; CCSDS consuming it (submodule, deinterleave ×4 wrapper, step 3).
+
+## 2026-11-08: Phase E step 3 closed, receiver chain to CADUs in RTL
+
+`rx_chain` now ends in `fec_frame_extract` → `fec_cadu` (RS from fpga-rs-core). `make sim-full`
+(`test_rx_chain_full`, 7 frames, cold start, 6 dB): 6 frames found, 5 CADUs, all 5,120 bytes and 5 status words
+equal to `cadu_fixed.cadus_from_windows()`; 5/5 are frames sent; RS 0 corrected / 0 failed; 3 input stalls
+(`rx_chain_rtl_decode.csv`). OOC 100 MHz: WNS +0.629 ns, WHS +0.073 ns, 11,247 LUT, 8,348 FF, 23 DSP, 5 RAMB36 +
+4 RAMB18, 0 critical warnings (`synth_rx_chain.csv`; was 6,750 LUT / +0.827 ns through the Viterbi).
+
+- Test expectation wrong, not the RTL: symptom `only 3 stalls reached the input` (minimum 4) with every data check
+  passing. Root cause: the docstring counted one stall per CADU after the first, but a waiting CADU only reaches the
+  input while two frames (the 32k-symbol ring) of input remain; the last CADU's window ends closer to the input's
+  end than that. Fix: minimum 3 (CADUs 2–4), reasoning in the docstring.
+- Mutant (quantizer toggles I/Q on stalled clocks) caught with 3 stalls: byte mismatch after 3,084 bytes.
+- OOC build failed: `module 'rs_decoder' not found` — synth_ooc.tcl globbed `rtl/*/*.sv` only. Fix: read
+  `rtl/rs/rtl/` with the package first. Also `NAME ?=` in the Makefile picked up WSL's exported `NAME` (hostname)
+  and wrote `RodeanStation.log`; now `=` (command-line override still works).
+- `make sim`: all pass, 8 min 54 s, on a machine also running Vivado, sim-full and another project's sims; the
+  < 5 min budget needs a quiet-machine re-time (already an open question).

@@ -62,9 +62,11 @@ async def run_stream(
     got: list[Any] = []
 
     def on_beat(frame: list[AxisBeat]) -> None:
-        item = decode(frame[0].data)
-        got.append(item)
-        sb.observe(item)
+        # One callback per frame: each beat on its own where m_tlast doesn't exist, up to m_tlast where it does.
+        for beat in frame:
+            item = decode(beat.data)
+            got.append(item)
+            sb.observe(item)
 
     sink = AxisSink(dut, dut.clk_i, "m_", rng=rng, p_ready=0.0 if hold_sink_until_stall else p_ready,
                     callback=on_beat)

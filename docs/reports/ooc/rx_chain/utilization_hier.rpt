@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
-| Date         : Fri Nov  6 11:51:10 2026
+| Date         : Sun Nov  8 11:21:50 2026
 | Host         : RodeanStation running 64-bit Ubuntu 26.04 LTS
 | Command      : report_utilization -hierarchical -file /home/rodea/CCSDS/docs/reports/ooc/rx_chain/utilization_hier.rpt
 | Design       : rx_chain
@@ -19,25 +19,32 @@ Table of Contents
 1. Utilization by Hierarchy
 ---------------------------
 
-+---------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
-|    Instance   |       Module      | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
-+---------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
-| rx_chain      |             (top) |       6750 |       6750 |       0 |    0 | 6436 |      5 |      1 |         23 |
-|   u_framesync |     fec_framesync |       3067 |       3067 |       0 |    0 | 3061 |      4 |      0 |          1 |
-|     u_win     |     fec_fs_window |        821 |        821 |       0 |    0 |  245 |      4 |      0 |          0 |
-|     u_corr    | fec_fs_correlator |       1673 |       1673 |       0 |    0 | 2530 |      0 |      0 |          1 |
-|     u_fsm     |        fec_fs_fsm |        567 |        567 |       0 |    0 |  280 |      0 |      0 |          0 |
-|   u_sync      |          sync_top |       2582 |       2582 |       0 |    0 | 2673 |      0 |      1 |         22 |
-|     u_timing  |       sync_timing |       1335 |       1335 |       0 |    0 |  578 |      0 |      0 |          9 |
-|     u_agc     |          sync_agc |        161 |        161 |       0 |    0 |   68 |      0 |      0 |          4 |
-|     u_costas  |       sync_costas |        470 |        470 |       0 |    0 |  153 |      0 |      1 |          7 |
-|     u_rrc     |          sync_rrc |        600 |        600 |       0 |    0 | 1874 |      0 |      0 |          2 |
-|       u_fir   |      ddc_comp_fir |        600 |        600 |       0 |    0 | 1874 |      0 |      0 |          2 |
-|   u_viterbi   |       fec_viterbi |       1101 |       1101 |       0 |    0 |  694 |      1 |      0 |          0 |
-|     u_acs     |     fec_acs_array |       1024 |       1024 |       0 |    0 |  641 |      0 |      0 |          0 |
-|       (u_acs) |     fec_acs_array |         64 |         64 |       0 |    0 |  641 |      0 |      0 |          0 |
-|     u_tb      |     fec_traceback |         77 |         77 |       0 |    0 |   53 |      1 |      0 |          0 |
-+---------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
++------------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
+|     Instance     |       Module      | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++------------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
+| rx_chain         |             (top) |      11247 |      11030 |     216 |    1 | 8348 |      5 |      4 |         23 |
+|   u_cadu         |          fec_cadu |       4467 |       4254 |     212 |    1 | 1863 |      0 |      3 |          0 |
+|     (u_cadu)     |          fec_cadu |        268 |         76 |     192 |    0 |  111 |      0 |      0 |          0 |
+|     u_rs         |        rs_decoder |       4199 |       4178 |      20 |    1 | 1752 |      0 |      3 |          0 |
+|       (u_rs)     |        rs_decoder |        119 |         99 |      20 |    0 |   77 |      0 |      2 |          0 |
+|       u_chien    |   rs_chien_forney |        306 |        305 |       0 |    1 |  335 |      0 |      1 |          0 |
+|       u_ribm     |           rs_ribm |       3384 |       3384 |       0 |    0 |  819 |      0 |      0 |          0 |
+|       u_syndrome |       rs_syndrome |        392 |        392 |       0 |    0 |  521 |      0 |      0 |          0 |
+|   u_framesync    |     fec_framesync |       2944 |       2944 |       0 |    0 | 3070 |      4 |      0 |          1 |
+|     u_win        |     fec_fs_window |        700 |        700 |       0 |    0 |  254 |      4 |      0 |          0 |
+|     u_corr       | fec_fs_correlator |       1673 |       1673 |       0 |    0 | 2530 |      0 |      0 |          1 |
+|     u_fsm        |        fec_fs_fsm |        566 |        566 |       0 |    0 |  280 |      0 |      0 |          0 |
+|   u_sync         |          sync_top |       2581 |       2581 |       0 |    0 | 2674 |      0 |      1 |         22 |
+|     u_timing     |       sync_timing |       1335 |       1335 |       0 |    0 |  578 |      0 |      0 |          9 |
+|     u_agc        |          sync_agc |        161 |        161 |       0 |    0 |   68 |      0 |      0 |          4 |
+|     u_costas     |       sync_costas |        466 |        466 |       0 |    0 |  153 |      0 |      1 |          7 |
+|     u_rrc        |          sync_rrc |        603 |        603 |       0 |    0 | 1875 |      0 |      0 |          2 |
+|       u_fir      |      ddc_comp_fir |        603 |        603 |       0 |    0 | 1875 |      0 |      0 |          2 |
+|   u_viterbi      |       fec_viterbi |       1229 |       1229 |       0 |    0 |  694 |      1 |      0 |          0 |
+|     u_acs        |     fec_acs_array |       1152 |       1152 |       0 |    0 |  641 |      0 |      0 |          0 |
+|       (u_acs)    |     fec_acs_array |         64 |         64 |       0 |    0 |  641 |      0 |      0 |          0 |
+|     u_tb         |     fec_traceback |         77 |         77 |       0 |    0 |   53 |      1 |      0 |          0 |
++------------------+-------------------+------------+------------+---------+------+------+--------+--------+------------+
 * Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
 
 

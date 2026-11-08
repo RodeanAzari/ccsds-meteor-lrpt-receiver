@@ -1,2 +1,2 @@
-samples_in,frames_sent,frames_found,windows,bits_checked,mismatches,early,slips,dropped,frames_matching_sent,input_stalls
-145642,5,4,3,24960,0,0,0,0,3,85
+samples_in,frames_sent,frames_found,cadus,bytes_checked,mismatches,early,slips,dropped,rs_symbols_corrected,rs_codewords_failed,cadus_matching_sent,input_stalls
+203897,7,6,5,5120,0,0,0,0,0,0,5,3
