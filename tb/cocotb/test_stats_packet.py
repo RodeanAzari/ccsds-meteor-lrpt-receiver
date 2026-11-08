@@ -55,7 +55,7 @@ def check(pkts: list[bytes], min_gap: int, exact: bool = False) -> None:
     prev = None
     for raw in pkts:
         s = parse_stats(raw)  # raises on a cut, merged or malformed packet
-        f = [s.fields[k] for k in FIELDS]
+        f = [s.fields[k] for k in FIELDS[:N]]
         assert all(f[k] - f[0] == k for k in range(N)), f"packet {s.pkt_seq}: fields from different clocks: {f}"
         if prev is not None:
             assert s.pkt_seq == prev.pkt_seq + 1, f"pkt_seq {prev.pkt_seq} -> {s.pkt_seq}"

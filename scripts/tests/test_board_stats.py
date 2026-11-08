@@ -24,8 +24,18 @@ def test_fields_in_protocol_order() -> None:
     assert s.fields["ingest_lost"] == 0x01020307  # field 3
     assert s.fields["eth_ovf_lost"] == 0x0102030D  # field 9
     assert s.fields["tx_underrun"] == 0x01020314  # field 16
-    assert s.fields["mac_restarts"] == 0x01020315  # field 17, the last so far
-    assert len(packet(values)) == 88  # docs/protocol.md packet size
+    assert s.fields["mac_restarts"] == 0x01020315  # field 17, the last of arty_ddc_eth_top
+    assert s.fields["cadus_sent"] == 0x01020316  # field 18, the first appended by arty_rx_eth_top
+    assert s.fields["fs_locked"] == 0x01020317  # field 19
+    assert s.fields["len_err"] == 0x0102031C  # field 24
+    assert len(FIELDS) == 25 and len(packet(values)) == 116  # docs/protocol.md packet size
+
+
+def test_ddc_top_packet_has_the_first_18() -> None:
+    """arty_ddc_eth_top sends n = 18: those parse by name, nothing is invented for the rest."""
+    s = parse_stats(packet(list(range(18))))
+    assert list(s.fields) == list(FIELDS[:18]) and s.fields["mac_restarts"] == 17
+    assert len(packet(list(range(18)))) == 88
 
 
 def test_appended_fields_are_ignored() -> None:

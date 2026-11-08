@@ -104,7 +104,8 @@ async def settled_stats(dut, tx: list[bytes]) -> Stats:
 
 def check_counts(s: Stats, **want: int) -> None:
     """Every field equals `want` where given, 0 otherwise (rx_fifo_hwm is a level, so only bounded)."""
-    for name in FIELDS:
+    assert len(s.fields) == 18, f"{len(s.fields)} stats fields: this top sends the 18 of docs/protocol.md 0-17"
+    for name in FIELDS[:18]:
         got = s.fields[name]
         if name == "rx_fifo_hwm":
             assert got <= 2048, f"rx_fifo_hwm {got} exceeds the 2 KB FIFO"

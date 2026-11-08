@@ -47,7 +47,8 @@ Every board → host datagram starts with this 16-byte header. All fields big-en
 
 Sent every 100 ms (`STATS_PERIOD`) once a replay sender is known. Payload: `n` u32 counters, cumulative since reset,
 modulo 2³², snapshotted together on the packet's first byte, so one packet is self-consistent. The receiver uses
-the first `n` fields it knows and ignores the rest. Fields, in order (`rtl/top/arty_ddc_eth_top.sv`):
+the first `n` fields it knows and ignores the rest. Fields, in order: 0–17 from both Ethernet tops
+(`rtl/top/arty_ddc_eth_top.sv`, `n` = 18), 18–24 appended by the receiver top (`rtl/top/arty_rx_eth_top.sv`, `n` = 25):
 
 | # | Field | Source | Meaning |
 |---|---|---|---|
@@ -66,11 +67,18 @@ the first `n` fields it knows and ignores the rest. Fields, in order (`rtl/top/a
 | 12 | `udp_ip_csum_err` | `udp_rx` | Bad IPv4 header checksum |
 | 13 | `udp_malformed` | `udp_rx` | Malformed IPv4/UDP |
 | 14 | `rx_fifo_hwm` | `eth_rx` | RX async FIFO high-water mark, bytes (a level, not a count) |
-| 15 | `ddc_out` | `ddc_top` | DDC output samples handed to the capture |
+| 15 | `ddc_out` | `ddc_top` | DDC output samples handed on (to the capture, or to `rx_chain`) |
 | 16 | `tx_underrun` | `eth_tx` | Transmit underruns (must stay 0) |
 | 17 | `mac_restarts` | top | Times the MAC was put through reset again because the RX FIFO level read above its depth (request 0005 stopgap). **Not reset by a MAC restart**, unlike fields 0–16 |
+| 18 | `cadus_sent` | top | CADU packets (type 2) handed to `udp_tx` |
+| 19 | `fs_locked` | `fec_framesync` | 1 while the frame sync is locked (a level, not a count) |
+| 20 | `fs_dropped` | `fec_framesync` | Correlation peaks dropped because the verify queue was full |
+| 21 | `fs_slips` | `fec_framesync` | Hypothesis or position switches while locked |
+| 22 | `fs_early` | `fec_framesync` | Frames not emitted: their Viterbi run-in would start before the first symbol |
+| 23 | `flag_ovf` | `fec_frame_extract` | Window-flag FIFO overflows (must stay 0) |
+| 24 | `len_err` | `fec_cadu` | Frames whose `tlast` disagreed with the 8,192-bit count (must stay 0) |
 
-Packet size: 16 + 4 × 18 = 88 bytes. Parsed by `scripts/board_stats.py`.
+Packet size: 16 + 4 × `n` bytes (88 or 116). Parsed by `scripts/board_stats.py`.
 
 ## CADU (board → host), type 2
 

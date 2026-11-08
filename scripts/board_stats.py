@@ -13,6 +13,7 @@ import struct
 import sys
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 HDR = struct.Struct(">BBHIQ")  # type, version, n, pkt_seq, uptime
@@ -25,6 +26,8 @@ FIELDS = (
     "eth_ok", "eth_crc_err", "eth_rx_err", "eth_runt", "eth_oversize", "eth_ovf_lost",
     "udp_ok", "udp_filtered", "udp_ip_csum_err", "udp_malformed",
     "rx_fifo_hwm", "ddc_out", "tx_underrun", "mac_restarts",
+    # arty_rx_eth_top only (n = 25)
+    "cadus_sent", "fs_locked", "fs_dropped", "fs_slips", "fs_early", "flag_ovf", "len_err",
 )
 
 
@@ -51,9 +54,11 @@ def parse_stats(data: bytes) -> Stats:
 
 
 class StatsListener:
-    """Receives stats packets on PORT in a background thread; `latest` is the newest one parsed."""
+    """Receives stats packets on PORT in a background thread; `latest` is the newest one parsed. Packets of other
+    types (CADUs, docs/protocol.md type 2, on the same port) go to `other` if given, else count as errors."""
 
-    def __init__(self, port: int = PORT) -> None:
+    def __init__(self, port: int = PORT, other: Callable[[bytes], None] | None = None) -> None:
+        self.other = other
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(("0.0.0.0", port))
@@ -70,6 +75,9 @@ class StatsListener:
             try:
                 data = self.sock.recv(2048)
             except TimeoutError:
+                continue
+            if self.other is not None and data[:1] != bytes([TYPE_STATS]):
+                self.other(data)
                 continue
             try:
                 self.latest = parse_stats(data)
