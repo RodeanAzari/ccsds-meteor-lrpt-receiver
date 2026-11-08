@@ -880,3 +880,14 @@ Phases C and D wait on a real recording and hardware BER, so the tags are out of
 - Board builds: normal receiver WNS +0.224 ns (worst path fec_cadu LUTRAM → RS syndromes, 82% routing; was +0.580
   with the old ingest), 13,597 LUT, 8 RAMB36 + 7 RAMB18. Pre-RS build (`BOARD_SUFFIX=_prers`): `[TBD]`.
 - Not run: hardware recheck of the reorder buffer and the BER campaign. The board was held by P7 from 14:10.
+- Pre-RS build (`BOARD_SUFFIX=_prers`): WNS +0.093 ns, WHS +0.028 ns (`board_arty_rx_eth_top_prers.csv`).
+- **Hardware regression, open.** The rebuilt receiver (reorder ingest) on the board, synthetic recording at 5.6×:
+  of 8 replays, 2 clean-ish (298 good with 21 swaps absorbed; 292/297 around one truly lost datagram) and 5 broken
+  the same way: `ddc_out` 1,536 (12 datagrams) then the ingest stalls, `eth_ovf_lost` 1,530, `ingest_lost` ~53k,
+  `fs_slips` ~1e9 (a counter running every clock), ~7k garbage CADUs (flywheel, RS failed) at a rate above the
+  Viterbi's maximum, `pkt_seq` near 2^32, and one 163-byte CADU-typed packet each time; one more replay never
+  went quiet. The pre-reorder bitstream gave 15/15 clean the same day. Cause not established. Candidates: a MAC
+  restart mid-replay (request 0005 stopgap) resetting the ingest to expect seq 0 while seq ~53k arrives (the
+  logger did not print `mac_restarts`); the lower slack of this build; the board state after P7's partial-
+  reconfiguration session (P7 held the board 14:10–~15:05). Then the link to the board dropped (169.254.235.36
+  gone) and a diagnostic hung; stopped for a physical check. Board released.
