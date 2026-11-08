@@ -34,6 +34,9 @@ file mkdir $out
 # Every RTL source outside the Ethernet submodule; synth_design keeps only what $top instantiates.
 set srcs [lsort [glob -nocomplain [file join $root rtl * *.sv]]]
 set srcs [lsearch -all -inline -not -glob $srcs */rtl/eth/*]
+# fpga-rs-core at its tag (rtl/rs/rtl), its package first as in its own synth_ooc.tcl
+set rs_pkg [file join $root rtl rs rtl rs_gf_pkg.sv]
+lappend srcs $rs_pkg {*}[lsearch -all -inline -not -exact [lsort [glob [file join $root rtl rs rtl *.sv]]] $rs_pkg]
 read_verilog -sv $srcs
 # ROM/coefficient files for $readmemh, written by scripts/gen_rtl_tables.py
 foreach f [glob -nocomplain [file join $root rtl * *.mem]] { read_mem $f }

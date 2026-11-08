@@ -85,7 +85,8 @@ fec-rtl-results:
 # Out-of-context synth + place + route of one block at 100 MHz (CLAUDE.md §6). Reports: docs/reports/ooc/$(TOP)/.
 TOP ?= ddc_top
 # Optional: GENERICS="NAME=VALUE ..." parameter overrides, NAME=<result name> (default TOP) for such a variant.
-synth-ooc: NAME ?= $(TOP)
+# Not ?=: WSL exports NAME (the hostname), which must not rename the report. NAME=... on the command line still wins.
+synth-ooc: NAME = $(TOP)
 synth-ooc:
 	mkdir -p build/syn && cd build/syn && OOC_GENERICS="$(GENERICS)" OOC_NAME="$(NAME)" ../../scripts/vivado.sh \
 		-mode batch -source ../../syn/synth_ooc.tcl -tclargs $(TOP) > $(NAME).log 2>&1 || { tail -30 $(NAME).log; exit 1; }
