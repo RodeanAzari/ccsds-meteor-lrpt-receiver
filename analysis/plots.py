@@ -22,7 +22,7 @@ RESULTS = ROOT / "data" / "results"
 MEDIA = ROOT / "docs" / "media"
 DATE = "2026-11-02"
 # Reference palette, fixed order, validated with the dataviz skill's script.
-BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
+BLUE, ORANGE, AQUA, YELLOW = "#2a78d6", "#eb6834", "#1baf7a", "#eda100"
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 
 
@@ -335,6 +335,40 @@ def constellation_gif() -> None:
     plt.close(fig)
 
 
+def board_ber_plot() -> None:
+    """Hardware BER (scripts/ber_board.py) against the model and theory. Points with fewer than 100 errors are
+    95% upper bounds, drawn as downward triangles."""
+    if not (RESULTS / "ber_board.csv").exists():
+        return
+    fig, ax = plt.subplots(figsize=(8, 5.5))
+    ebn0 = np.arange(0.0, 8.01, 0.25)
+    theory = [0.5 * math.erfc(math.sqrt(10 ** (e / 10))) for e in ebn0]
+    ax.semilogy(ebn0, theory, color=BLUE, label="Uncoded OQPSK, theory Q(sqrt(2Eb/N0))")
+    model = [r for r in _rows("ber_awgn") if r["curve"] == "viterbi_after_nrzm" and int(r["errors"]) >= 100]
+    ax.semilogy([float(r["ebn0_db"]) for r in model], [float(r["ber"]) for r in model], "o-", color=ORANGE,
+                label="Viterbi + NRZ-M, model (AWGN symbols)")
+    board = _rows("ber_board")
+    for curve, colour, label in (("viterbi_board", AQUA, "Viterbi + NRZ-M, board (pre-RS)"),
+                                 ("viterbi_rs_board", YELLOW, "Viterbi + RS, board (data bytes)")):
+        rows = [r for r in board if r["curve"] == curve]
+        meas = [r for r in rows if r["ber"]]
+        bound = [r for r in rows if not r["ber"] and r["ber_upper95"]]
+        ax.semilogy([float(r["ebn0_db"]) for r in meas], [float(r["ber"]) for r in meas], "o", color=colour,
+                    label=label)
+        if bound:
+            ax.semilogy([float(r["ebn0_db"]) for r in bound], [float(r["ber_upper95"]) for r in bound], "v",
+                        color=colour, label=f"{label.split(',')[0]}: 95% upper bound, < 100 errors")
+    ax.set_xlabel("Eb/N0 per encoder input bit (dB)")
+    ax.set_ylabel("Bit error rate")
+    ax.set_xlim(0, 8)
+    ax.set_ylim(1e-8, 1)
+    ax.set_title("Hardware BER: Arty receiver vs. model and theory", color=INK, loc="left")
+    ax.legend(fontsize=9)
+    fig.tight_layout()
+    fig.savefig(MEDIA / "2026-11-08_phase-e_ber-board.png", dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     _style()
     MEDIA.mkdir(parents=True, exist_ok=True)
@@ -348,6 +382,7 @@ def main() -> None:
     lock_time_plot()
     doppler_plot()
     constellation_gif()
+    board_ber_plot()
 
 
 if __name__ == "__main__":

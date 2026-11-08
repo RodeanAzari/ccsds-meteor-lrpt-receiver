@@ -79,12 +79,21 @@ def freq_word(cu8: Path, tune_hz: float, seconds: float) -> tuple[int, float]:
     return ddc_fixed.freq_word(hz, cfg.fs), hz
 
 
-STAT_COLS = ["ingest_ok", "ingest_gap", "ingest_lost", "eth_ovf_lost", "cadus_sent", "fs_slips", "fs_dropped",
-             "mac_restarts"]
+STAT_COLS = ["ingest_ok", "ingest_gap", "ingest_lost", "ingest_late", "eth_ovf_lost", "cadus_sent", "fs_slips",
+             "fs_dropped", "mac_restarts"]
 
 
-def replay_once(cu8: Path, truth: set[bytes], iface: str, speed: str, bit: str | None) -> tuple[list[object], bool]:
-    """One replay from a fresh board (reprogrammed with `bit`): its result row, and whether every CADU matched."""
+@dataclass
+class Replay:
+    cadus: list[Cadu]
+    malformed: list[str]
+    stats: dict[str, int]  # the last stats packet's fields, empty if none arrived
+    said: str  # gs-replay's report
+
+
+def replay(cu8: Path, iface: str, speed: str, bit: str | None) -> Replay:
+    """One replay from a fresh board (reprogrammed with `bit`): every CADU packet in arrival order, and the
+    counters after the last one."""
     cadus: list[Cadu] = []
     bad: list[str] = []
 
@@ -115,13 +124,18 @@ def replay_once(cu8: Path, truth: set[bytes], iface: str, speed: str, bit: str |
         st = listener.wait_newer(st.pkt_seq if st is not None else -1, 1.0)
     finally:
         listener.close()
+    return Replay(cadus, bad, st.fields if st is not None else {}, said)
 
+
+def replay_once(cu8: Path, truth: set[bytes], iface: str, speed: str, bit: str | None) -> tuple[list[object], bool]:
+    """One replay from a fresh board: its result row, and whether every CADU matched."""
+    rp = replay(cu8, iface, speed, bit)
+    cadus, bad, fields = rp.cadus, rp.malformed, rp.stats
     seqs = [c.pkt_seq for c in cadus]
     missing = (max(seqs) + 1 - len(set(seqs))) if seqs else 0
     match = sum(c.data[DATA] in truth for c in cadus)
     rs = [x for c in cadus for x in c.corrections]
-    rate = re.search(r"\(([\d.]+)x", said)
-    fields = st.fields if st is not None else {}
+    rate = re.search(r"\(([\d.]+)x", rp.said)
     print(f"speed {speed}: {len(cadus)} CADU packets ({missing} missing by pkt_seq, {len(bad)} malformed); {match} "
           f"match the truth on the data bytes; RS: {sum(max(x, 0) for x in rs)} symbols corrected, {rs.count(-1)} "
           "codewords failed", flush=True)
