@@ -103,11 +103,11 @@ synth-ooc:
 BOARD_TOP ?= arty_ddc_rom_top
 SERIAL ?= /dev/ttyUSB1
 ILA ?= 0
-BOARD_NAME := $(BOARD_TOP)$(if $(filter 1,$(ILA)),_ila)
+BOARD_NAME := $(BOARD_TOP)$(if $(filter 1,$(ILA)),_ila)$(BOARD_SUFFIX)
 BOARD_ROM := $(if $(findstring _eth_,$(BOARD_TOP)),none,rom/iq_rom.mem)
 board:
 	PYTHONPATH=. $(PY) scripts/ddc_board.py rom build/board/rom/iq_rom.mem
-	cd build/board && BOARD_GENERICS="$(BOARD_GENERICS)" ../../scripts/vivado.sh -mode batch -source ../../syn/impl_board.tcl \
+	cd build/board && BOARD_GENERICS="$(BOARD_GENERICS)" BOARD_SUFFIX="$(BOARD_SUFFIX)" ../../scripts/vivado.sh -mode batch -source ../../syn/impl_board.tcl \
 		-tclargs $(BOARD_TOP) $(BOARD_ROM) $(if $(filter 1,$(ILA)),ila) > $(BOARD_NAME).log 2>&1 \
 		|| { tail -30 $(BOARD_NAME).log; exit 1; }
 	@grep "^BOARD " build/board/$(BOARD_NAME).log

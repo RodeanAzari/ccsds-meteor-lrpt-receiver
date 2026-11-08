@@ -61,8 +61,10 @@ def main(argv: list[str]) -> int:
         ),
         "board": (
             f"board_{top}",
-            f"make board BOARD_TOP={top.removesuffix('_ila')}" + (" ILA=1" if top.endswith("_ila") else "")
-            + (f' BOARD_GENERICS="{s["generics"]}"' if "generics" in s else ""),
+            f"make board BOARD_TOP={top.removesuffix(s.get('suffix', '')).removesuffix('_ila')}"
+            + (" ILA=1" if top.removesuffix(s.get("suffix", "")).endswith("_ila") else "")
+            + (f' BOARD_GENERICS="{s["generics"]}"' if "generics" in s else "")
+            + (f" BOARD_SUFFIX={s['suffix']}" if "suffix" in s else ""),
             "board-level place and route (constr/arty_a7_100t.xdc)",
         ),
     }[kind]

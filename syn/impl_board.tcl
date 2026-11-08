@@ -21,6 +21,9 @@ set top  [lindex $argv 0]
 set rom  [lindex $argv 1]
 set ila  [expr {[lindex $argv 2] eq "ila"}]
 set name [expr {$ila ? "${top}_ila" : $top}]
+# Optional environment BOARD_SUFFIX: a variant of the same top (e.g. _prers for RS_WRITEBACK=0) gets its own
+# bitstream and reports
+if {[info exists ::env(BOARD_SUFFIX)]} { append name $::env(BOARD_SUFFIX) }
 set part xc7a100tcsg324-1
 if {$top eq "" || ($rom ne "none" && ![file exists $rom])} { error "usage: -tclargs <top> <rom.mem | none> \[ila\]" }
 set eth  [string match *_eth_* $top]
@@ -103,6 +106,7 @@ puts $f "vivado [version -short]"
 puts $f "clk_mhz 100"
 puts $f "wns_ns $wns"
 if {[llength $generics]} { puts $f "generics $::env(BOARD_GENERICS)" }
+if {[info exists ::env(BOARD_SUFFIX)] && $::env(BOARD_SUFFIX) ne ""} { puts $f "suffix $::env(BOARD_SUFFIX)" }
 close $f
 puts "BOARD $name: WNS $wns ns, WHS $whs ns"
 if {$wns < 0 || $whs < 0} { error "timing not met: no bitstream written" }
