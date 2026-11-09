@@ -891,3 +891,17 @@ Phases C and D wait on a real recording and hardware BER, so the tags are out of
   logger did not print `mac_restarts`); the lower slack of this build; the board state after P7's partial-
   reconfiguration session (P7 held the board 14:10–~15:05). Then the link to the board dropped (169.254.235.36
   gone) and a diagnostic hung; stopped for a physical check. Board released.
+
+## 2026-11-09: reorder-ingest regression, MAC-restart hypothesis tested in simulation
+
+- New `mac_restart_mid_replay` in `test_arty_rx_eth_top_full.py` (make sim-full, ~6 min): the request 0005
+  stopgap fired 2,000 clocks into datagram 300 of 1,137 at line rate. The receiver resumes: the cut datagram ends
+  as one eth_rx_err, the ingest skips seqs 0–300 (`ingest_lost` 301), eth_ovf_lost 0, the 2 CADUs after the
+  restart bit-exact with the model run from datagram 301, frame-sync counters equal to the model's,
+  `mac_restarts` 1. Planted bug (ingest reset from the core reset instead of the MAC's) caught: CADU 0 status
+  differs (the ingest kept datagram 300's partial samples).
+- So a MAC restart alone does not give the board's broken state (fs_slips ~1e9, pkt_seq near 2^32, eth_ovf_lost
+  1,530): those values are impossible for the RTL in simulation, like the 2026-11-07 counters P2 flagged in request
+  0005. Remaining candidates: the board/link state (the link was down again today: no reply from 169.254.235.36,
+  no 169.254 address on the host), or stats packets corrupted on the way. Needs a raw stats dump of a bad case with
+  `mac_restarts`, on hardware.

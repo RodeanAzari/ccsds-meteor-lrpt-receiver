@@ -164,3 +164,77 @@ async def recording_in_cadus_out(dut) -> None:
             tools=f"Verilator {verilator}, cocotb {cocotb.__version__}",
         )
     assert good == len(cadus), f"{len(cadus) - good} CADUs are no frame sent"
+
+
+RESTART_AT = 300  # datagram index during whose transfer the MAC restart is forced
+
+
+@test(timeout_time=600, timeout_unit="ms")
+async def mac_restart_mid_replay(dut) -> None:
+    """A MAC restart (request 0005 stopgap) in the middle of a replay resets the whole receiver; it must resume.
+
+    Why it matters: on the board the reorder-ingest bitstream broke in 5 of 8 replays (docs/log.md 2026-11-08) with
+    ingest_lost ~ the replay's seq, the signature of an ingest reset to head 0 mid-replay. After the restart the
+    ingest must skip the seqs it will never see (lost = first complete seq after the restart), release from there in
+    order, and the receiver must decode what follows from a cold start bit-exactly; every packet stays well formed.
+    """
+    from cocotb.handle import Force, Release
+
+    raw, cfg, _ = raw_input(FRAMES, SEED)
+    raw = raw[: raw.size // (2 * SAMPLES) * 2 * SAMPLES]
+    hz = sync_fixed.coarse_tune_hz(raw, cfg)
+    cfg = replace(cfg, tune_offset_hz=hz)
+    n_dgram = raw.size // (2 * SAMPLES)
+    datagrams = [k.to_bytes(8, "big") + raw[2 * SAMPLES * k: 2 * SAMPLES * (k + 1)].tobytes() for k in range(n_dgram)]
+
+    start_soon(Clock(dut.clk100_i, 10, unit="ns").start())
+    start_soon(Clock(dut.eth_rx_clk_i, 40, unit="ns").start())
+    start_soon(Clock(dut.eth_tx_clk_i, 40, unit="ns").start())
+    tx: list[bytes] = []
+    start_soon(collect_mii_tx(dut.eth_tx_clk_i, dut.eth_txd_o, dut.eth_tx_en_o, tx))
+    dut.btn0_i.value = 0
+    dut.eth_rx_dv_i.value = 0
+    dut.eth_rxd_i.value = 0
+    dut.eth_rxerr_i.value = 0
+    dut.ck_rst_n_i.value = 0
+    await ClockCycles(dut.clk100_i, 5)
+    dut.ck_rst_n_i.value = 1
+    await ClockCycles(dut.clk100_i, MAC_START_CYCLES + 30)
+
+    async def restart() -> None:
+        await ClockCycles(dut.clk100_i, 2000)  # ~ a quarter into the datagram's 8,300-clock transfer
+        dut.fifo_level.value = Force(4095)
+        await ClockCycles(dut.clk100_i, 4)
+        dut.fifo_level.value = Release()
+
+    for k, d in enumerate(datagrams):
+        if k == RESTART_AT:
+            start_soon(restart())
+        await send_mii(dut.eth_rx_clk_i, dut.eth_rxd_i, dut.eth_rx_dv_i, udp_frame(d, GROUP_IP, PORT))
+    for _ in range(DRAIN_CLOCKS // 1000):
+        await ClockCycles(dut.clk100_i, 1000)
+
+    # After the restart the receiver starts cold on the first datagram that arrives whole: RESTART_AT is cut.
+    first = RESTART_AT + 1
+    cadus, res, early = model_cadus(raw[2 * SAMPLES * first:], cfg)
+    assert cadus, "the stimulus after the restart must give at least one CADU"
+    frames = [parse_udp_frame(w)["payload"] for w in tx]
+    got = [p for p in frames if p[0] == 2]
+    assert len(got) == len(cadus), f"{len(got)} CADU packets after the restart, the model gives {len(cadus)}"
+    for k, (pkt, c) in enumerate(zip(got, cadus, strict=True)):
+        typ, ver, n, seq, _ = struct.unpack(">BBHIQ", pkt[:16])
+        assert (typ, ver, n, seq, len(pkt)) == (2, 1, 1032, k, 1048), f"CADU packet {k} header"
+        assert pkt[16:24] == status_bytes(c), f"CADU {k}: status differs from the model"
+        assert pkt[24:] == bytes(c.data), f"CADU {k}: bytes differ from the model"
+    last = parse_stats([p for p in frames if p[0] == 1][-1])
+    n_after = n_dgram - first
+    # Counters restart with the MAC; mac_restarts does not. The cut datagram ends as an rx_err frame (MII abort).
+    want = {"ingest_ok": n_after, "ingest_gap": 1, "ingest_lost": first, "eth_ok": n_after, "eth_rx_err": 1,
+            "udp_ok": n_after, "ddc_out": n_after * SAMPLES // 4, "mac_restarts": 1, "cadus_sent": len(cadus),
+            "fs_locked": 1, "fs_dropped": res.dropped, "fs_slips": res.slips, "fs_early": early}
+    for name in FIELDS:
+        if name == "rx_fifo_hwm":
+            continue
+        assert last.fields[name] == want.get(name, 0), f"stats {name} = {last.fields[name]}, want {want.get(name, 0)}"
+    dut._log.info("MAC restart in datagram %d: %d skipped as lost, %d CADU packets after it bit-exact with the model",
+                  RESTART_AT, first, len(got))
