@@ -930,3 +930,26 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   worst path: ingest `seq_q` window compare → `s_tready` → ctrl_rx counter enables (9.4 ns, 48% logic).
 - Not done: hardware (board held by P2); the pre-RS build (`_prers`) not rebuilt yet; `gs-replay` (C++) doesn't
   send commands (Python does; Phase F).
+
+## 2026-11-10: gs-replay loopback pacing test de-flaked; per-replay stats dump
+
+- Symptom: `test_speed_and_count` failed 1 run in 5 at load average ~40 (span 70 us under the bound), in 11 of 20
+  runs under 24 extra busy loops. Root causes, three: the receiver thread's wake-up time was the arrival time;
+  gs-replay itself is preempted before its first sendto and then catches up (span 3–5 ms short with kernel
+  timestamps); and loopback reorders datagrams under load (sender migrates CPUs; 2 of 20 runs), which the test
+  called a sequence error. Also, flat-out sending reached a span of 1.02x the ideal under load: the old lower bound
+  could pass an unpaced sender.
+- Fix (test only, gs-replay unchanged): kernel arrival times (SO_TIMESTAMPNS); pacing checked as "no packet before
+  its deadline after the process launched" (the pacer's guarantee, which lateness can't break); stream checked by
+  sequence number, not arrival order; upper bound 1.1x + 50 ms (a stall is absolute: 22 ms seen at 4x). The upper
+  bound is looser at 4x (91 ms, was 55 ms) and tighter at 1x (0.60 s, was 0.75 s); it still catches --speed ignored.
+- Evidence: 0/30 failures under the same load, 0/10 without. Planted bugs in gs_replay_main.cpp: pacing skipped
+  (packet arrives 448 ms early), speed doubled (246 ms early), speed ignored (span 0.150 s vs 0.037 s): all
+  caught. A first "sleep removed" mutant didn't compile (-Werror): not a result, replaced.
+- Theil–Sen slope tried first and dropped: under load the 4x pacer falls behind and catches up in bursts, so its
+  slope (0.31–1.07 of the period) overlaps flat-out's (0.29–0.59).
+- `board_rx.py --dump` / `make rx-check DUMP=DIR` (c2538dc): every stats packet and malformed packet per replay,
+  for the reorder-ingest regression.
+- Pre-RS build (`_prers`) killed by Claude Code under memory pressure while writing the bitstream (routing done,
+  WNS +0.074 ns); partial reports reverted; `build/board/arty_rx_eth_top_prers.bit` is still the stale 2026-11-08
+  one (no ctrl_rx: `set_nco` fails loudly on it).
