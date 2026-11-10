@@ -13,7 +13,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_link_options(-fsanitize=address,undefined)
 endif()
 
-add_library(gs_core src/iq_replay.cpp)
+add_library(gs_core src/iq_replay.cpp src/board_packets.cpp)
 target_include_directories(gs_core PUBLIC include)
 
 add_executable(gs-replay src/gs_replay_main.cpp)
@@ -35,7 +35,18 @@ foreach(t gtest gtest_main gmock gmock_main)
 endforeach()
 
 enable_testing()
-add_executable(gs_tests tests/iq_replay_test.cpp)
+add_executable(gs_tests tests/iq_replay_test.cpp tests/board_packets_test.cpp)
 target_link_libraries(gs_tests PRIVATE gs_core GTest::gtest_main)
+# Packets the RTL sent in simulation (tb/cocotb/test_arty_rx_eth_top_full.py, CAPTURE_DIR): read by board_packets_test.
+target_compile_definitions(gs_tests PRIVATE GS_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
 include(GoogleTest)
 gtest_discover_tests(gs_tests)
+
+# libFuzzer target (make fuzz): clang only, with ASan and UBSan.
+option(GS_FUZZ "Build the libFuzzer targets (needs clang)" OFF)
+if(GS_FUZZ)
+  add_executable(board_packets_fuzz fuzz/board_packets_fuzz.cpp src/board_packets.cpp)
+  target_include_directories(board_packets_fuzz PRIVATE include)
+  target_compile_options(board_packets_fuzz PRIVATE -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all)
+  target_link_options(board_packets_fuzz PRIVATE -fsanitize=fuzzer,address,undefined)
+endif()

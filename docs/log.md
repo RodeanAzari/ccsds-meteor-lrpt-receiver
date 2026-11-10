@@ -953,3 +953,21 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - Pre-RS build (`_prers`) killed by Claude Code under memory pressure while writing the bitstream (routing done,
   WNS +0.074 ns); partial reports reverted; `build/board/arty_rx_eth_top_prers.bit` is still the stale 2026-11-08
   one (no ctrl_rx: `set_nco` fails loudly on it).
+
+## 2026-11-10 (cont.): Phase F started: board packet parsers in C++; pre-RS build
+
+- Pre-RS bitstream rebuilt (`eceeae2`): WNS +0.074 ns, WHS +0.027 ns, 13,681 LUT, 0 critical warnings; worst
+  path MAC reset fan-out into the RRC history registers (94% routing, 0 logic levels). Interpretation written.
+- `gs/include/gs/board_packets.hpp`, `gs/src/board_packets.cpp`: header, CADU, stats parsers; explicit big-endian,
+  no allocation, the CADU a span into the datagram. Accept/reject as `scripts/board_rx.py` / `board_stats.py`.
+- Tests: 21 new GoogleTest cases (hand-built packets incl. the 163-byte CADU-typed one of 2026-11-08), plus
+  RTL-sent packets: `test_arty_rx_eth_top_full.py` with `CAPTURE_DIR` saves its 3 CADU packets and 3 stats packets
+  with the reference parsers' values (`gs/tests/data/expected.txt`). Release and Debug (ASan/UBSan): 31/31.
+- `make fuzz` (was a stub): libFuzzer + ASan/UBSan, seeds from `gs/tests/data`, invariants checked (CADU size and
+  view offset, corrections range, stats length, never both types). 60 s: 7.0 M runs, no finding.
+- Planted bugs: alternate/swap swapped, be32 byte order, failed codeword with a count accepted, reserved byte 7
+  unchecked, CADU view at byte 16: all caught by GoogleTest. Field count uncapped (n > 29): Debug aborts on
+  libstdc++'s span bounds assertion, and the fuzzer finds it on its own within 30 s. My mutation loop first
+  reported that one as "31 passed": its output filter missed the abort; rerun by hand.
+- clang-tidy findings fixed, not suppressed: array subscripts by variable (now span views), swappable test-helper
+  parameters (template width, designated-initializer struct), string concatenation (std::filesystem::path).

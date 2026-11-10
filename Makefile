@@ -167,7 +167,7 @@ gs-test: gs
 
 # C++ static analysis (CLAUDE.md §5.3): format check, clang-tidy (gs/.clang-tidy, warnings are errors), cppcheck.
 # cppcheck skips gs/tests: clang-tidy covers them, and cppcheck misreads GoogleTest's macros.
-GS_SRC := $(wildcard gs/src/*.cpp gs/include/gs/*.hpp gs/tests/*.cpp)
+GS_SRC := $(wildcard gs/src/*.cpp gs/include/gs/*.hpp gs/tests/*.cpp gs/fuzz/*.cpp)
 gs-lint: gs
 	clang-format --style=file:gs/.clang-format --dry-run -Werror $(GS_SRC)
 	clang-tidy -p build/gs-Release --quiet $(filter %.cpp,$(GS_SRC))
@@ -191,6 +191,16 @@ formal:
 		> ../../build/formal/fec_acs_array.log 2>&1 || { grep -E 'summary|DONE|ERROR' ../../build/formal/fec_acs_array.log | tail -20; exit 1; }
 	@grep -E 'DONE' build/formal/fec_acs_array.log
 
+# libFuzzer on the board -> host packet parsers (gs/fuzz, CLAUDE.md §5.3), ASan + UBSan, FUZZ_S seconds. Seeds: the
+# RTL-captured packets in gs/tests/data; the corpus it grows stays in build/fuzz. A crash leaves crash-* there.
+FUZZ_S ?= 60
+fuzz:
+	cmake -S gs -B build/gs-fuzz -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug -DGS_FUZZ=ON
+	cmake --build build/gs-fuzz --target board_packets_fuzz -j
+	mkdir -p build/fuzz/corpus
+	cd build/fuzz && ../gs-fuzz/board_packets_fuzz corpus ../../gs/tests/data -max_total_time=$(FUZZ_S) \
+		-max_len=2048 -print_final_stats=1
+
 # Fail loudly instead of pretending these work.
-cov fuzz synth impl reports:
+cov synth impl reports:
 	@echo "make $@: not implemented yet (needs RTL or C++ from a later phase)" >&2; exit 1

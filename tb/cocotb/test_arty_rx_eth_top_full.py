@@ -23,6 +23,7 @@ import os
 import struct
 import subprocess
 from dataclasses import replace
+from pathlib import Path
 
 import cocotb
 import numpy as np
@@ -156,6 +157,8 @@ async def recording_in_cadus_out(dut) -> None:
     led = int(dut.led_o.value)
     assert led & LED_ERR == 0 and led & LED_LOCK, f"LEDs {led:04b}: error lit or frame sync not locked"
 
+    if os.environ.get("CAPTURE_DIR"):
+        capture(Path(os.environ["CAPTURE_DIR"]), got, packets(1))
     hwm = last.fields["rx_fifo_hwm"]
     dut._log.info("%d datagrams at line rate; %d CADU packets bit-exact with the model, %d of %d a frame sent; %d "
                   "stats packets; eth_rx FIFO high-water %d B; NCO word 0x%08X (coarse estimate %.1f Hz)", n_dgram,
@@ -176,6 +179,30 @@ async def recording_in_cadus_out(dut) -> None:
             tools=f"Verilator {verilator}, cocotb {cocotb.__version__}",
         )
     assert good == len(cadus), f"{len(cadus) - good} CADUs are no frame sent"
+
+
+def capture(out: Path, cadu_pkts: list[bytes], stats_pkts: list[bytes]) -> None:
+    """Save packets as the RTL sent them (UDP payloads) for the C++ parser tests (gs/tests/board_packets_test.cpp),
+    with the values the reference parsers (scripts/board_rx.py, scripts/board_stats.py) read from them: every CADU
+    packet, the first two stats packets and the last."""
+    from scripts.board_rx import parse_cadu
+
+    out.mkdir(parents=True, exist_ok=True)
+    lines = []
+    for k, pkt in enumerate(cadu_pkts):
+        c = parse_cadu(pkt)
+        name = f"cadu_{k}.bin"
+        (out / name).write_bytes(pkt)
+        flags = int(c.alternate) | int(c.swap) << 1 | int(c.flywheel) << 2
+        rs = " ".join(str(x) for x in c.corrections)
+        lines.append(f"{name} cadu {c.pkt_seq} {c.uptime} {flags} {c.asm_errors} {rs}")
+    for pkt in [*stats_pkts[:2], stats_pkts[-1]]:
+        st = parse_stats(pkt)
+        name = f"stats_{st.pkt_seq}.bin"
+        (out / name).write_bytes(pkt)
+        vals = " ".join(str(st.fields[f]) for f in FIELDS)
+        lines.append(f"{name} stats {st.pkt_seq} {st.uptime} {len(FIELDS)} {vals}")
+    (out / "expected.txt").write_text("\n".join(lines) + "\n")
 
 
 RESTART_AT = 300  # datagram index during whose transfer the MAC restart is forced
