@@ -163,7 +163,10 @@ gs:
 gs-test: gs
 	cd build/gs-Release && ctest --output-on-failure
 	cd build/gs-Debug && ctest --output-on-failure
-	GS_REPLAY=build/gs-Debug/gs-replay $(PY) -m pytest -q gs/tests
+	cmake -S gs -B build/gs-tsan -DCMAKE_BUILD_TYPE=RelWithDebInfo -DGS_TSAN=ON
+	cmake --build build/gs-tsan --target gs_tests -j
+	TSAN_OPTIONS=halt_on_error=1 build/gs-tsan/gs_tests --gtest_filter='SpscRing.*'
+	GS_REPLAY=build/gs-Debug/gs-replay GS_RX=build/gs-Debug/gs-rx $(PY) -m pytest -q gs/tests
 
 # C++ static analysis (CLAUDE.md §5.3): format check, clang-tidy (gs/.clang-tidy, warnings are errors), cppcheck.
 # cppcheck skips gs/tests: clang-tidy covers them, and cppcheck misreads GoogleTest's macros.

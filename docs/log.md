@@ -971,3 +971,27 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   reported that one as "31 passed": its output filter missed the abort; rerun by hand.
 - clang-tidy findings fixed, not suppressed: array subscripts by variable (now span views), swappable test-helper
   parameters (template width, designated-initializer struct), string concatenation (std::filesystem::path).
+
+## 2026-11-10 (cont.): space packets: spec, models, gs-rx
+
+- `docs/signal-spec.md` "Frame layers above the CADU", read from SatDump 1.2.2 (7aef0fe, cloned for reading):
+  VCDU header, 2-byte insert zone, 11-bit first header pointer at bytes 12-13, 882-byte zone from byte 14, VCID 5,
+  RS-failed CADUs dropped (`rs_usecheck`), and what SatDump's demuxer doesn't check (counter gaps, length vs
+  pointer: one stray byte, `demuxer.cpp:103`). First draft cited line numbers off a concatenated listing (vcdu.cpp,
+  demuxer.cpp offset by 23 and 37 lines); checked against the files and corrected before commit.
+- ADR 0015 (user's choice): drop and count damaged packets; identical to SatDump on unbroken streams.
+  `model/space_packets.py`: `mux`, `satdump_demux` (statement-by-statement port), `demux`. Finding while testing
+  the port: SatDump emits a packet that starts at a zone's pointer and ends at the zone's end only with the next
+  CADU, so a recording's last such packet is never emitted (now in the spec). Testbench bugs on the way: expected
+  lists recomputed the idle fill for a shorter packet list; the SatDump flush CADU copied the last CADU's VCID.
+- C++: `SpaceDemux` (header-only, fixed 64 KB packet buffer) vs 9 model scenarios (`gs/tests/data/demux`,
+  `scripts/gen_gs_vectors.py`, staleness pytest). `SpscRing` (lock-free, slots written in place): 2 M items across
+  two threads, ThreadSanitizer build in `make gs-test`. `RxProcessor` + `gs-rx` (network thread -> ring ->
+  processing; `cadus.bin`, `packets.bin`, summary to stdout and `gs-rx.txt`). Loopback test: board packets from a
+  `mux` stream with one RS-failed CADU, one pkt_seq gap, a stats and a malformed datagram; files equal the models'.
+- Planted bugs: demux 7 (5-bit VCID mask passed until a VCID-37 stream was added), ring 4 (two memory-ordering bugs
+  caught only by TSan; a never-freed slot hung the test until deadlines were added), gs-rx processing 3, demux
+  fuzzer 1: all caught. Two mutants first didn't compile (-Werror) and one mutation loop's grep matched the test's
+  own source lines: those were not results, rerun.
+- `make fuzz`: two targets (board parser 2.6 M runs, demux 373 k runs, 60 s each), no findings. Not in CI yet.
+- Not done: gs-rx on a real board stream (board held by P2); `gs-diff`, `gs-view`.
