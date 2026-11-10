@@ -114,3 +114,56 @@ SatDump's `.cadu` output isn't fully corrected:
 
 So the acceptance test is **bit-exact on the 892 data bytes** (offsets 4 to 895) of frames both decoders produce. Parity
 and ASM differences get reported separately and don't fail the test.
+
+## Frame layers above the CADU (VCDU, M_PDU, space packets)
+
+Read from `plugins/meteor_support/meteor/instruments/msumr/module_meteor_msumr_lrpt.cpp` (the pipeline's
+`meteor_msumr_lrpt` product module), `src-core/common/ccsds/ccsds_aos/{vcdu,mpdu,demuxer}.cpp` and
+`src-core/common/ccsds/ccsds.cpp`. Nothing here has been seen on a real recording yet.
+
+**Which CADUs reach the demultiplexer.** `module_ccsds_conv_concat_decoder.cpp:213-228`: with `rs_usecheck` on (the
+pipeline's setting), a CADU with any uncorrectable codeword is not written, so it never reaches the demultiplexer.
+`gs-rx` drops the same CADUs (any `rs[b]` fail bit in the board's CADU packet) to see the same stream.
+
+**CADU byte map** (offsets in the 1,024-byte CADU, after derandomization and RS):
+
+| Bytes | Field | Source |
+|---|---|---|
+| 0–3 | ASM `1ACFFC1D` | `Parameters` above |
+| 4–9 | VCDU primary header: version = byte 4 bits 7–6; spacecraft ID = byte 4 bits 5–0, byte 5 bits 7–6 (8 bits); **VCID = byte 5 bits 5–0**; VCDU counter = bytes 6–8 (24-bit, big-endian); replay flag = byte 9 bit 7 | `vcdu.cpp:12-16` (`parseVCDU`) |
+| 10–11 | **VCDU insert zone, 2 bytes**, unused by SatDump | `Demuxer(882, true)` (`module_meteor_msumr_lrpt.cpp:125`); `insertZoneSize` default 2 (`demuxer.h:34`) |
+| 12–13 | M_PDU header: **first header pointer = byte 12 bits 2–0, byte 13 (11 bits)**; the top 5 bits are not read | `mpdu.cpp:12` (`parseMPDU`, insert zone on) |
+| 14–895 | **M_PDU packet zone, 882 bytes** (`MPDU_DATA_SIZE`) | `module_meteor_msumr_lrpt.cpp:125` |
+| 896–1023 | RS parity (4 × 32) | `Parameters` above |
+
+Check: 14 + 882 = 896 = 4 + 892, the end of the RS data bytes.
+
+**Virtual channels.** The MSU-MR imager's packets are on **VCID 5**; SatDump demultiplexes only VCID 5 and
+ignores every other VCID (`module_meteor_msumr_lrpt.cpp:143`). APID 70 carries MSU-MR telemetry (line 150); the
+image APIDs are read by `lrpt::MSUMRReader`, outside this spec's scope until the optional image step.
+
+**First header pointer.** 2047 (`0x7FF`) = no packet starts in this M_PDU. A value from 882 to 2046 is invalid: SatDump
+skips that M_PDU entirely and keeps any packet in progress (`demuxer.cpp:73`).
+
+**Space packet primary header** (6 bytes, `ccsds.cpp:15-21`): version = byte 0 bits 7–5; type = bit 4; secondary
+header flag = bit 3; APID = byte 0 bits 2–0, byte 1 (11 bits); sequence flags = byte 2 bits 7–6; sequence count =
+byte 2 bits 5–0, byte 3 (14 bits); packet length = bytes 4–5. **Data bytes after the header = packet length + 1**
+(`demuxer.cpp:31`). A packet may span M_PDUs, and so may its header (`demuxer.cpp:83-94, 160-168, 191-198`).
+
+**What SatDump's demultiplexer does not do** (`demuxer.cpp`, whole file):
+
+- **No VCDU counter check.** A CADU lost or dropped for RS failure between two others is not noticed: the packet in
+  progress continues with the next M_PDU's bytes.
+- **No packet length check against the first header pointer.** When a packet in progress is longer than the bytes
+  before this M_PDU's first header pointer, SatDump appends `first_header_pointer + 1 − offset` bytes
+  (`demuxer.cpp:103`): one byte more than lie before the new header, and it ends the packet there, short of its
+  declared length. When the packet fits, it appends exactly what remains.
+- **No version, APID or sequence count check** on packets; no idle packet filter.
+
+- **A packet can be emitted one CADU late.** When the first packet starting at a zone's first header pointer ends
+  exactly at that zone's end, SatDump pushes it at the start of the next VCID-5 CADU (`demuxer.cpp:116-119`), so the
+  last such packet of a recording is never emitted. Packet content is unaffected.
+
+The first two only matter after a lost or dropped CADU: on an unbroken VCID-5 stream they never trigger. `gs-rx`
+drops and counts what they would damage (ADR 0015); `model/space_packets.py` has both behaviours (`satdump_demux`,
+`demux`).

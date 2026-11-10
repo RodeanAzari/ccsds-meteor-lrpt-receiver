@@ -21,6 +21,7 @@ and lists clock-domain crossings.
 | [0012](decisions/0012-rs-instance-count.md) | One fpga-rs-core RS decoder; deinterleave ×4 and re-interleave in one buffer around it | fpga-rs-core `docs/reports/ooc/` |
 | [0013](decisions/0013-ingest-reorder-buffer.md) | Ingest reorder buffer: 4 datagram slots by `seq`, released in order; losses skipped, late datagrams dropped | `test_iq_udp_ingest.py` |
 | [0014](decisions/0014-control-commands.md) | Control commands in-band on the replay port (byte 0 bit 7); SET_NCO accepted only before the DDC's first sample | `test_ctrl_rx.py`, `test_arty_rx_eth_top_full.py` |
+| [0015](decisions/0015-space-packet-demux.md) | Space packets: SatDump's packets on unbroken streams; a packet crossing a counter gap or disagreeing with the first header pointer dropped and counted | `model/tests/test_space_packets.py` |
 
 Still required (CLAUDE.md §5.5): interpolator type, Berlekamp–Massey variant, RS instance count, phase-ambiguity
 strategy. The interpolator (Catmull-Rom cubic) and phase-ambiguity strategy (4 hypotheses on the
