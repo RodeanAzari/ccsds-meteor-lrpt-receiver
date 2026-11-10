@@ -41,10 +41,8 @@ def sd(cadus: list[bytes]) -> list[bytes]:
     """satdump_demux with one more VCID-5 CADU (no packet header, next counter) after the stream: SatDump emits a
     packet that starts at a zone's first header pointer and ends exactly at that zone's end only when the next CADU
     arrives (signal-spec.md), and every mux stream ends that way."""
-    last = cadus[-1]
-    flush = mux([], first_counter=(vcdu_counter(last) + 1) % (1 << 24))
-    flush_cadu = set_pointer(flush[0], NO_HEADER) if flush else set_pointer(last, NO_HEADER)
-    return satdump_demux([*cadus, flush_cadu])
+    flush = set_pointer(mux([space_packet(0, 0, b"x")])[0], NO_HEADER)  # VCID 5; SatDump reads no counter
+    return satdump_demux([*cadus, flush])
 
 
 def set_pointer(cadu: bytes, fhp: int) -> bytes:
@@ -113,7 +111,7 @@ def test_other_virtual_channels_ignored() -> None:
     rng = random.Random(1)
     pkts = packets(rng, 10)
     mine = mux(pkts)
-    other = mux(packets(rng, 10), vc=63)
+    other = mux(packets(rng, 10), vc=63) + mux(packets(rng, 6), vc=37)  # 37 = 0b100101: VCID 5 in its low 5 bits
     mixed = [c for pair in zip(mine, other, strict=False) for c in pair] + mine[len(other):] + other[len(mine):]
     got, counts = demux(mixed)
     assert got == with_fill(pkts) and sd(mixed) == with_fill(pkts)

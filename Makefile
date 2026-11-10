@@ -191,15 +191,19 @@ formal:
 		> ../../build/formal/fec_acs_array.log 2>&1 || { grep -E 'summary|DONE|ERROR' ../../build/formal/fec_acs_array.log | tail -20; exit 1; }
 	@grep -E 'DONE' build/formal/fec_acs_array.log
 
-# libFuzzer on the board -> host packet parsers (gs/fuzz, CLAUDE.md §5.3), ASan + UBSan, FUZZ_S seconds. Seeds: the
-# RTL-captured packets in gs/tests/data; the corpus it grows stays in build/fuzz. A crash leaves crash-* there.
+# libFuzzer (gs/fuzz, CLAUDE.md §5.3), ASan + UBSan, FUZZ_S seconds per target: the board -> host packet parsers
+# (seeds: RTL-captured packets in gs/tests/data) and the space packet demux (seeds: gs/tests/data/demux vectors).
+# The corpora they grow stay in build/fuzz (always the first directory: libFuzzer writes into it). A crash leaves
+# crash-* in build/fuzz.
 FUZZ_S ?= 60
 fuzz:
 	cmake -S gs -B build/gs-fuzz -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug -DGS_FUZZ=ON
-	cmake --build build/gs-fuzz --target board_packets_fuzz -j
-	mkdir -p build/fuzz/corpus
-	cd build/fuzz && ../gs-fuzz/board_packets_fuzz corpus ../../gs/tests/data -max_total_time=$(FUZZ_S) \
+	cmake --build build/gs-fuzz --target board_packets_fuzz space_packets_fuzz -j
+	mkdir -p build/fuzz/board build/fuzz/demux
+	cd build/fuzz && ../gs-fuzz/board_packets_fuzz board ../../gs/tests/data -max_total_time=$(FUZZ_S) \
 		-max_len=2048 -print_final_stats=1
+	cd build/fuzz && ../gs-fuzz/space_packets_fuzz demux ../../gs/tests/data/demux -max_total_time=$(FUZZ_S) \
+		-max_len=65536 -print_final_stats=1
 
 # Fail loudly instead of pretending these work.
 cov synth impl reports:

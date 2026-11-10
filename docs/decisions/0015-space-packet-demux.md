@@ -55,4 +55,4 @@ No version, APID or idle-packet filtering: SatDump does none either.
   pointer keeping the packet; in the port, the stray byte removed. Each fails one test. One more, in the port, a
   header exactly 6 bytes before the zone's end read at once instead of buffered as split, passes: it is equivalent
   (the payload continues from the next zone's byte 0 either way).
-- gs-rx (C++) against this model: `[TBD]`.
+- gs-rx (C++) `SpaceDemux` against this model: all 9 vector scenarios (`gs/tests/data/demux`, from `scripts/gen_gs_vectors.py`) byte for byte and counter for counter, Release and Debug. Planted bugs (gap check, counter wrap, late or early end kept, invalid pointer keeping the packet, header completion not continuing, 5-bit VCID mask) each fail a scenario; the VCID mask only after a VCID-37 stream was added to `mixed_vcid`. `make fuzz`: 373 k runs in 60 s, no finding; a planted length bug aborts at once.
