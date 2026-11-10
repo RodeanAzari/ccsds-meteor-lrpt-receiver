@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
-| Date         : Sun Nov  8 15:28:24 2026
+| Date         : Tue Nov 10 10:50:10 2026
 | Host         : RodeanStation running 64-bit Ubuntu 26.04 LTS
 | Command      : report_utilization -hierarchical -file /home/rodea/CCSDS/docs/reports/board/arty_rx_eth_top_prers/utilization_hier.rpt
 | Design       : arty_rx_eth_top
@@ -22,49 +22,50 @@ Table of Contents
 +---------------------+------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
 |       Instance      |            Module            | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs  | RAMB36 | RAMB18 | DSP Blocks |
 +---------------------+------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
-| arty_rx_eth_top     |                        (top) |      13588 |      13331 |     216 |   41 | 13669 |      8 |      7 |         29 |
-|   (arty_rx_eth_top) |                        (top) |          7 |          7 |       0 |    0 |   597 |      0 |      0 |          0 |
-|   u_cadu_pkt        |                  cadu_packet |         93 |         89 |       0 |    4 |   263 |      0 |      0 |          0 |
-|   u_ddc             |                      ddc_top |        974 |        974 |       0 |    0 |  1665 |      0 |      1 |          6 |
-|     u_cic           |                      ddc_cic |        276 |        276 |       0 |    0 |   434 |      0 |      0 |          0 |
+| arty_rx_eth_top     |                        (top) |      13681 |      13425 |     216 |   40 | 13931 |      8 |      7 |         29 |
+|   (arty_rx_eth_top) |                        (top) |          7 |          7 |       0 |    0 |   630 |      0 |      0 |          0 |
+|   u_cadu_pkt        |                  cadu_packet |         92 |         88 |       0 |    4 |   263 |      0 |      0 |          0 |
+|   u_ctrl            |                      ctrl_rx |         19 |         19 |       0 |    0 |   117 |      0 |      0 |          0 |
+|   u_ddc             |                      ddc_top |        992 |        992 |       0 |    0 |  1674 |      0 |      1 |          6 |
+|     u_cic           |                      ddc_cic |        277 |        277 |       0 |    0 |   434 |      0 |      0 |          0 |
 |     u_fir           |                 ddc_comp_fir |        393 |        393 |       0 |    0 |  1033 |      0 |      0 |          2 |
-|     u_ingest        |                   ddc_ingest |        138 |        138 |       0 |    0 |   104 |      0 |      0 |          0 |
-|     u_mixer         |                ddc_nco_mixer |        168 |        168 |       0 |    0 |    94 |      0 |      1 |          4 |
-|   u_eth_rx          |                       eth_rx |        254 |        250 |       0 |    4 |   273 |      2 |      0 |          0 |
+|     u_ingest        |                   ddc_ingest |        130 |        130 |       0 |    0 |   104 |      0 |      0 |          0 |
+|     u_mixer         |                ddc_nco_mixer |        195 |        195 |       0 |    0 |   103 |      0 |      1 |          4 |
+|   u_eth_rx          |                       eth_rx |        253 |        249 |       0 |    4 |   273 |      2 |      0 |          0 |
 |     u_fifo          |                   async_fifo |         56 |         56 |       0 |    0 |   108 |      1 |      0 |          0 |
 |     u_buf           |                 frame_buffer |         68 |         68 |       0 |    0 |    66 |      1 |      0 |          0 |
 |     u_fcs           |                eth_fcs_check |         67 |         63 |       0 |    4 |    53 |      0 |      0 |          0 |
 |   u_eth_tx          |                       eth_tx |        132 |        132 |       0 |    0 |   168 |      0 |      1 |          0 |
 |     u_mii_tx        |                       mii_tx |         88 |         88 |       0 |    0 |    55 |      0 |      0 |          0 |
 |     u_fifo          |   async_fifo__parameterized0 |         42 |         42 |       0 |    0 |   108 |      0 |      1 |          0 |
-|   u_ingest          |                iq_udp_ingest |        218 |        218 |       0 |    0 |   388 |      1 |      0 |          0 |
-|   u_rx              |                     rx_chain |      10996 |      10779 |     216 |    1 |  8412 |      5 |      4 |         23 |
+|   u_ingest          |                iq_udp_ingest |        219 |        219 |       0 |    0 |   389 |      1 |      0 |          0 |
+|   u_rx              |                     rx_chain |      11001 |      10784 |     216 |    1 |  8412 |      5 |      4 |         23 |
 |     u_viterbi       |                  fec_viterbi |       1222 |       1222 |       0 |    0 |   691 |      1 |      0 |          0 |
 |       u_acs         |                fec_acs_array |       1152 |       1152 |       0 |    0 |   641 |      0 |      0 |          0 |
 |         (u_acs)     |                fec_acs_array |         64 |         64 |       0 |    0 |   641 |      0 |      0 |          0 |
 |       u_tb          |                fec_traceback |         70 |         70 |       0 |    0 |    50 |      1 |      0 |          0 |
-|     u_cadu          |                     fec_cadu |       4506 |       4293 |     212 |    1 |  1858 |      0 |      3 |          0 |
+|     u_cadu          |                     fec_cadu |       4509 |       4296 |     212 |    1 |  1858 |      0 |      3 |          0 |
 |       (u_cadu)      |                     fec_cadu |        285 |         93 |     192 |    0 |   119 |      0 |      0 |          0 |
-|       u_rs          |                   rs_decoder |       4221 |       4200 |      20 |    1 |  1739 |      0 |      3 |          0 |
+|       u_rs          |                   rs_decoder |       4224 |       4203 |      20 |    1 |  1739 |      0 |      3 |          0 |
 |         (u_rs)      |                   rs_decoder |        110 |         90 |      20 |    0 |    77 |      0 |      2 |          0 |
 |         u_chien     |              rs_chien_forney |        306 |        305 |       0 |    1 |   335 |      0 |      1 |          0 |
-|         u_ribm      |                      rs_ribm |       3415 |       3415 |       0 |    0 |   806 |      0 |      0 |          0 |
-|         u_syndrome  |                  rs_syndrome |        392 |        392 |       0 |    0 |   521 |      0 |      0 |          0 |
-|     u_extract       |            fec_frame_extract |         38 |         34 |       4 |    0 |    55 |      0 |      0 |          0 |
+|         u_ribm      |                      rs_ribm |       3416 |       3416 |       0 |    0 |   806 |      0 |      0 |          0 |
+|         u_syndrome  |                  rs_syndrome |        394 |        394 |       0 |    0 |   521 |      0 |      0 |          0 |
+|     u_extract       |            fec_frame_extract |         39 |         35 |       4 |    0 |    55 |      0 |      0 |          0 |
 |     u_framesync     |                fec_framesync |       3188 |       3188 |       0 |    0 |  3118 |      4 |      0 |          1 |
 |       (u_framesync) |                fec_framesync |       1624 |       1624 |       0 |    0 |     6 |      0 |      0 |          0 |
 |       u_corr        |            fec_fs_correlator |        398 |        398 |       0 |    0 |  2530 |      0 |      0 |          1 |
 |       u_fsm         |                   fec_fs_fsm |        425 |        425 |       0 |    0 |   328 |      0 |      0 |          0 |
 |       u_win         |                fec_fs_window |        743 |        743 |       0 |    0 |   254 |      4 |      0 |          0 |
-|     u_sync          |                     sync_top |       2243 |       2243 |       0 |    0 |  2674 |      0 |      1 |         22 |
+|     u_sync          |                     sync_top |       2244 |       2244 |       0 |    0 |  2674 |      0 |      1 |         22 |
 |       u_timing      |                  sync_timing |       1132 |       1132 |       0 |    0 |   578 |      0 |      0 |          9 |
 |       u_agc         |                     sync_agc |        161 |        161 |       0 |    0 |    68 |      0 |      0 |          4 |
-|       u_costas      |                  sync_costas |        331 |        331 |       0 |    0 |   153 |      0 |      1 |          7 |
+|       u_costas      |                  sync_costas |        332 |        332 |       0 |    0 |   153 |      0 |      1 |          7 |
 |       u_rrc         |                     sync_rrc |        603 |        603 |       0 |    0 |  1875 |      0 |      0 |          2 |
 |         u_fir       | ddc_comp_fir__parameterized0 |        603 |        603 |       0 |    0 |  1875 |      0 |      0 |          2 |
-|   u_stats           |                 stats_packet |        478 |        467 |       0 |   11 |  1069 |      0 |      0 |          0 |
-|   u_udp_rx          |                       udp_rx |        215 |        215 |       0 |    0 |   421 |      0 |      0 |          0 |
-|   u_udp_tx          |                       udp_tx |        216 |        195 |       0 |   21 |   402 |      0 |      1 |          0 |
+|   u_stats           |                 stats_packet |        527 |        517 |       0 |   10 |  1171 |      0 |      0 |          0 |
+|   u_udp_rx          |                       udp_rx |        219 |        219 |       0 |    0 |   421 |      0 |      0 |          0 |
+|   u_udp_tx          |                       udp_tx |        221 |        200 |       0 |   21 |   402 |      0 |      1 |          0 |
 +---------------------+------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
 * Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
 

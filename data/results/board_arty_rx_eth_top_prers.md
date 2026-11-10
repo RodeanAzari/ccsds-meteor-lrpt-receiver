@@ -1,8 +1,8 @@
 # board_arty_rx_eth_top_prers
 
-- **Commit:** `f48e0c64331be469f60c858229779236aa14236a`
-- **Command:** `make board BOARD_TOP=arty_rx_eth_top BOARD_GENERICS="FREQ_WORD=32'h25C11200 RS_WRITEBACK=0" BOARD_SUFFIX=_prers`
+- **Commit:** `efb210cadac657ea6517f63ccb7367605013aebf (with uncommitted changes)`
+- **Command:** `make board BOARD_TOP=arty_rx_eth_top BOARD_GENERICS="RS_WRITEBACK=0" BOARD_SUFFIX=_prers`
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Vivado 2025.2
-- **Input:** synthetic, no input data: board-level place and route (constr/arty_a7_100t.xdc) of arty_rx_eth_top_prers with FREQ_WORD=32'h25C11200 RS_WRITEBACK=0 on xc7a100tcsg324-1. No real recording.
+- **Input:** synthetic, no input data: board-level place and route (constr/arty_a7_100t.xdc) of arty_rx_eth_top_prers with RS_WRITEBACK=0 on xc7a100tcsg324-1. No real recording.
 
-[TBD]
+The pre-RS variant of the receiver board design (`arty_rx_eth_top` with `RS_WRITEBACK=0`: CADUs leave before RS correction, the RS status kept, for the Viterbi-only BER curve of buildplan §8.4) places and routes on the Arty A7-100T at 100 MHz with timing met: WNS +0.074 ns, WHS +0.027 ns, no failing endpoints, no critical warnings. 13,681 LUTs, 13,931 flip-flops, 29 DSP48E1, 8 RAMB36 and 7 RAMB18, within a few LUTs of the normal build (13,682). Like the normal build it has no NCO word built in: the host sets it with SET_NCO (ADR 0014). Its worst setup path differs from the normal build's: the MAC reset register (`mac_rst_q`) fanning out to the synchronous reset of the RRC's history registers, 9.3 ns of which 94% is routing with no logic levels, so its slack depends on placement, not on the design. If it goes negative, a replicated or pipelined reset for the receive chain removes it (the reset is a level held for many cycles, so one extra register stage costs nothing).

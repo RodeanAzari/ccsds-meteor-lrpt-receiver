@@ -2,6 +2,6 @@ top arty_rx_eth_top_prers
 part xc7a100tcsg324-1
 vivado 2025.2
 clk_mhz 100
-wns_ns 0.093
-generics FREQ_WORD=32'h25C11200 RS_WRITEBACK=0
+wns_ns 0.074
+generics RS_WRITEBACK=0
 suffix _prers
