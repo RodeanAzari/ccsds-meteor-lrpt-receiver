@@ -129,12 +129,14 @@ eth-check: gs
 		--bit build/board/$(BOARD_TOP).bit
 
 # After `make board BOARD_TOP=arty_rx_eth_top` (and the board claim): program, set the NCO word from REC's coarse
-# estimate, replay REC, receive its CADUs and stats, compare with TRUTH. One replay per SPEED.
+# estimate, replay REC, receive its CADUs and stats, compare with TRUTH. One replay per SPEED. DUMP=DIR also writes
+# every stats packet and malformed packet of each replay there (diagnosis, not a result).
 REC ?= data/synthetic/synthetic_seed2026_1024000SPS.cu8
 TRUTH ?= data/synthetic/synthetic_seed2026_truth.cadu
+DUMP ?=
 rx-check: gs
 	PYTHONPATH=. $(PY) scripts/board_rx.py check $(REC) $(TRUTH) --iface $(IFACE) --speed $(SPEED) \
-		--bit build/board/arty_rx_eth_top.bit
+		--bit build/board/arty_rx_eth_top.bit $(if $(DUMP),--dump $(DUMP))
 
 # After `make board ILA=1` (and the board claim): program, capture every DDC output with the ILA, compare.
 ila-capture:

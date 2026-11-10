@@ -4,12 +4,13 @@
         print the DDC NCO word for the recording: the host's coarse estimate (ADR 0002) over its first S seconds
         (default 2), around the tuning offset HZ (default 150000)
     PYTHONPATH=. python scripts/board_rx.py check <recording.cu8> <truth.cadu> --iface <host IP on the cable>
-        [--speed X[,Y...]] [--bit <bitstream>] [--tune HZ]
+        [--speed X[,Y...]] [--bit <bitstream>] [--tune HZ] [--dump DIR]
         per speed: reprogram the board (with --bit), set the NCO word to the recording's coarse estimate (SET_NCO,
         docs/protocol.md "Control commands"), replay the recording with gs-replay, receive the CADU packets
         (docs/protocol.md type 2) and stats (type 1), and compare each CADU's 892 data bytes with the truth file
         (signal-spec.md: the bytes SatDump's output is compared on); one replay and result row per speed in
-        board_rx_eth.csv
+        board_rx_eth.csv. With --dump, DIR/replay_<k>_<speed>x.csv gets every stats packet of each replay (host
+        time, pkt_seq, uptime, fields) and the hex of every malformed packet: a diagnostic, not a result
 
 `parse_cadu` is the reference parser for type 2 packets, `set_nco_command` the reference encoder for SET_NCO.
 """
@@ -122,6 +123,35 @@ class Replay:
     malformed: list[str]
     stats: dict[str, int]  # the last stats packet's fields, empty if none arrived
     said: str  # gs-replay's report
+    stats_history: list[tuple[float, bytes]]  # every stats-typed packet: host monotonic time, raw bytes
+    malformed_raw: list[tuple[float, bytes]]  # every other packet that did not parse as a CADU
+
+
+def dump_replay(rp: Replay, path: Path) -> None:
+    """One row per stats packet (fields by name) and per malformed packet (hex), in arrival order, time from the
+    first."""
+    import csv
+
+    from scripts.board_stats import FIELDS, parse_stats
+
+    rows = sorted([(t, "stats", d) for t, d in rp.stats_history] + [(t, "other", d) for t, d in rp.malformed_raw])
+    t0 = rows[0][0] if rows else 0.0
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["t_s", "kind", "pkt_seq", "uptime", *FIELDS, "len", "error", "hex"])
+        for t, kind, data in rows:
+            head = [f"{t - t0:.4f}"]
+            try:
+                if kind != "stats":
+                    raise ValueError("not a stats packet, not a CADU packet")
+                s = parse_stats(data)
+                w.writerow([*head, "stats", s.pkt_seq, s.uptime, *(s.fields.get(k, "") for k in FIELDS), len(data),
+                            "", ""])
+            except ValueError as e:
+                w.writerow([*head, f"bad_{kind}", "", "", *([""] * len(FIELDS)), len(data), str(e), data.hex()])
+    print(f"dump: {len(rp.stats_history)} stats packets, {len(rp.malformed_raw)} malformed others -> {path}",
+          flush=True)
 
 
 def replay(cu8: Path, iface: str, speed: str, bit: str | None, word: int) -> Replay:
@@ -129,12 +159,14 @@ def replay(cu8: Path, iface: str, speed: str, bit: str | None, word: int) -> Rep
     arrival order, and the counters after the last one."""
     cadus: list[Cadu] = []
     bad: list[str] = []
+    bad_raw: list[tuple[float, bytes]] = []
 
     def on_packet(data: bytes) -> None:
         try:
             cadus.append(parse_cadu(data))
         except ValueError as e:
             bad.append(str(e))
+            bad_raw.append((time.monotonic(), data))
 
     listener = StatsListener(other=on_packet)
     try:
@@ -158,13 +190,15 @@ def replay(cu8: Path, iface: str, speed: str, bit: str | None, word: int) -> Rep
         st = listener.wait_newer(st.pkt_seq if st is not None else -1, 1.0)
     finally:
         listener.close()
-    return Replay(cadus, bad, st.fields if st is not None else {}, said)
+    return Replay(cadus, bad, st.fields if st is not None else {}, said, list(listener.history), bad_raw)
 
 
 def replay_once(cu8: Path, truth: set[bytes], iface: str, speed: str, bit: str | None,
-                word: int) -> tuple[list[object], bool]:
+                word: int, dump: Path | None = None) -> tuple[list[object], bool]:
     """One replay from a fresh board: its result row, and whether every CADU matched."""
     rp = replay(cu8, iface, speed, bit, word)
+    if dump is not None:
+        dump_replay(rp, dump)
     cadus, bad, fields = rp.cadus, rp.malformed, rp.stats
     seqs = [c.pkt_seq for c in cadus]
     missing = (max(seqs) + 1 - len(set(seqs))) if seqs else 0
@@ -180,7 +214,8 @@ def replay_once(cu8: Path, truth: set[bytes], iface: str, speed: str, bit: str |
     return row, bool(cadus) and match == len(cadus) and not missing and not bad
 
 
-def check(cu8: Path, truth_path: Path, iface: str, speeds: list[str], bit: str | None, tune_hz: float) -> int:
+def check(cu8: Path, truth_path: Path, iface: str, speeds: list[str], bit: str | None, tune_hz: float,
+          dump_dir: Path | None = None) -> int:
     """One replay per speed, each from a fresh board; one result row per replay."""
     from analysis.common import write_result
 
@@ -189,8 +224,9 @@ def check(cu8: Path, truth_path: Path, iface: str, speeds: list[str], bit: str |
     truth_raw = truth_path.read_bytes()
     truth = {truth_raw[i: i + CADU_BYTES][DATA] for i in range(0, len(truth_raw), CADU_BYTES)}
     rows, all_ok = [], True
-    for speed in speeds:
-        row, ok = replay_once(cu8, truth, iface, speed, bit, word)
+    for k, speed in enumerate(speeds):
+        dump = dump_dir / f"replay_{k}_{speed}x.csv" if dump_dir is not None else None
+        row, ok = replay_once(cu8, truth, iface, speed, bit, word, dump)
         rows.append(row)
         all_ok &= ok
     write_result(
@@ -220,7 +256,8 @@ def main(argv: list[str]) -> int:
             print("check needs --iface <host IP on the cable to the Arty>", file=sys.stderr)
             return 2
         return check(Path(argv[1]), Path(argv[2]), opts["--iface"], opts.get("--speed", "1").split(","),
-                     opts.get("--bit"), float(opts.get("--tune", 150_000)))
+                     opts.get("--bit"), float(opts.get("--tune", 150_000)),
+                     Path(opts["--dump"]) if "--dump" in opts else None)
     print(__doc__, file=sys.stderr)
     return 2
 

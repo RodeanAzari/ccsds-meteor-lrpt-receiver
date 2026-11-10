@@ -77,3 +77,31 @@ def test_set_nco_command_bytes() -> None:
 def test_set_nco_word_out_of_range(word: int) -> None:
     with pytest.raises(ValueError, match="not a u32"):
         set_nco_command(word)
+
+
+def test_dump_keeps_every_packet_in_arrival_order(tmp_path: Path) -> None:
+    """The dump exists to diagnose broken replays (docs/log.md 2026-11-08: counters near 2^32, a 163-byte
+    CADU-typed packet), so it must keep the corrupt packets byte for byte and the good ones by field, in arrival
+    order; dropping or reordering them would hide when a counter jumped."""
+    import csv
+    import struct
+
+    from scripts.board_rx import Replay, dump_replay
+    from scripts.board_stats import FIELDS, HDR
+
+    def stats(seq: int, fields: list[int]) -> bytes:
+        return HDR.pack(1, 2, len(fields), seq, 1000 + seq) + struct.pack(f">{len(fields)}I", *fields)
+
+    good = stats(3, list(range(len(FIELDS))))
+    torn = stats(4, list(range(len(FIELDS))))[:-5]
+    odd = bytes([2, 1, 0, 147]) + bytes(159)  # 163 bytes, CADU-typed, wrong length
+    rp = Replay([], ["x"], {}, "", stats_history=[(10.0, good), (10.2, torn)], malformed_raw=[(10.1, odd)])
+    path = tmp_path / "d" / "r.csv"
+    dump_replay(rp, path)
+    rows = list(csv.DictReader(path.open()))
+    assert [r["kind"] for r in rows] == ["stats", "bad_other", "bad_stats"]
+    assert [r["t_s"] for r in rows] == ["0.0000", "0.1000", "0.2000"]
+    assert rows[0]["pkt_seq"] == "3" and rows[0]["uptime"] == "1003"
+    assert rows[0]["mac_restarts"] == str(FIELDS.index("mac_restarts")) and rows[0]["ctrl_bad"] == "28"
+    assert bytes.fromhex(rows[1]["hex"]) == odd and rows[1]["len"] == "163"
+    assert bytes.fromhex(rows[2]["hex"]) == torn and "bytes for n" in rows[2]["error"]

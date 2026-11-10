@@ -56,7 +56,8 @@ def parse_stats(data: bytes) -> Stats:
 
 class StatsListener:
     """Receives stats packets on PORT in a background thread; `latest` is the newest one parsed. Packets of other
-    types (CADUs, docs/protocol.md type 2, on the same port) go to `other` if given, else count as errors."""
+    types (CADUs, docs/protocol.md type 2, on the same port) go to `other` if given, else count as errors.
+    `history` keeps every packet handled here (host monotonic time, raw bytes), parsed or not, for a dump."""
 
     def __init__(self, port: int = PORT, other: Callable[[bytes], None] | None = None) -> None:
         self.other = other
@@ -67,6 +68,7 @@ class StatsListener:
         self.latest: Stats | None = None
         self.count = 0
         self.errors: list[str] = []
+        self.history: list[tuple[float, bytes]] = []
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
@@ -80,6 +82,7 @@ class StatsListener:
             if self.other is not None and data[:1] != bytes([TYPE_STATS]):
                 self.other(data)
                 continue
+            self.history.append((time.monotonic(), data))
             try:
                 self.latest = parse_stats(data)
                 self.count += 1
