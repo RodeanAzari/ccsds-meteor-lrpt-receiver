@@ -29,7 +29,10 @@ def test_fields_in_protocol_order() -> None:
     assert s.fields["fs_locked"] == 0x01020317  # field 19
     assert s.fields["len_err"] == 0x0102031C  # field 24
     assert s.fields["ingest_late"] == 0x0102031D  # field 25
-    assert len(FIELDS) == 26 and len(packet(values)) == 120  # docs/protocol.md packet size
+    assert s.fields["nco_word"] == 0x0102031E  # field 26 (ADR 0014)
+    assert s.fields["ctrl_ok"] == 0x0102031F  # field 27
+    assert s.fields["ctrl_bad"] == 0x01020320  # field 28
+    assert len(FIELDS) == 29 and len(packet(values)) == 132  # docs/protocol.md packet size
 
 
 def test_ddc_top_packet_has_the_first_18() -> None:

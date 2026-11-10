@@ -9,7 +9,7 @@ One UDP datagram carries 512 consecutive samples of the recording.
 
 | Bytes | Field | Notes |
 |---|---|---|
-| 0–7 | `seq`, u64 big-endian | 0 for the first datagram of a replay, +1 per datagram. The first sample's index in the file is `seq × 512` |
+| 0–7 | `seq`, u64 big-endian | 0 for the first datagram of a replay, +1 per datagram. The first sample's index in the file is `seq × 512`. Bit 63 is never set: a datagram with byte 0 bit 7 set is a control command ("Control commands") |
 | 8–1031 | 512 samples, cu8 | Exactly the file's bytes: I, Q, I, Q, … unsigned 8-bit, midpoint 127.5. No conversion on the host |
 
 - **Length:** always 1,032 bytes. A datagram of any other length is malformed. One datagram fits one untagged
@@ -52,7 +52,7 @@ Every board → host datagram starts with this 16-byte header. All fields big-en
 Sent every 100 ms (`STATS_PERIOD`) once a replay sender is known. Payload: `n` u32 counters, cumulative since reset,
 modulo 2³², snapshotted together on the packet's first byte, so one packet is self-consistent. The receiver uses
 the first `n` fields it knows and ignores the rest. Fields, in order: 0–17 from both Ethernet tops
-(`rtl/top/arty_ddc_eth_top.sv`, `n` = 18), 18–25 appended by the receiver top (`rtl/top/arty_rx_eth_top.sv`, `n` = 26):
+(`rtl/top/arty_ddc_eth_top.sv`, `n` = 18), 18–28 appended by the receiver top (`rtl/top/arty_rx_eth_top.sv`, `n` = 29):
 
 | # | Field | Source | Meaning |
 |---|---|---|---|
@@ -82,8 +82,11 @@ the first `n` fields it knows and ignores the rest. Fields, in order: 0–17 fro
 | 23 | `flag_ovf` | `fec_frame_extract` | Window-flag FIFO overflows (must stay 0) |
 | 24 | `len_err` | `fec_cadu` | Frames whose `tlast` disagreed with the 8,192-bit count (must stay 0) |
 | 25 | `ingest_late` | `iq_udp_ingest` | Good datagrams dropped: behind the window, or duplicates |
+| 26 | `nco_word` | top | The DDC NCO word in use (a value, not a count): the `FREQ_WORD` parameter until a SET_NCO is accepted. **Not reset by a MAC restart** |
+| 27 | `ctrl_ok` | `ctrl_rx` | Control commands accepted |
+| 28 | `ctrl_bad` | `ctrl_rx` | Control commands refused: malformed, unknown, or SET_NCO after the DDC started |
 
-Packet size: 16 + 4 × `n` bytes (88 or 120). Parsed by `scripts/board_stats.py`.
+Packet size: 16 + 4 × `n` bytes (88 or 132). Parsed by `scripts/board_stats.py`.
 
 ## CADU (board → host), type 2
 
@@ -106,6 +109,18 @@ The status fields are `fec_cadu`'s `m_tuser` (`model/cadu_fixed.py` `CaduOut.sta
 
 `[TBD]`.
 
-## Control commands (host → board)
+## Control commands (host → board), ADR 0014
 
-`[TBD]`.
+Sent to the replay group and port (239.1.1.1:26400): `udp_rx` takes one port. A datagram whose **byte 0 has bit 7
+set** is a command; the ingest ignores it and `rtl/io/ctrl_rx.sv` reads it. All fields big-endian.
+
+| Code (bytes 0–3) | Name | Length | Bytes 4–7 | Effect |
+|---|---|---|---|---|
+| `0x8000_0001` | SET_NCO | exactly 8 | u32 DDC NCO word, f / fs × 2³² (`model/ddc_fixed.freq_word`) | Sets the word, only while the DDC has taken no sample since the MAC left reset (so every sample of a replay sees one word) |
+
+- A command datagram of any other length, truncated, with an unknown code, or a SET_NCO after the DDC's first
+  sample is refused and counted (`ctrl_bad`). Accepted commands count in `ctrl_ok`.
+- No reply packet: the host confirms by the next stats packet's `nco_word`. A command also teaches the board the
+  host's address, so stats start after it. Commands may be lost (UDP): `scripts/board_rx.py set_nco` resends until
+  confirmed, then starts the replay. A board that has run a replay needs a reset (reprogram) before a new word.
+- `arty_ddc_eth_top` ignores commands (its word is a build parameter).

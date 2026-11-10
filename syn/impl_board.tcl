@@ -4,8 +4,7 @@
 #   make board          (top arty_ddc_rom_top; generates the ROM snippet first)
 #   make board BOARD_TOP=arty_ddc_eth_top   (Ethernet-fed; no ROM. Adds fpga-eth-core's rtl/ at its tag, the MII
 #                        constraints constr/arty_eth.xdc and eth-core's async_fifo.xdc scoped to async_fifo)
-#   make board BOARD_TOP=arty_rx_eth_top BOARD_GENERICS="FREQ_WORD=32'h..."   (the whole receiver; NCO word per
-#                        recording from scripts/board_rx.py freq-word)
+#   make board BOARD_TOP=arty_rx_eth_top   (the whole receiver; the host sets the NCO word per replay, ADR 0014)
 #   make board ILA=1    (same, plus an ILA on the DDC output, inserted here after synthesis; the RTL is unchanged.
 #                        Outputs <top>_ila.bit / .ltx and reports under docs/reports/board/<top>_ila/)
 #
@@ -49,8 +48,8 @@ if {$eth} {
     read_xdc -ref async_fifo [file join $root rtl eth constr async_fifo.xdc]
 }
 
-# Optional environment BOARD_GENERICS: space-separated NAME=VALUE top parameter overrides (e.g. the NCO word for a
-# recording, scripts/board_rx.py freq-word), recorded in the build's summary.
+# Optional environment BOARD_GENERICS: space-separated NAME=VALUE top parameter overrides (e.g. RS_WRITEBACK=0 for
+# the pre-RS BER build), recorded in the build's summary.
 set generics {}
 if {[info exists ::env(BOARD_GENERICS)]} {
     foreach g $::env(BOARD_GENERICS) { lappend generics -generic $g }

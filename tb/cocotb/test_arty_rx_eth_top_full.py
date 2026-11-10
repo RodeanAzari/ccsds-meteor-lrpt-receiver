@@ -2,14 +2,18 @@
 
 Why it matters: on the board the only evidence is the UDP packets that come back. This test sends a synthetic
 recording as replay datagrams (docs/protocol.md "IQ replay") at the 100 Mb/s line rate, the fastest gs-replay can
-send (5.69x real time), into a board top built with the NCO word the host's coarse estimate gives for it (ADR 0002),
-and parses what leaves MII TX by docs/protocol.md alone. Each type 2 packet must carry the bit-true model chain's
+send (5.69x real time), into a board top built with the default NCO word (150 kHz), after a SET_NCO command
+(docs/protocol.md "Control commands", ADR 0014) with the word the host's coarse estimate gives for it (ADR 0002):
+151 kHz is 1 kHz from the default, far outside the Costas loop's pull-in, so nothing decodes unless the command
+reaches the DDC. A second SET_NCO mid-replay must be refused (it would retune the DDC under a running replay). It
+parses what leaves MII TX by docs/protocol.md alone. Each type 2 packet must carry the bit-true model chain's
 CADU and status (raw -> ddc_fixed -> sync -> frame sync -> Viterbi -> cadu_fixed), in order with consecutive
 pkt_seq, interleaved with stats packets by pkt_arb2 without either being cut. The last stats packet must report every
 datagram received with no loss anywhere (eth_rx overflow, ingest gaps) and the frame sync's counters equal to the
 model's: at line rate the ingest cannot push back on the sender, so a chain slower than the replay shows up as
 eth_ovf_lost, here and on the board. The per-block and chain tests cover the decoding itself; what this adds is the
-DDC -> rx_chain link, the parameter wiring (NCO word, rx_config_pkg), the packet path and the counters. The loops
+DDC -> rx_chain link, the parameter wiring (NCO word, rx_config_pkg), the command path, the packet path and the
+counters. The loops
 start cold, so frame 0 is lost to pull-in.
 """
 
@@ -34,11 +38,14 @@ from model.coding import ASM_BYTES
 from model.framesync_fixed import decode_windows, frame_sync_fixed, windows
 from model.sync_fixed import serial
 from model.viterbi_fixed import quantize
+from scripts.board_rx import set_nco_command
 from scripts.board_stats import FIELDS, parse_stats
 
 FRAMES = 5
 SEED = 20
-FREQ_WORD = 0x25C0_EE00  # tb/cocotb/run.py; checked below against the coarse estimate of this stimulus
+FREQ_WORD = 0x25C0_EE00  # sent by SET_NCO; checked below against the coarse estimate of this stimulus
+DEFAULT_WORD = 0x2580_0000  # arty_rx_eth_top's FREQ_WORD default (tb/cocotb/run.py leaves it): 150 kHz
+LATE_AT = 200  # datagram before which a second, refused SET_NCO is sent
 SOFT_BITS = 4
 SHIFT = 10  # ADR 0005
 THR64 = 48  # rx_config_pkg
@@ -98,7 +105,12 @@ async def recording_in_cadus_out(dut) -> None:
     await ClockCycles(dut.clk100_i, MAC_START_CYCLES + 30)
     assert dut.eth_rstn_o.value == 1, "PHY reset not released"
 
-    for d in datagrams:  # back to back: 12-byte inter-frame gap, the line rate
+    await send_mii(dut.eth_rx_clk_i, dut.eth_rxd_i, dut.eth_rx_dv_i,
+                   udp_frame(set_nco_command(FREQ_WORD), GROUP_IP, PORT))
+    for k, d in enumerate(datagrams):  # back to back: 12-byte inter-frame gap, the line rate
+        if k == LATE_AT:
+            await send_mii(dut.eth_rx_clk_i, dut.eth_rxd_i, dut.eth_rx_dv_i,
+                           udp_frame(set_nco_command(DEFAULT_WORD), GROUP_IP, PORT))
         await send_mii(dut.eth_rx_clk_i, dut.eth_rxd_i, dut.eth_rx_dv_i, udp_frame(d, GROUP_IP, PORT))
 
     def packets(ptype: int) -> list[bytes]:
@@ -133,10 +145,10 @@ async def recording_in_cadus_out(dut) -> None:
     stats = [parse_stats(p) for p in packets(1)]
     assert [s.pkt_seq for s in stats] == list(range(len(stats))), "stats pkt_seq not consecutive from 0"
     last = stats[-1]
-    assert len(last.fields) == len(FIELDS) == 26
-    want = {"ingest_ok": n_dgram, "eth_ok": n_dgram, "udp_ok": n_dgram, "ddc_out": n_dgram * SAMPLES // 4,
+    assert len(last.fields) == len(FIELDS) == 29
+    want = {"ingest_ok": n_dgram, "eth_ok": n_dgram + 2, "udp_ok": n_dgram + 2, "ddc_out": n_dgram * SAMPLES // 4,
             "cadus_sent": len(cadus), "fs_locked": 1, "fs_dropped": res.dropped, "fs_slips": res.slips,
-            "fs_early": early}
+            "fs_early": early, "nco_word": FREQ_WORD, "ctrl_ok": 1, "ctrl_bad": 1}
     for name in FIELDS:
         if name == "rx_fifo_hwm":
             continue
@@ -200,6 +212,8 @@ async def mac_restart_mid_replay(dut) -> None:
     await ClockCycles(dut.clk100_i, 5)
     dut.ck_rst_n_i.value = 1
     await ClockCycles(dut.clk100_i, MAC_START_CYCLES + 30)
+    await send_mii(dut.eth_rx_clk_i, dut.eth_rxd_i, dut.eth_rx_dv_i,
+                   udp_frame(set_nco_command(FREQ_WORD), GROUP_IP, PORT))
 
     async def restart() -> None:
         await ClockCycles(dut.clk100_i, 2000)  # ~ a quarter into the datagram's 8,300-clock transfer
@@ -228,10 +242,12 @@ async def mac_restart_mid_replay(dut) -> None:
         assert pkt[24:] == bytes(c.data), f"CADU {k}: bytes differ from the model"
     last = parse_stats([p for p in frames if p[0] == 1][-1])
     n_after = n_dgram - first
-    # Counters restart with the MAC; mac_restarts does not. The cut datagram ends as an rx_err frame (MII abort).
+    # Counters restart with the MAC (ctrl_ok too); mac_restarts and the NCO word do not: the CADUs after the restart
+    # decode only with the word set before it. The cut datagram ends as an rx_err frame (MII abort).
     want = {"ingest_ok": n_after, "ingest_gap": 1, "ingest_lost": first, "eth_ok": n_after, "eth_rx_err": 1,
             "udp_ok": n_after, "ddc_out": n_after * SAMPLES // 4, "mac_restarts": 1, "cadus_sent": len(cadus),
-            "fs_locked": 1, "fs_dropped": res.dropped, "fs_slips": res.slips, "fs_early": early}
+            "fs_locked": 1, "fs_dropped": res.dropped, "fs_slips": res.slips, "fs_early": early,
+            "nco_word": FREQ_WORD}
     for name in FIELDS:
         if name == "rx_fifo_hwm":
             continue

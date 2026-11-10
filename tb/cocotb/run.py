@@ -80,6 +80,7 @@ TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_stats_packet": ("stats_packet", ["rtl/io/stats_packet.sv"], [{"N_FIELDS": 18, "PERIOD": 60}]),
     "test_cadu_packet": ("cadu_packet", ["rtl/io/cadu_packet.sv"], [{}]),
     "test_pkt_arb2": ("pkt_arb2", ["rtl/io/pkt_arb2.sv"], [{}]),
+    "test_ctrl_rx": ("ctrl_rx", ["rtl/io/ctrl_rx.sv"], [{}]),
     "test_iq_udp_ingest": (
         "iq_udp_ingest", ["rtl/io/iq_udp_ingest.sv"], [{"DEPTH": 2048}, {"DEPTH": 1024}, {"DEPTH": 512}]
     ),
@@ -131,10 +132,10 @@ FULL_TESTS: dict[str, tuple[str, list[str], list[dict[str, int | str]]]] = {
     "test_arty_rx_eth_top_full": (
         "arty_rx_eth_top",
         list(dict.fromkeys(  # in order, once each: ddc_comp_fir is both the DDC's FIR and the RRC's
-            ["rtl/top/rx_config_pkg.sv", *ETH_TOP_SRCS, *DDC_SRCS, *RX_CHAIN_SRCS, "rtl/io/cadu_packet.sv",
-             "rtl/io/pkt_arb2.sv", "rtl/top/arty_rx_eth_top.sv"])),
+            ["rtl/top/rx_config_pkg.sv", *ETH_TOP_SRCS, *DDC_SRCS, *RX_CHAIN_SRCS, "rtl/io/ctrl_rx.sv",
+             "rtl/io/cadu_packet.sv", "rtl/io/pkt_arb2.sv", "rtl/top/arty_rx_eth_top.sv"])),
         [{
-            "FREQ_WORD": 0x25C0_EE00,  # test_arty_rx_eth_top_full.py FREQ_WORD (coarse estimate of its stimulus)
+            # FREQ_WORD left at its default (150 kHz): the test sets the stimulus's word with SET_NCO (ADR 0014)
             "PHY_RST_CYCLES": 100,
             "MAC_START_CYCLES": 400,  # test_arty_rx_eth_top_full.py MAC_START_CYCLES
             "STATS_PERIOD": 20000,  # test_arty_rx_eth_top_full.py STATS_PERIOD

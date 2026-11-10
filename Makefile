@@ -99,7 +99,7 @@ synth-ooc:
 
 # Phase B board bring-up: ROM snippet -> DDC -> UART (rtl/top/arty_ddc_rom_top.sv). `make board prog board-check`.
 # BOARD_TOP=arty_ddc_eth_top: the same DDC fed over Ethernet by gs-replay (no ILA variant); see `make eth-check`.
-# BOARD_TOP=arty_rx_eth_top: the whole receiver; BOARD_GENERICS="FREQ_WORD=..." per recording (scripts/board_rx.py).
+# BOARD_TOP=arty_rx_eth_top: the whole receiver; the host sets the NCO word per replay (SET_NCO, ADR 0014).
 BOARD_TOP ?= arty_ddc_rom_top
 SERIAL ?= /dev/ttyUSB1
 ILA ?= 0
@@ -128,8 +128,8 @@ eth-check: gs
 	PYTHONPATH=. $(PY) scripts/ddc_board.py eth-check $(SERIAL) --iface $(IFACE) --speed $(SPEED) \
 		--bit build/board/$(BOARD_TOP).bit
 
-# After `make board BOARD_TOP=arty_rx_eth_top` with BOARD_GENERICS from scripts/board_rx.py freq-word REC (and the
-# board claim): program, replay REC, receive its CADUs and stats, compare with TRUTH. One replay per SPEED.
+# After `make board BOARD_TOP=arty_rx_eth_top` (and the board claim): program, set the NCO word from REC's coarse
+# estimate, replay REC, receive its CADUs and stats, compare with TRUTH. One replay per SPEED.
 REC ?= data/synthetic/synthetic_seed2026_1024000SPS.cu8
 TRUTH ?= data/synthetic/synthetic_seed2026_truth.cadu
 rx-check: gs

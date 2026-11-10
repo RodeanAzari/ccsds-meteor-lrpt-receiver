@@ -37,6 +37,11 @@ class Dgram:
     truncated: bool = False
 
     @property
+    def command(self) -> bool:
+        """docs/protocol.md "Control commands": byte 0 bit 7 set. Not replay data, whatever its length."""
+        return len(self.payload) > 0 and bool(self.payload[0] & 0x80)
+
+    @property
     def good(self) -> bool:
         return len(self.payload) == LEN and not self.truncated
 
@@ -69,6 +74,8 @@ def ingest_model(dgrams: list[Dgram], nslot: int) -> tuple[list[int], dict[str, 
             head += 1
 
     for d in dgrams:
+        if d.command:  # ADR 0014: ignored, uncounted (ctrl_rx's)
+            continue
         if len(d.payload) > 8 and d.seq >= head + nslot:  # beyond the window: move it, good or not
             while d.seq >= head + nslot:
                 if head in slots:
@@ -228,3 +235,23 @@ async def late_datagram_leaves_no_trace(dut) -> None:
     _, c = ingest_model(ds, nslot())
     assert c == {"ok_cnt_o": 12, "bad_cnt_o": 8, "gap_cnt_o": 0, "lost_cnt_o": 0, "late_cnt_o": 1}
     await run(dut, "ingest_late", ds, p_valid=1.0, p_ready=1.0)
+
+
+@test(timeout_time=5, timeout_unit="ms")
+async def commands_ignored(dut) -> None:
+    """Control commands (docs/protocol.md, ADR 0014) share the replay port. Whatever their length, they must leave
+    the replay untouched: no sample out, no counter moved, and above all no window move. A command's bytes 0-7 read
+    as a seq of at least 2^63, far beyond the window: treated as replay data it would skip every pending datagram as
+    lost, or stall the input until they drained. Here commands sit between swapped datagrams, so a window move
+    would lose the overtaken one."""
+    rng = random.Random(7)
+    set_nco = Dgram(bytes.fromhex("80000001") + (0x25C0EE00).to_bytes(4, "big"))
+    cmds = [set_nco, Dgram(b"\xff"), Dgram(bytes([0x80]) + bytes(LEN - 1)),  # 1 byte; replay length, seq 2^63
+            Dgram(bytes.fromhex("8000000100"), truncated=True), Dgram(bytes([0xC0]) + bytes(20))]
+    ds = [dgram(rng, 0), cmds[0], dgram(rng, 2), cmds[1], cmds[2], dgram(rng, 1), dgram(rng, 3), cmds[3],
+          dgram(rng, 5), cmds[4], dgram(rng, 4), dgram(rng, 6)]
+    samples, c = ingest_model(ds, nslot())
+    if nslot() >= 4:
+        assert samples == [w for s in range(7) for w in next(d for d in ds if not d.command and d.seq == s).samples()]
+        assert c == {"ok_cnt_o": 7, "bad_cnt_o": 0, "gap_cnt_o": 6, "lost_cnt_o": 0, "late_cnt_o": 0}
+    await run(dut, "ingest_commands", ds, p_valid=0.9, p_ready=0.7)

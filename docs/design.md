@@ -20,6 +20,7 @@ and lists clock-domain crossings.
 | [0011](decisions/0011-ethernet-ingest.md) | Ethernet ingest: one 100 MHz core domain; each datagram held in a BRAM ring and released only if whole | `test_iq_udp_ingest.py`, `ddc_board_eth.csv` |
 | [0012](decisions/0012-rs-instance-count.md) | One fpga-rs-core RS decoder; deinterleave ×4 and re-interleave in one buffer around it | fpga-rs-core `docs/reports/ooc/` |
 | [0013](decisions/0013-ingest-reorder-buffer.md) | Ingest reorder buffer: 4 datagram slots by `seq`, released in order; losses skipped, late datagrams dropped | `test_iq_udp_ingest.py` |
+| [0014](decisions/0014-control-commands.md) | Control commands in-band on the replay port (byte 0 bit 7); SET_NCO accepted only before the DDC's first sample | `test_ctrl_rx.py`, `test_arty_rx_eth_top_full.py` |
 
 Still required (CLAUDE.md §5.5): interpolator type, Berlekamp–Massey variant, RS instance count, phase-ambiguity
 strategy. The interpolator (Catmull-Rom cubic) and phase-ambiguity strategy (4 hypotheses on the
@@ -85,11 +86,11 @@ each replay, waits until the link is back (~2.6 s; the host interface loses its 
 and runs `gs-replay`. `make board BOARD_TOP=arty_ddc_eth_top`, `prog`, `eth-check`.
 
 The whole receiver (`rtl/top/arty_rx_eth_top.sv`) keeps that Ethernet plumbing and replaces the capture with `rx_chain`:
-`iq_udp_ingest` → `ddc_top` → `rx_chain` → `cadu_packet` (type 2) and `stats_packet` (type 1, fields 18–24 added) → `pkt_arb2`
+`iq_udp_ingest` → `ddc_top` → `rx_chain` → `cadu_packet` (type 2) and `stats_packet` (type 1, fields 18–28 added) → `pkt_arb2`
 (whole packets, round robin; eth-core's `udp_tx` takes one payload per tlast and has no arbiter) → `udp_tx`. No new
-clock crossing. The NCO word is a build parameter set per recording from the host's coarse estimate
-(`scripts/board_rx.py freq-word`, `BOARD_GENERICS`); loop gains, threshold, flywheel and traceback depth come from
+clock crossing. The NCO word (the host's coarse estimate) is set per replay by a SET_NCO command on the replay port,
+read by `ctrl_rx` and accepted only before the DDC's first sample (ADR 0014); loop gains, threshold, flywheel and traceback depth come from
 `rx_config_pkg.sv`, generated from the model. Nothing is dropped inside: a slow stage stalls back to the ingest ring,
-and past it eth_rx counts lost frames. `make board BOARD_TOP=arty_rx_eth_top BOARD_GENERICS=...`, `rx-check`.
+and past it eth_rx counts lost frames. `make board BOARD_TOP=arty_rx_eth_top`, `rx-check`.
 The Ethernet start-up and the request-0005 stopgap are duplicated from `arty_ddc_eth_top`: fold both into one
 shared block when P2's fix lands and the stopgap goes.

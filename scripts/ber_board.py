@@ -34,7 +34,8 @@ OUT = Path("build/ber")
 FRAMES = 300
 WAVEFORMS = 4
 WAVE_SEEDS = [3000 + k for k in range(WAVEFORMS)]
-CARRIER_HZ = 151_000.0  # the bitstreams' NCO is 151,016.7 Hz (FREQ_WORD 32'h25C11200): a 16.7 Hz residual
+CARRIER_HZ = 151_000.0  # the NCO word below is 151,016.7 Hz: a 16.7 Hz residual for the loops
+NCO_WORD = 0x25C1_1200  # set by SET_NCO before each replay (docs/protocol.md "Control commands")
 USABLE = FRAMES - 2  # frame 0 is lost to pull-in, the last one is cut by the end of the recording
 MIN_ERRORS = 100
 WINDOW = 40  # frames searched ahead of the last match
@@ -115,7 +116,7 @@ def campaign(iface: str, points: list[float], max_files: int, speed: str, post_b
             wave = WAVE_SEEDS[files % WAVEFORMS]
             recording(ebn0, wave, int(ebn0 * 1000) * 1000 + files, cu8)
             for mode, bit in (("pre", pre_bit), ("post", post_bit)):
-                rp = replay(cu8, iface, speed, bit)
+                rp = replay(cu8, iface, speed, bit, NCO_WORD)
                 c = count_errors([x.data for x in rp.cadus], truths[wave], PRE if mode == "pre" else POST)
                 a = acc[mode]
                 a.matched, a.unmatched, a.bits, a.errors = (a.matched + c.matched, a.unmatched + c.unmatched,

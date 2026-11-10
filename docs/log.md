@@ -905,3 +905,28 @@ Phases C and D wait on a real recording and hardware BER, so the tags are out of
   0005. Remaining candidates: the board/link state (the link was down again today: no reply from 169.254.235.36,
   no 169.254 address on the host), or stats packets corrupted on the way. Needs a raw stats dump of a bad case with
   `mac_restarts`, on hardware.
+
+## 2026-11-09 (cont.): runtime NCO word (ADR 0014)
+
+Board held by P2, so off-board work: the NCO word moves from a build parameter to a host command.
+
+- Transport: eth-core's `udp_rx` takes one port, so commands go in-band on the replay port, marked by byte 0 bit 7
+  (replay seq never reaches 2^63). SET_NCO = `0x80000001` + u32 word, 8 bytes. New `rtl/io/ctrl_rx.sv` snoops the
+  udp_rx → ingest handshake; the ingest ignores commands. Accepted only before the DDC's first sample (same-clock
+  check), so a replay sees one word; the word survives a MAC restart. Stats fields 26–28 `nco_word`, `ctrl_ok`,
+  `ctrl_bad` (n = 29, version stays 2). Host: `board_rx.set_nco` sends, waits for the stats echo, retries ×5;
+  `rx-check` computes the word from the recording; `ber_board.py` sends 0x25C11200.
+- Tests: `test_ctrl_rx.py` (new), `test_iq_udp_ingest.py commands_ignored`, `test_arty_rx_eth_top_full.py` now
+  builds the top at its 150 kHz default and sets 151 kHz by SET_NCO, plus a refused late SET_NCO; both full tests
+  pass (bit-exact, 3/3 and 2/2 CADUs). Planted bugs: 6 in ctrl_rx, 3 in the ingest, 3 in the top, all caught.
+  `make sim` 29 runs pass, 4 min 52 s (with Vivado running alongside).
+- Bugs on the way: my hand count of ingest gaps (4) was wrong, the model's 6 right (0,2,1,3,5,4,6: every arrival
+  after the first is out of sequence). The first ctrl_rx length mutant (check removed) only tripped a Verilator
+  unused-signal warning, not a test; a short command after a replay datagram ending in the SET_NCO pattern now
+  shows why the length check matters. Testbench: lock_i first changed before the previous datagram's last beat was
+  sampled; fixed. ADR draft named a non-existent `sync_doppler.csv` (it is `sync_doppler_track.csv`) and an
+  unmeasured Vivado run time; both corrected before commit.
+- Board build: WNS +0.256 ns, WHS +0.025 ns, 13,682 LUT, 0 critical warnings (`board_arty_rx_eth_top.csv`). New
+  worst path: ingest `seq_q` window compare → `s_tready` → ctrl_rx counter enables (9.4 ns, 48% logic).
+- Not done: hardware (board held by P2); the pre-RS build (`_prers`) not rebuilt yet; `gs-replay` (C++) doesn't
+  send commands (Python does; Phase F).

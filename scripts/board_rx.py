@@ -2,20 +2,22 @@
 
     PYTHONPATH=. python scripts/board_rx.py freq-word <recording.cu8> [--tune HZ] [--seconds S]
         print the DDC NCO word for the recording: the host's coarse estimate (ADR 0002) over its first S seconds
-        (default 2), around the tuning offset HZ (default 150000), as BOARD_GENERICS for `make board`
+        (default 2), around the tuning offset HZ (default 150000)
     PYTHONPATH=. python scripts/board_rx.py check <recording.cu8> <truth.cadu> --iface <host IP on the cable>
-        [--speed X[,Y...]] [--bit <bitstream>]
-        reprogram the board (with --bit), replay the recording with gs-replay, receive the CADU packets
+        [--speed X[,Y...]] [--bit <bitstream>] [--tune HZ]
+        per speed: reprogram the board (with --bit), set the NCO word to the recording's coarse estimate (SET_NCO,
+        docs/protocol.md "Control commands"), replay the recording with gs-replay, receive the CADU packets
         (docs/protocol.md type 2) and stats (type 1), and compare each CADU's 892 data bytes with the truth file
         (signal-spec.md: the bytes SatDump's output is compared on); one replay and result row per speed in
         board_rx_eth.csv
 
-`parse_cadu` is the reference parser for type 2 packets.
+`parse_cadu` is the reference parser for type 2 packets, `set_nco_command` the reference encoder for SET_NCO.
 """
 
 from __future__ import annotations
 
 import re
+import socket
 import struct
 import subprocess
 import sys
@@ -37,6 +39,9 @@ N_PAYLOAD = 8 + CADU_BYTES  # docs/protocol.md "CADU": header field n
 DATA = slice(4, 4 + 892)  # signal-spec.md: compare the data bytes
 QUIET_S = 3.0  # no new CADU packet for this long after the replay ends: done
 MAC_START_WAIT_S = 0.5  # after the link is back, the MAC leaves reset 200 ms after programming
+SET_NCO = 0x8000_0001  # docs/protocol.md "Control commands"
+REPLAY_GROUP, REPLAY_PORT = "239.1.1.1", 26400  # docs/protocol.md "IQ replay": commands share the replay port
+SET_NCO_TRIES = 5  # a stats packet (100 ms period) must echo the word within 0.5 s of each try
 
 
 @dataclass(frozen=True)
@@ -79,6 +84,34 @@ def freq_word(cu8: Path, tune_hz: float, seconds: float) -> tuple[int, float]:
     return ddc_fixed.freq_word(hz, cfg.fs), hz
 
 
+def set_nco_command(word: int) -> bytes:
+    """docs/protocol.md "Control commands": SET_NCO, 8 bytes."""
+    if not 0 <= word < 1 << 32:
+        raise ValueError(f"NCO word {word} is not a u32")
+    return struct.pack(">II", SET_NCO, word)
+
+
+def set_nco(word: int, iface: str, listener: StatsListener) -> None:
+    """Set the board's NCO word before a replay; confirmed by a stats packet's nco_word. Raises if the board does
+    not confirm it (it refuses one once the DDC has run since reset: reprogram first)."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(iface))
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
+        for _ in range(SET_NCO_TRIES):  # UDP: the first try may land before the MAC is out of reset
+            seen = listener.latest
+            sock.sendto(set_nco_command(word), (REPLAY_GROUP, REPLAY_PORT))
+            st = listener.wait_newer(seen.pkt_seq if seen is not None else -1, 0.5)
+            if st is not None and st.fields.get("nco_word") == word:
+                print(f"NCO word 0x{word:08X} set (ctrl_ok {st.fields['ctrl_ok']}, ctrl_bad {st.fields['ctrl_bad']})",
+                      flush=True)
+                return
+    finally:
+        sock.close()
+    raise RuntimeError(f"the board did not confirm NCO word 0x{word:08X}" +
+                       (f": last stats {st.fields}" if st is not None else ": no stats packet"))
+
+
 STAT_COLS = ["ingest_ok", "ingest_gap", "ingest_lost", "ingest_late", "eth_ovf_lost", "cadus_sent", "fs_slips",
              "fs_dropped", "mac_restarts"]
 
@@ -91,9 +124,9 @@ class Replay:
     said: str  # gs-replay's report
 
 
-def replay(cu8: Path, iface: str, speed: str, bit: str | None) -> Replay:
-    """One replay from a fresh board (reprogrammed with `bit`): every CADU packet in arrival order, and the
-    counters after the last one."""
+def replay(cu8: Path, iface: str, speed: str, bit: str | None, word: int) -> Replay:
+    """One replay from a fresh board (reprogrammed with `bit`, NCO word set to `word`): every CADU packet in
+    arrival order, and the counters after the last one."""
     cadus: list[Cadu] = []
     bad: list[str] = []
 
@@ -109,6 +142,7 @@ def replay(cu8: Path, iface: str, speed: str, bit: str | None) -> Replay:
             subprocess.run(["openFPGALoader", "-b", "arty_a7_100t", bit], capture_output=True, check=True)
             wait_for_iface(iface)
         time.sleep(MAC_START_WAIT_S)
+        set_nco(word, iface, listener)
         r = subprocess.run([str(GS_REPLAY), str(cu8), "--iface", iface, "--speed", speed], capture_output=True,
                            text=True, check=False)
         said = (r.stdout + r.stderr).strip()
@@ -127,9 +161,10 @@ def replay(cu8: Path, iface: str, speed: str, bit: str | None) -> Replay:
     return Replay(cadus, bad, st.fields if st is not None else {}, said)
 
 
-def replay_once(cu8: Path, truth: set[bytes], iface: str, speed: str, bit: str | None) -> tuple[list[object], bool]:
+def replay_once(cu8: Path, truth: set[bytes], iface: str, speed: str, bit: str | None,
+                word: int) -> tuple[list[object], bool]:
     """One replay from a fresh board: its result row, and whether every CADU matched."""
-    rp = replay(cu8, iface, speed, bit)
+    rp = replay(cu8, iface, speed, bit, word)
     cadus, bad, fields = rp.cadus, rp.malformed, rp.stats
     seqs = [c.pkt_seq for c in cadus]
     missing = (max(seqs) + 1 - len(set(seqs))) if seqs else 0
@@ -145,15 +180,17 @@ def replay_once(cu8: Path, truth: set[bytes], iface: str, speed: str, bit: str |
     return row, bool(cadus) and match == len(cadus) and not missing and not bad
 
 
-def check(cu8: Path, truth_path: Path, iface: str, speeds: list[str], bit: str | None) -> int:
+def check(cu8: Path, truth_path: Path, iface: str, speeds: list[str], bit: str | None, tune_hz: float) -> int:
     """One replay per speed, each from a fresh board; one result row per replay."""
     from analysis.common import write_result
 
+    word, hz = freq_word(cu8, tune_hz, 2)
+    print(f"coarse estimate {hz:.1f} Hz: NCO word 0x{word:08X}", flush=True)
     truth_raw = truth_path.read_bytes()
     truth = {truth_raw[i: i + CADU_BYTES][DATA] for i in range(0, len(truth_raw), CADU_BYTES)}
     rows, all_ok = [], True
     for speed in speeds:
-        row, ok = replay_once(cu8, truth, iface, speed, bit)
+        row, ok = replay_once(cu8, truth, iface, speed, bit, word)
         rows.append(row)
         all_ok &= ok
     write_result(
@@ -163,9 +200,9 @@ def check(cu8: Path, truth_path: Path, iface: str, speeds: list[str], bit: str |
         rows,
         f"{cu8.name} (make synthetic-iq, or a recording in data/MANIFEST.md) streamed by gs-replay over 100 Mb/s "
         f"Ethernet to arty_rx_eth_top on the Arty A7-100T, one replay per row, each from a freshly programmed board; "
-        f"truth {truth_path.name}",
+        f"truth {truth_path.name}; NCO word 0x{word:08X} (coarse estimate {hz:.1f} Hz) set by SET_NCO",
         command=f"PYTHONPATH=. python scripts/board_rx.py check {cu8} {truth_path} --iface {iface} "
-        f"--speed {','.join(speeds)}" + (f" --bit {bit}" if bit else ""),
+        f"--speed {','.join(speeds)} --tune {tune_hz:g}" + (f" --bit {bit}" if bit else ""),
     )
     return 0 if all_ok else 1
 
@@ -175,7 +212,7 @@ def main(argv: list[str]) -> int:
         opts = dict(zip(argv[2::2], argv[3::2], strict=False))
         word, hz = freq_word(Path(argv[1]), float(opts.get("--tune", 150_000)), float(opts.get("--seconds", 2)))
         print(f"# coarse estimate {hz:.1f} Hz", file=sys.stderr)
-        print(f"FREQ_WORD=32'h{word:08X}")
+        print(f"0x{word:08X}")
         return 0
     if len(argv) >= 3 and argv[0] == "check":
         opts = dict(zip(argv[3::2], argv[4::2], strict=False))
@@ -183,7 +220,7 @@ def main(argv: list[str]) -> int:
             print("check needs --iface <host IP on the cable to the Arty>", file=sys.stderr)
             return 2
         return check(Path(argv[1]), Path(argv[2]), opts["--iface"], opts.get("--speed", "1").split(","),
-                     opts.get("--bit"))
+                     opts.get("--bit"), float(opts.get("--tune", 150_000)))
     print(__doc__, file=sys.stderr)
     return 2
 

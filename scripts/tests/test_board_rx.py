@@ -1,8 +1,10 @@
-"""parse_cadu against packets built by hand from docs/protocol.md "CADU"; freq-word against the board-top test.
+"""parse_cadu against packets built by hand from docs/protocol.md "CADU"; freq-word against the board-top test;
+set_nco_command against docs/protocol.md "Control commands".
 
 Why it matters: the hardware check and the ground station read every CADU through this layout; a status bit or
 the body one byte off would pass garbage as decoded, or blame RS for a parsing error. The NCO word the host tool
-prints is the one the board is built with: it must be the word the bit-true model and the RTL test use.
+computes is the one it sends the board: it must be the word the bit-true model and the RTL test use, and the
+command must have the exact bytes ctrl_rx accepts (a byte-swapped word tunes the DDC megahertz away).
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.board_rx import N_PAYLOAD, freq_word, parse_cadu
+from scripts.board_rx import N_PAYLOAD, freq_word, parse_cadu, set_nco_command
 
 
 def packet(flags: int = 0b101, asm: int = 3, rs: tuple[int, ...] = (0, 16, 0x80, 7), seq: int = 9,
@@ -62,3 +64,16 @@ def test_freq_word_matches_board_top_test(tmp_path: Path) -> None:
     raw[: raw.size // (2 * SAMPLES) * 2 * SAMPLES].tofile(path)
     word, hz = freq_word(path, 150_000.0, seconds=10.0)
     assert word == FREQ_WORD and abs(hz - 151_000) < 100
+
+
+def test_set_nco_command_bytes() -> None:
+    """docs/protocol.md: 0x80000001 then the word, both u32 big-endian, 8 bytes; byte 0 bit 7 marks a command."""
+    assert set_nco_command(0x25C0_EE00) == bytes.fromhex("80000001 25c0ee00")
+    assert set_nco_command(0) == bytes.fromhex("80000001 00000000")
+    assert set_nco_command(0xFFFF_FFFF) == bytes.fromhex("80000001 ffffffff")
+
+
+@pytest.mark.parametrize("word", [-1, 1 << 32])
+def test_set_nco_word_out_of_range(word: int) -> None:
+    with pytest.raises(ValueError, match="not a u32"):
+        set_nco_command(word)

@@ -16,6 +16,8 @@
 //   - seq < head, or its slot already valid (a duplicate): late, consumed and dropped.
 //   - bad datagrams: their slot is not marked; the next good datagram for it overwrites what they wrote.
 // A datagram lost at the end of a replay holds the ones after it until a datagram NSLOT further on arrives.
+// Control commands (byte 0 bit 7 set, docs/protocol.md "Control commands", ADR 0014) are not replay data: consumed
+// without a write, a window move or a count (ctrl_rx counts them).
 //
 // Counters (cumulative since reset, mod 2^32), the ingest gap counter of CLAUDE.md §3:
 //   ok_cnt_o   good datagrams placed for release          bad_cnt_o   dropped: wrong length or truncated
@@ -72,14 +74,15 @@ module iq_udp_ingest #(
     logic [SEQ_W-1:0] head_q;                 // next seq to release
     logic [SEQ_W-1:0] next_q;                 // previous placed seq + 1 (gap counting)
     logic [NSLOT-1:0] valid_q;                // slot holds a good datagram not yet fully released
-    logic             drop_q;                 // current datagram is late or a duplicate: don't write, don't place
+    logic             drop_q;                 // current datagram is late, a duplicate or a command: no write, no place
+    logic             ctrl_q;                 // current datagram is a control command (its byte 0 bit 7 was set)
     logic [7:0]       i_byte_q;
     logic [SW-1:0]    rd_idx_q;               // next sample of the head slot to read
     logic             rd_pend_q, out_valid_q;
     logic [15:0]      rd_data_q;
 
     logic             beat, q_byte, first_sample, sample_beat, good, far, late, seq_valid, head_valid, rd_go, rd_last;
-    logic             place;
+    logic             place, ctrl;
     logic [SEQ_W-1:0] ahead;
     logic [SW-1:0]    wr_k;
     logic [AW-1:0]    wr_addr, rd_addr;
@@ -101,7 +104,8 @@ module iq_udp_ingest #(
     assign seq_valid    = (valid_q & seq_oh) != '0;
     assign head_valid   = (valid_q & head_oh) != '0;
     assign ahead        = seq_q - head_q;
-    assign far          = seq_q >= head_q && ahead >= SEQ_W'(NSLOT);
+    assign far          = seq_q >= head_q && ahead >= SEQ_W'(NSLOT) && !ctrl_q;
+    assign ctrl         = idx_q == '0 ? s_tdata_i[7] : ctrl_q;  // on byte 0 itself, from the byte
     assign late         = seq_q < head_q || seq_valid;
     // Byte idx is a Q byte when idx - SEQ_BYTES is odd; only the first SAMPLES pairs are stored.
     assign q_byte       = idx_q >= IW'(SEQ_BYTES) && idx_q < IW'(LEN) && idx_q[0] != SEQ_BYTES[0];
@@ -120,6 +124,7 @@ module iq_udp_ingest #(
         if (sample_beat) ring_q[wr_addr] <= {s_tdata_i, i_byte_q};
         if (beat) begin
             if (idx_q < IW'(SEQ_BYTES)) seq_q <= {seq_q[SEQ_W-9:0], s_tdata_i};
+            if (idx_q == '0) ctrl_q <= s_tdata_i[7];
             i_byte_q <= s_tdata_i;
         end
         if (rd_go) rd_data_q <= ring_q[rd_addr];
@@ -149,11 +154,13 @@ module iq_udp_ingest #(
             end
 
             if (beat) begin
-                if (first_sample) drop_q <= late;  // decided once, on the first sample byte (seq complete)
+                if (first_sample) drop_q <= late || ctrl_q;  // decided once, on the first sample byte (seq complete)
                 if (s_tlast_i) begin
                     idx_q  <= '0;
                     drop_q <= 1'b0;
-                    if (!good) begin
+                    if (ctrl) begin
+                        // a command: ctrl_rx's
+                    end else if (!good) begin
                         bad_cnt_o <= bad_cnt_o + 32'd1;
                     end else if (drop_q) begin
                         late_cnt_o <= late_cnt_o + 32'd1;

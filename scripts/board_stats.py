@@ -26,8 +26,9 @@ FIELDS = (
     "eth_ok", "eth_crc_err", "eth_rx_err", "eth_runt", "eth_oversize", "eth_ovf_lost",
     "udp_ok", "udp_filtered", "udp_ip_csum_err", "udp_malformed",
     "rx_fifo_hwm", "ddc_out", "tx_underrun", "mac_restarts",
-    # arty_rx_eth_top only (n = 26)
+    # arty_rx_eth_top only (n = 29)
     "cadus_sent", "fs_locked", "fs_dropped", "fs_slips", "fs_early", "flag_ovf", "len_err", "ingest_late",
+    "nco_word", "ctrl_ok", "ctrl_bad",
 )
 
 

@@ -7,14 +7,16 @@
 //                                                                   stats_packet -> pkt_arb2 -> udp_tx -> eth_tx
 //
 // Every CADU goes to the host as a type 2 packet (docs/protocol.md "CADU"), stats every STATS_PERIOD as type 1 with
-// the receiver's counters appended (fields 18-25), both to the sender of the last good replay datagram, UDP port
+// the receiver's counters appended (fields 18-28), both to the sender of the last good replay datagram, UDP port
 // STATS_PORT. Nothing is dropped inside the design: a slow stage stalls the ones before it back to the ingest ring;
 // once that is full, eth_rx loses whole frames and counts them (stats eth_ovf_lost), and the replay's seq gaps show
 // up in ingest_gap/ingest_lost. Replay to a freshly reset board (RESET button): the chain starts from reset and the
 // expected seq from zero.
 //
-// Tuning: FREQ_WORD is the DDC NCO word with the host's coarse estimate in it (ADR 0002), set per recording at build
-// time (scripts/board_rx.py freq-word) until a control path exists (docs/protocol.md "Control commands" [TBD]).
+// Tuning: the DDC NCO word carries the host's coarse estimate (ADR 0002). It starts as FREQ_WORD and the host sets it
+// per recording with a SET_NCO command on the replay port (docs/protocol.md "Control commands", ADR 0014), accepted
+// only before the DDC's first sample since the MAC left reset. The word survives a MAC restart (core reset only);
+// stats field nco_word reports it.
 // Loop gains, frame-sync threshold, flywheel and traceback depth: rx_config_pkg, generated from the model.
 // LEDs: LD4 heartbeat, LD5 frame sync locked, LD6 toggles per CADU sent, LD7 sticky error.
 //
@@ -22,7 +24,7 @@
 module arty_rx_eth_top
     import rx_config_pkg::*;
 #(
-    parameter logic [31:0] FREQ_WORD        = 32'h2580_0000, // 150 kHz, no coarse estimate; set per recording
+    parameter logic [31:0] FREQ_WORD        = 32'h2580_0000, // 150 kHz, no coarse estimate: until a SET_NCO command
     parameter int          PHY_RST_CYCLES   = 1_000_000,     // 10 ms at 100 MHz, fpga-eth-core consumer guide
     parameter int          MAC_START_CYCLES = 20_000_000,    // 200 ms at 100 MHz, same
     parameter logic [47:0] OWN_MAC          = 48'h02_00_0A_0B_0C_0D,  // locally administered; unused for multicast
@@ -213,6 +215,39 @@ module arty_rx_eth_top
         .late_cnt_o (late_cnt)
     );
 
+    // ------------------------------------------------------------------------------------- control commands
+    // SET_NCO commands share the replay stream (ADR 0014); ctrl_rx sees each byte as the ingest takes it. The word is
+    // refused once the DDC has taken a sample (counted in the same clock, so a word set on a clock with no sample
+    // taken is in place for the next one): every sample of a replay sees one word, as in the model.
+    logic        ctrl_set, ddc_started_q, ddc_take;
+    logic [31:0] ctrl_word, ctrl_ok, ctrl_bad, freq_word_q;
+
+    assign ddc_take = iq_tvalid && iq_tready;
+
+    ctrl_rx u_ctrl (
+        .clk_i     (clk),
+        .rst_i     (mac_rst_q),
+        .s_tdata_i (u_tdata),
+        .s_beat_i  (u_tvalid && u_tready),
+        .s_tlast_i (u_tlast),
+        .s_tuser_i (u_tuser),
+        .lock_i    (ddc_started_q || ddc_take),
+        .set_o     (ctrl_set),
+        .word_o    (ctrl_word),
+        .ok_cnt_o  (ctrl_ok),
+        .bad_cnt_o (ctrl_bad)
+    );
+
+    always_ff @(posedge clk) begin
+        if (rst)           freq_word_q <= FREQ_WORD;
+        else if (ctrl_set) freq_word_q <= ctrl_word;
+    end
+
+    always_ff @(posedge clk) begin
+        if (mac_rst_q)     ddc_started_q <= 1'b0;
+        else if (ddc_take) ddc_started_q <= 1'b1;
+    end
+
     // ------------------------------------------------------------------------------------- DDC, receiver
     logic [31:0] bb_tdata;
     logic        bb_tvalid, bb_tready;
@@ -228,7 +263,7 @@ module arty_rx_eth_top
     ) u_ddc (
         .clk_i       (clk),
         .rst_i       (mac_rst_q),
-        .freq_word_i (FREQ_WORD),
+        .freq_word_i (freq_word_q),
         .s_tdata_i   (iq_tdata),
         .s_tvalid_i  (iq_tvalid),
         .s_tready_o  (iq_tready),
@@ -276,8 +311,10 @@ module arty_rx_eth_top
 
     // ------------------------------------------------------------------------------------------ counters
     // Cumulative since the MAC left reset, mod 2^32. Order = docs/protocol.md "Stats" field table.
-    localparam int N_STATS = 26;
-    logic [31:0] cnt_q [4:18];   // fields 4..16, 18; 0..3 are the ingest's, 17 the MAC restarts, 19..24 rx_chain's, 25 the ingest's late count
+    localparam int N_STATS = 29;
+    // fields 4..16, 18; 0..3 are the ingest's, 17 the MAC restarts, 19..24 rx_chain's, 25 the ingest's late count,
+    // 26..28 the NCO word and ctrl_rx's counts
+    logic [31:0] cnt_q [4:18];
     logic        tx_underrun;
 
     always_ff @(posedge clk) begin
@@ -317,6 +354,9 @@ module arty_rx_eth_top
         stats[23*32 +: 32] = flag_ovf;
         stats[24*32 +: 32] = len_err;
         stats[25*32 +: 32] = late_cnt;
+        stats[26*32 +: 32] = freq_word_q;
+        stats[27*32 +: 32] = ctrl_ok;
+        stats[28*32 +: 32] = ctrl_bad;
     end
 
     // ------------------------------------------------------------------------------------- transmit path
