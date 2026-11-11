@@ -1060,3 +1060,18 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - Found on the way: gs-view polls at gs-rx's write period, so it often reads one snapshot twice: rates are taken
   against the previous *distinct* snapshot.
 - Hardware BER campaign running meanwhile (both builds; at 3.0 dB no post-RS error in 7 files so far).
+
+## 2026-11-11 (cont.): hardware BER campaign
+
+- `scripts/ber_board.py --iface 192.168.10.1`: 7 points, 2.0–5.0 dB, both builds (post-RS and RS_WRITEBACK=0),
+  board reprogrammed per replay. Ran ~1.5–5× real time (host loaded). `ber_board.csv`.
+- Pre-RS (Viterbi + NRZ-M + derandomizer): 1.19e-2 / 3.13e-3 / 7.73e-4 / 1.79e-4 / 3.78e-5 / 4.85e-6 at
+  2.0–4.5 dB; 5.0 dB has 80 errors in 48.6 M bits, so it is an upper bound (< 1.98e-6). That is 1.5–2.1× the model's
+  `viterbi_after_nrzm`. On the Eb/N0 axis (model log-interpolated) the loss is 0.36 / 0.25 / 0.21 / 0.15 / 0.19 / 0.12 dB.
+  BER 1e-5 at 4.32 dB (interpolated).
+- Post-RS (data bytes): 1.31e-3 at 2.0 dB (30/1192 codewords uncorrectable), 9.64e-5 at 2.5 dB (3/1192). From 3.0 dB
+  up: 0 errors in 42.5 M bits per point (< 7.0e-8).
+- Frames: 0 missing at every point, ingest/overflow counters 0. At 2.0 dB, 2 CADUs per build matched no sent frame
+  (> 20% bits off) and are excluded from the bit count.
+- Sidecar filled from the new interpretation by substituting its `[TBD]` (same text `write_result` would write),
+  not by rerunning the 3-hour campaign.

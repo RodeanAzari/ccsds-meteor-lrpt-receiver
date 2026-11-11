@@ -39,8 +39,8 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **CADU match vs. SatDump** | Synthetic recording: SatDump decoded 258 / 295 / 226 of 300 frames in three runs, **every decoded frame matching** ([satdump_crosscheck.csv](data/results/satdump_crosscheck.csv)). Real pass: `[TBD]` |
 | **DDC on the board** | **16,384 / 16,384 outputs bit-exact** vs. the model, over UART ([ddc_board.csv](data/results/ddc_board.csv)) and again over JTAG/ILA ([ddc_board_ila.csv](data/results/ddc_board_ila.csv)); **fed over Ethernet by `gs-replay`, 38 of 40 replays bit-exact at 1×, 5× and 5.6× real time**; the other 2 arrived with datagrams reordered before the board, as its own counters show ([ddc_board_eth.csv](data/results/ddc_board_eth.csv)); 100 MHz, synthetic input |
 | **DDC throughput** | 9.0 clocks per input sample: **10.8× real time** at 100 MHz, RTL simulation ([ddc_rtl_sim.csv](data/results/ddc_rtl_sim.csv)) |
-| **Coding gain at BER 10⁻⁵** | Model only, before NRZ-M: 10⁻⁵ at 4.28 dB with 4-bit soft decisions (4.15 dB unquantized) against 9.59 dB for uncoded OQPSK theory, a 5.3 dB gain (5.4 dB unquantized) ([soft_width_ber.csv](data/results/soft_width_ber.csv)). Hardware: `[TBD]` |
-| **Viterbi throughput and headroom** | RTL decoder bit-exact with the model, errors included; **96 clocks per bit, 14.5× real time** at 100 MHz, RTL simulation ([viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv)). Hardware BER: `[TBD]` |
+| **Coding gain at BER 10⁻⁵** | Model only, before NRZ-M: 10⁻⁵ at 4.28 dB with 4-bit soft decisions (4.15 dB unquantized) against 9.59 dB for uncoded OQPSK theory, a 5.3 dB gain (5.4 dB unquantized) ([soft_width_ber.csv](data/results/soft_width_ber.csv)). **Hardware, after NRZ-M: 10⁻⁵ at 4.32 dB**, interpolated between the 4.0 and 4.5 dB points, a 5.3 dB gain ([ber_board.csv](data/results/ber_board.csv)) |
+| **Viterbi throughput and headroom** | RTL decoder bit-exact with the model, errors included; **96 clocks per bit, 14.5× real time** at 100 MHz, RTL simulation ([viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv)). **Hardware BER before RS: 0.12–0.36 dB from the model** at 2–4.5 dB; after RS, 0 errors from 3 dB up ([ber_board.csv](data/results/ber_board.csv)) |
 | **Lock / Doppler** | Bit-true chain (bit-exact with the RTL), from reset at 6 dB with a 30 Hz/s ramp: **locks from −15 to +14 kHz in 16–35 ms** (4× the ±3.4 kHz Doppler); tracks the pass-maximum Doppler rate with **0.84 Hz rms error** ([sync_lock_range.csv](data/results/sync_lock_range.csv), [sync_doppler_track.csv](data/results/sync_doppler_track.csv)). On the board: `[TBD]` |
 | **Formal proofs** | Viterbi path metrics: a stall changes no metric (proven); the overflow bound holds 8 steps from reset (bounded), unbounded proof open ([docs/viterbi.md](docs/viterbi.md)). `[TBD]`: sync FSM, AXI-Stream, RS syndromes |
 | **Bugs caught** | 18 written up as symptom → root cause → fix ([below](#bugs-found)); 33 planted bugs, all caught |
@@ -56,7 +56,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | A — Python golden model | **In progress** | Float and bit-true chains decode synthetic signals; real recording pending |
 | B — Digital downconverter | **Done** (2026-11-07) | Bit-exact on the board from BRAM (UART and ILA) and over Ethernet from `gs-replay` (37 of 40 replays; the rest lost or reordered datagrams on the host side) |
 | C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. Real recording pending |
-| D — Viterbi + frame sync | **In progress** | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios), and in the chain from DDC output; hardware BER pending |
+| D — Viterbi + frame sync | **In progress** | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios), and in the chain from DDC output; hardware BER 0.12–0.36 dB from the model ([ber_board.csv](data/results/ber_board.csv)) |
 | E — Reed-Solomon + real decode | **In progress** | Stats packets back over Ethernet; RS decoder released as [fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core) `rs-core-v1.0`; NRZ-M, ASM check, derandomizer and RS in RTL after the Viterbi, bit-exact in simulation; **the whole receiver on the board decodes a replayed synthetic recording, 298 / 298 CADUs in 15 / 15 replays up to 5.6× real time**. A real pass next |
 | F — C++ ground station | Not started (`gs-replay` done in B) | — |
 
@@ -378,7 +378,16 @@ input, so every inner link stalls ([rx_chain_rtl_decode.csv](data/results/rx_cha
 
 The tradeoffs, with the 3-bit build's area (256 LUTs fewer for 0.11 dB), are in [docs/viterbi.md](docs/viterbi.md).
 
-Not yet: the unbounded path-metric proof (bounded to 8 steps today) and hardware BER (Phase D).
+**On the board** (`scripts/ber_board.py`), synthetic AWGN recordings at 2–5 dB went through the whole receiver: two
+builds, one with RS write-back off to see the bits before RS. Each point has ≥ 100 errors, otherwise the plot shows its
+95% upper bound. Before RS the board is **0.12–0.36 dB from the model**, most at 2 dB, where the loops are noisiest.
+From 3.5 dB up it is close to the 0.13 dB that 4-bit soft decisions alone cost. After RS: 1.3×10⁻³ at 2 dB, 9.6×10⁻⁵ at
+2.5 dB, and **0 errors in 42.5 M data bits at each point from 3 dB up** (< 7.0×10⁻⁸, 95%). Every usable frame came
+back at every point ([ber_board.csv](data/results/ber_board.csv)).
+
+![Hardware BER against Eb/N0: board before and after RS, model and uncoded theory](docs/media/2026-11-08_phase-e_ber-board.png)
+
+Not yet: the unbounded path-metric proof (bounded to 8 steps today), and BER on a real recording's impairments.
 
 ## Reed-Solomon
 
@@ -522,7 +531,9 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 | Whole receiver on the board | 15 / 15 replays: 298 CADU packets each, all matching the truth (892 data bytes), 0 RS symbols corrected, 0 codewords failed; one replay recovered from 14 MAC restarts at link-up (request 0005 stopgap) | Synthetic recording (300 CADUs, 8 dB, 34 s), `gs-replay` asked 1×, 5×, 5.6× (achieved 1.00, 3.4–4.2, 5.1–5.5), NCO word by SET_NCO, board reprogrammed per replay | [board_rx_eth.csv](data/results/board_rx_eth.csv) |
 | Receiver board top timing | WNS +0.256 ns, WHS +0.025 ns; 13,682 LUT, 8 RAMB36 + 7 RAMB18, 29 DSP | `arty_rx_eth_top`, 100 MHz, placed and routed | [board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv) |
 | Real passes decoded / CADU match vs. SatDump | `[TBD]` | — | — |
-| Hardware BER: uncoded, Viterbi, Viterbi + RS | `[TBD]` | — | — |
+| Hardware BER, Viterbi + NRZ-M (pre-RS) | 1.79×10⁻⁴ at 3.5 dB, 4.85×10⁻⁶ at 4.5 dB; 0.12–0.36 dB from the model, 2–4.5 dB | Arty, synthetic AWGN replay, ≥ 100 errors per point | [ber_board.csv](data/results/ber_board.csv) |
+| Hardware BER, Viterbi + RS (data bytes) | 9.64×10⁻⁵ at 2.5 dB; 0 errors in 42.5 M bits at each of 3–5 dB (< 7.0×10⁻⁸) | Same; 20 recordings per point from 3 dB | [ber_board.csv](data/results/ber_board.csv) |
+| Hardware BER, uncoded | Not measured: no tap before the Viterbi decoder | — | — |
 
 ## Limitations
 
@@ -535,7 +546,8 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
   Ethernet core.
 - **Bit-true doesn't mean robust.** The model hasn't seen phase noise, interference, fading or a real RTL-SDR's
   impairments.
-- **The model's coding gain is not a hardware measurement.** The hardware BER campaign is Phase D/E.
+- **Hardware BER is on synthetic AWGN only.** Fixed carrier offset, timing offset and clock error; no Doppler ramp,
+  fading or real-recording impairment.
 - **Throughput figures are partly arithmetic.** The DDC's 10.8× is measured in simulation. The 5.69× Ethernet
   ceiling and the Viterbi estimate are calculated.
 - **Hold slack on the ILA build is +0.024 ns:** positive but thin. It's the debug build only.
@@ -606,7 +618,7 @@ rather than pretending.
 1. **A real recording:** capture a pass (or find a public 72k recording), decode it with SatDump, and confirm the
    spec and the model on it (Phases 0 and A).
 2. **Phase C:** lock on a real recording; the sync chain on the board, fed by the Ethernet replay that works now.
-3. **Phase D:** hardware BER, and the unbounded path-metric proof (bounded to 8 steps today).
+3. **Phase D:** the unbounded path-metric proof (bounded to 8 steps today).
 4. **Phase E:** a Reed-Solomon decoder shared with another project, and a real pass decoded on the FPGA bit-for-bit
    against SatDump.
 5. **Phase F:** `gs-rx`, `gs-diff`, `gs-view`, a fuzzed parser, and the hero image and demo video.
