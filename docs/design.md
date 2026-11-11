@@ -22,6 +22,7 @@ and lists clock-domain crossings.
 | [0013](decisions/0013-ingest-reorder-buffer.md) | Ingest reorder buffer: 4 datagram slots by `seq`, released in order; losses skipped, late datagrams dropped | `test_iq_udp_ingest.py` |
 | [0014](decisions/0014-control-commands.md) | Control commands in-band on the replay port (byte 0 bit 7); SET_NCO accepted only before the DDC's first sample | `test_ctrl_rx.py`, `test_arty_rx_eth_top_full.py` |
 | [0015](decisions/0015-space-packet-demux.md) | Space packets: SatDump's packets on unbroken streams; a packet crossing a counter gap or disagreeing with the first header pointer dropped and counted | `model/tests/test_space_packets.py` |
+| [0016](decisions/0016-gs-view-status-snapshot.md) | gs-view draws a key=value snapshot gs-rx writes every 0.5 s (atomic rename); gs-rx stays the only receiver. No constellation (needs an RTL tap) or Viterbi corrections (not reported) in v1 | `gs/tests/view_test.cpp`, `gs/tests/test_rx_loopback.py` |
 
 Still required (CLAUDE.md §5.5): interpolator type, Berlekamp–Massey variant, RS instance count, phase-ambiguity
 strategy. The interpolator (Catmull-Rom cubic) and phase-ambiguity strategy (4 hypotheses on the

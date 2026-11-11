@@ -23,6 +23,8 @@ struct RxCounts {
     std::uint64_t cadu_seq_missing = 0;  // CADU packets missing by pkt_seq (lost between board and host)
     std::uint64_t cadu_seq_late = 0;     // older than one already seen: reordered, already counted as missing
                                          // when skipped (net lost = cadu_seq_missing - cadu_seq_late)
+    std::uint64_t rs_symbols_corrected = 0;  // over every codeword that decoded (good CADUs or not)
+    std::uint64_t asm_bit_errors = 0;        // ASM bits wrong, over every CADU packet
     std::uint64_t stats_packets = 0;
     std::uint64_t malformed = 0;  // neither a valid CADU nor a valid stats packet
     bool operator==(const RxCounts&) const = default;
@@ -48,9 +50,11 @@ class RxProcessor {
                 ++counts_
                       .cadu_seq_late;  // still decoded: the demultiplexer sees its VCDU counter out of order
             }
+            counts_.asm_bit_errors += c.asm_errors;
             bool rs_ok = true;
             for (const std::int8_t r : c.corrections) {
                 rs_ok = rs_ok && r >= 0;
+                counts_.rs_symbols_corrected += r > 0 ? static_cast<std::uint64_t>(r) : 0U;
             }
             if (!rs_ok) {
                 ++counts_.cadus_rs_failed;

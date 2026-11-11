@@ -19,7 +19,7 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 find_package(Threads REQUIRED)
 
-add_library(gs_core src/iq_replay.cpp src/board_packets.cpp src/cadu_diff.cpp)
+add_library(gs_core src/iq_replay.cpp src/board_packets.cpp src/cadu_diff.cpp src/view.cpp)
 target_include_directories(gs_core PUBLIC include)
 
 add_executable(gs-replay src/gs_replay_main.cpp)
@@ -30,6 +30,9 @@ target_link_libraries(gs-rx PRIVATE gs_core Threads::Threads)
 
 add_executable(gs-diff src/gs_diff_main.cpp)
 target_link_libraries(gs-diff PRIVATE gs_core)
+
+add_executable(gs-view src/gs_view_main.cpp)
+target_link_libraries(gs-view PRIVATE gs_core)
 
 # GoogleTest pinned by tag and hash (docs/toolchain.md).
 include(FetchContent)
@@ -48,7 +51,8 @@ endforeach()
 
 enable_testing()
 add_executable(gs_tests tests/iq_replay_test.cpp tests/board_packets_test.cpp tests/space_packets_test.cpp
-                        tests/spsc_ring_test.cpp tests/cadu_diff_test.cpp)
+                        tests/spsc_ring_test.cpp tests/cadu_diff_test.cpp
+                        tests/status_test.cpp tests/view_test.cpp)
 target_link_libraries(gs_tests PRIVATE gs_core GTest::gtest_main Threads::Threads)
 # Packets the RTL sent in simulation (tb/cocotb/test_arty_rx_eth_top_full.py, CAPTURE_DIR): read by board_packets_test.
 target_compile_definitions(gs_tests PRIVATE GS_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")

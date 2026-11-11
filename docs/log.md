@@ -1046,3 +1046,17 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - The first 4-replay run overwrote `board_rx_eth.csv` (15 rows of the older build) with 4 rows; rerunning the full
   campaign replaced it properly. Interpretation rewritten; README rows updated (also its stale timing row:
   +0.580 ns from the build before ctrl_rx; now +0.256 ns, 13,682 LUT).
+
+## 2026-11-11 (cont.): gs-view v1 (ADR 0016)
+
+- gs-rx writes `DIR/status.txt` every 0.5 s (fixed-buffer formatter `gs/status.hpp`, POSIX write + rename, no
+  allocation on the processing thread); the final summary uses the same formatter. New counters
+  `rs_symbols_corrected`, `asm_bit_errors`, `status_write_errors`. `gs-view DIR [--once]` draws board sync, ingest,
+  CADUs (FER = RS-failed / CADU packets, rate over two distinct snapshots), FEC, packet counters.
+- Tests: 9 GoogleTests (formatter, screen), loopback test now reads the live snapshot mid-run (state=running, every
+  datagram counted), the final one (= summary) and `gs-view --once`. Planted bugs: 15, all caught after two fixes to
+  the tests: a NaN rate or FER prints "-nan", which the assertions "rate -" / "FER -" matched (now anchored); one
+  mutant first didn't compile (unused parameter), redone.
+- Found on the way: gs-view polls at gs-rx's write period, so it often reads one snapshot twice: rates are taken
+  against the previous *distinct* snapshot.
+- Hardware BER campaign running meanwhile (both builds; at 3.0 dB no post-RS error in 7 files so far).

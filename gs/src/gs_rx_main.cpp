@@ -7,9 +7,12 @@
 // codewords all corrected, 1,024 bytes each, in arrival order (SatDump's .cadu layout); DIR/packets.bin: the
 // space packets, back to back (each self-delimiting). Stops on SIGINT/SIGTERM, after --idle seconds without a
 // datagram (default 5, counted from start), or after --seconds. The summary (every counter, and the board's
-// last stats packet) goes to stdout and DIR/gs-rx.txt. Nothing is dropped silently: a full ring is counted
-// (ring_full).
+// last stats packet) goes to stdout and DIR/gs-rx.txt. Every 0.5 s while running, the same lines plus state
+// and elapsed_ms go to DIR/status.txt (written to status.txt.tmp, then renamed), which gs-view draws (ADR
+// 0016); at the end, state=final. Nothing is dropped silently: a full ring is counted (ring_full), a failed
+// status write too (status_write_errors).
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -34,6 +37,7 @@
 #include "gs/board_packets.hpp"
 #include "gs/rx_processor.hpp"
 #include "gs/spsc_ring.hpp"
+#include "gs/status.hpp"
 
 namespace {
 
@@ -145,6 +149,26 @@ class Out {
     bool ok_ = true;
 };
 
+// text -> tmp, then renamed over path: a reader sees the old file or the new one, never a partial one. POSIX
+// calls only: nothing allocated on the processing thread.
+bool write_atomic(const char* tmp, const char* path, std::string_view text) {
+    const int fd = ::open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+                          0644);  // NOLINT(cppcoreguidelines-pro-type-vararg)
+    if (fd < 0) {
+        return false;
+    }
+    std::size_t done = 0;
+    while (done < text.size()) {
+        const ssize_t n = ::write(fd, text.data() + done, text.size() - done);
+        if (n <= 0) {
+            (void)::close(fd);
+            return false;
+        }
+        done += static_cast<std::size_t>(n);
+    }
+    return ::close(fd) == 0 && std::rename(tmp, path) == 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -191,8 +215,23 @@ int main(int argc, char** argv) {
     gs::RxProcessor proc;
     std::atomic<bool> stop{false};
     std::atomic<std::uint64_t> ring_full{0};
-    std::atomic<std::int64_t> last_rx{now_ns()};
+    const std::int64_t t0_ns = now_ns();
+    std::atomic<std::int64_t> last_rx{t0_ns};
     std::atomic<int> net_errno{0};
+    const std::string status_path = (dir / "status.txt").string();
+    const std::string status_tmp = (dir / "status.txt.tmp").string();
+    auto status = std::make_unique<gs::StatusText>();
+    std::uint64_t status_write_errors = 0;
+    const auto snapshot = [&](std::string_view state, std::int64_t now) {
+        status->clear();
+        status->add("state", state);
+        status->add("elapsed_ms", static_cast<std::uint64_t>((now - t0_ns) / 1'000'000));
+        gs::add_counts(*status, proc.counts(), ring_full.load(), proc.demux_counts(), proc.last_stats());
+        status->add("status_write_errors", status_write_errors);
+        if (status->overflowed() || !write_atomic(status_tmp.c_str(), status_path.c_str(), status->view())) {
+            ++status_write_errors;
+        }
+    };
 
     std::thread net([&] {
         while (!stop.load(std::memory_order_relaxed)) {
@@ -219,10 +258,16 @@ int main(int argc, char** argv) {
 
     const auto on_cadu = [&](std::span<const std::uint8_t, gs::kCaduLen> c) { cadus.write(c); };
     const auto on_packet = [&](std::span<const std::uint8_t> p) { packets.write(p); };
-    const std::int64_t t0 = now_ns();
+    const std::int64_t t0 = t0_ns;
+    constexpr std::int64_t kStatusPeriodNs = 500'000'000;  // ADR 0016
+    std::int64_t next_status = t0;
     const auto idle_ns = static_cast<std::int64_t>(o.idle_s * 1e9);
     const auto max_ns = static_cast<std::int64_t>(o.max_s * 1e9);
     while (true) {
+        if (const std::int64_t now = now_ns(); now >= next_status) {
+            snapshot("running", now);
+            next_status = now + kStatusPeriodNs;
+        }
         if (const Ring::Slot* s = ring->front(); s != nullptr) {
             proc.handle(std::span<const std::uint8_t>(s->data.data(), s->len), on_cadu, on_packet);
             ring->release();
@@ -244,46 +289,22 @@ int main(int argc, char** argv) {
     (void)close(sock);
     const bool written = cadus.close() && packets.close();
 
-    const gs::RxCounts& c = proc.counts();
-    const gs::DemuxCounts& d = proc.demux_counts();
-    std::string summary;
-    const auto kv = [&](const char* k, std::uint64_t v) {
-        summary += std::string(k) + "=" + std::to_string(v) + "\n";
-    };
-    kv("datagrams", c.datagrams);
-    kv("ring_full", ring_full.load());
-    kv("cadu_packets", c.cadu_packets);
-    kv("cadus_good", c.cadus_good);
-    kv("cadus_rs_failed", c.cadus_rs_failed);
-    kv("cadu_seq_missing", c.cadu_seq_missing);
-    kv("cadu_seq_late", c.cadu_seq_late);
-    kv("stats_packets", c.stats_packets);
-    kv("malformed", c.malformed);
-    kv("demux_cadus", d.cadus);
-    kv("demux_other_vcid", d.other_vcid);
-    kv("demux_gaps", d.gaps);
-    kv("packets", d.packets);
-    kv("dropped_gap", d.dropped_gap);
-    kv("dropped_length", d.dropped_length);
-    kv("bad_pointer", d.bad_pointer);
-    kv("dropped_pointer", d.dropped_pointer);
-    if (const gs::StatsPacket* s = proc.last_stats(); s != nullptr) {
-        for (std::size_t k = 0; k < s->known; ++k) {
-            summary += "board." + std::string(gs::kStatsFieldNames.at(k)) + "=" +
-                       std::to_string(s->fields.at(k)) + "\n";
-        }
-    }
-    (void)std::fputs(summary.c_str(), stdout);
+    snapshot("final", now_ns());
+    auto summary = std::make_unique<gs::StatusText>();  // after the data path: allocation is fine here
+    gs::add_counts(*summary, proc.counts(), ring_full.load(), proc.demux_counts(), proc.last_stats());
+    summary->add("status_write_errors", status_write_errors);
+    const std::string_view text = summary->view();
+    (void)std::fwrite(text.data(), 1, text.size(), stdout);
     Out report(dir / "gs-rx.txt");
     report.write(
-        std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t*>(summary.data()), summary.size()));
+        std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t*>(text.data()), text.size()));
     const bool reported = report.open() && report.close();
     if (net_errno != 0) {
         const std::string why = std::system_category().message(net_errno);
         (void)std::fprintf(stderr, "gs-rx: recv failed: %s\n", why.c_str());
         return 1;
     }
-    if (!written || !reported) {
+    if (!written || !reported || summary->overflowed() || status_write_errors != 0) {
         (void)std::fprintf(stderr, "gs-rx: write error in %s\n", o.out.c_str());
         return 1;
     }

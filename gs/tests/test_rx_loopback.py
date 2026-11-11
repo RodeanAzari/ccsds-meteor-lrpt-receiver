@@ -28,6 +28,7 @@ from scripts.packet_diff import compare, split_cadus, split_packets
 
 BINARY = Path(os.environ.get("GS_RX", "build/gs-Release/gs-rx"))
 DIFF = Path(os.environ.get("GS_DIFF", "build/gs-Release/gs-diff"))
+VIEW = Path(os.environ.get("GS_VIEW", "build/gs-Release/gs-view"))
 HDR = struct.Struct(">BBHIQ")
 
 
@@ -40,7 +41,7 @@ def binary() -> Path:
 
 def cadu_packet(seq: int, cadu: bytes, rs: tuple[int, int, int, int] = (0, 3, 0, 1)) -> bytes:
     """docs/protocol.md "CADU": header, flags, asm_errors, rs[0..3], 2 reserved, the CADU."""
-    return HDR.pack(2, 1, 1032, seq, 1000 * seq) + bytes([0, 0, *rs, 0, 0]) + cadu
+    return HDR.pack(2, 1, 1032, seq, 1000 * seq) + bytes([0, seq % 5, *rs, 0, 0]) + cadu
 
 
 def stats_packet(seq: int, values: list[int]) -> bytes:
@@ -75,7 +76,7 @@ def test_board_packets_to_cadus_and_space_packets(binary: Path, tmp_path: Path) 
 
     port = free_port()
     out = tmp_path / "rx"
-    proc = subprocess.Popen([str(binary), "--out", str(out), "--port", str(port), "--idle", "1.5"],
+    proc = subprocess.Popen([str(binary), "--out", str(out), "--port", str(port), "--idle", "2.5"],
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         time.sleep(0.3)  # let it bind
@@ -83,6 +84,14 @@ def test_board_packets_to_cadus_and_space_packets(binary: Path, tmp_path: Path) 
             for d in datagrams:
                 tx.sendto(d, ("127.0.0.1", port))
                 time.sleep(0.0005)  # loopback stays lossless at this rate; gs-rx would count ring_full anyway
+        # While gs-rx waits out --idle, its snapshot (every 0.5 s) must show it running with every datagram counted.
+        live: dict[str, str] = {}
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline and live.get("datagrams") != str(len(datagrams)):
+            time.sleep(0.05)
+            if (out / "status.txt").exists():
+                live = dict(line.split("=", 1) for line in (out / "status.txt").read_text().split())
+        assert live.get("state") == "running" and live.get("datagrams") == str(len(datagrams)), live
         stdout, stderr = proc.communicate(timeout=30)
     finally:
         if proc.poll() is None:
@@ -99,10 +108,24 @@ def test_board_packets_to_cadus_and_space_packets(binary: Path, tmp_path: Path) 
         "demux_cadus": want_counts.cadus, "demux_other_vcid": 0, "demux_gaps": want_counts.gaps,
         "packets": want_counts.packets, "dropped_gap": want_counts.dropped_gap,
         "dropped_length": want_counts.dropped_length, "bad_pointer": 0, "dropped_pointer": 0,
+        # rs = (0, 3, 0, 1): 4 symbols per CADU that decoded; the failed one (0, 0x80, 0, 0) corrected none.
+        "rs_symbols_corrected": 4 * len(good),
+        "asm_bit_errors": sum(k % 5 for k in range(len(cadus)) if k != never_sent),
+        "status_write_errors": 0,
     }
     for k, v in want.items():
         assert int(summary[k]) == v, f"{k} = {summary[k]}, want {v}"
     assert int(summary["board.ingest_ok"]) == 100 and int(summary["board.ctrl_bad"]) == 100 + len(FIELDS) - 1
+
+    # The live status (ADR 0016) ends final, with the same counters as the summary; gs-view draws it.
+    status = dict(line.split("=", 1) for line in (out / "status.txt").read_text().split())
+    assert status.pop("state") == "final" and int(status.pop("elapsed_ms")) > 0
+    assert status == summary
+    assert not (out / "status.txt.tmp").exists()
+    r = subprocess.run([str(VIEW), str(out), "--once"], capture_output=True, text=True, timeout=10)
+    assert r.returncode == 0, r.stderr
+    assert "[final]" in r.stdout and f"received {len(cadus) - 1}" in r.stdout and "\x1b" not in r.stdout
+    assert f"FER {100 / (len(cadus) - 1):.3f} %" in r.stdout
 
     # The comparison tools on gs-rx's own files, against a decode that has every CADU (as SatDump might): the two
     # CADUs gs-rx lacks are listed, not failed, and so are the packets they hold.
@@ -117,6 +140,13 @@ def test_board_packets_to_cadus_and_space_packets(binary: Path, tmp_path: Path) 
     assert p.passed and p.unexplained == []
     assert p.equal + p.explained["satdump_tail"] == len(want_packets)  # SatDump holds back the stream's last one
     assert p.only_satdump == p.explained["missing_in_ours"] + p.explained["our_drop"] >= 2
+
+
+def test_view_without_status_or_with_bad_arguments(tmp_path: Path) -> None:
+    r = subprocess.run([str(VIEW), str(tmp_path), "--once"], capture_output=True, text=True, timeout=10)
+    assert r.returncode == 1 and "cannot read" in r.stderr
+    for args in ([], [str(tmp_path), "--bogus"], [str(tmp_path), "--once", "x"]):
+        assert subprocess.run([str(VIEW), *args], capture_output=True, timeout=10).returncode == 2, args
 
 
 def test_bad_arguments_fail_loudly(binary: Path) -> None:
