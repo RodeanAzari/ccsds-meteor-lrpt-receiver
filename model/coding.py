@@ -173,15 +173,21 @@ def build_cadus(n_frames: int, seed: int) -> tuple[npt.NDArray[np.uint8], npt.ND
     `plain` has the RS-encoded body before randomization. `on_air` is what enters NRZ-M.
     """
     rng = np.random.default_rng(seed)
+    return encode_cadus(np.stack([rng.integers(0, 256, size=DATA_BYTES, dtype=np.uint8) for _ in range(n_frames)]))
+
+
+def encode_cadus(data: npt.NDArray[np.uint8]) -> tuple[npt.NDArray[np.uint8], npt.NDArray[np.uint8]]:
+    """(plain, on_air) as `build_cadus`, from given data rows of shape (n_frames, DATA_BYTES): CADU bytes 4..895."""
+    if data.ndim != 2 or data.shape[1] != DATA_BYTES:
+        raise ValueError(f"data shape {data.shape}, expected (n, {DATA_BYTES})")
     rs = lrpt_rs()
-    plain = np.zeros((n_frames, CADU_BYTES), dtype=np.uint8)
+    plain = np.zeros((len(data), CADU_BYTES), dtype=np.uint8)
     on_air = np.zeros_like(plain)
     asm = np.frombuffer(ASM_BYTES, dtype=np.uint8)
-    for f in range(n_frames):
-        data = rng.integers(0, 256, size=DATA_BYTES, dtype=np.uint8)
+    for f, row in enumerate(data):
         body = np.zeros(RS_N * RS_INTERLEAVE, dtype=np.uint8)
         for c in range(RS_INTERLEAVE):
-            body[c::RS_INTERLEAVE] = rs.encode(data[c::RS_INTERLEAVE].tolist())
+            body[c::RS_INTERLEAVE] = rs.encode(row[c::RS_INTERLEAVE].tolist())
         plain[f] = np.concatenate((asm, body))
         on_air[f] = np.concatenate((asm, randomize(body)))
     return plain, on_air
