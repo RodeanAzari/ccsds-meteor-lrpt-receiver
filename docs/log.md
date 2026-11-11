@@ -1092,3 +1092,26 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - README: Ground station section filled; stale limitations corrected ("Only the DDC is in RTL", "No Ethernet",
   no reorder buffer, MAC restart "not yet fired", "No fuzzing").
 - No asciinema on this host: the gs-view recording is listed in portfolio-todo for the user.
+
+## 2026-11-11 (cont.): space packets on hardware; host datagram loss explained
+
+- `make_synthetic_iq.py --packets` (seed 2027): 300 VCID-5 CADUs muxed from random packets on APIDs 64–70, 270
+  complete. `model.coding.encode_cadus` factored out of `build_cadus`; the seed-2026 recording and truth regenerate
+  byte-identical (sha256). Tests from the CCSDS layout (pointers walked by length fields), 7 planted bugs caught
+  (2 only after adding a case each check alone can catch: a drop SatDump can't see, a SatDump-only difference).
+- SatDump 1.2.2 on it: 261 frames, all equal to truth (35–295), 228 packets all in the truth. Exit 1 as on the
+  seed-2026 recording (no image from random data).
+- `board_gs_rx.py --truth` → `board_gs_rx_packets.csv`: packets.bin must equal the model's demux of the truth CADUs
+  the board delivered, and packet_diff vs SatDump must pass. 1×, 5×, 5.6× (achieved 1.00/5.00/5.60):
+  packets_exact in 3/3 (268/268/256); packet_diff 228/228/216 equal, 0 unexplained.
+- Bring-up: board not visible (only the ASIX adapter was attached through usbipd; JTAG FTDI `0403:6010` needed too);
+  after re-attach the adapter was down with no address (user restored 192.168.10.1 with sudo).
+- First run: 5× and 5.6× lost 26 and 28 datagrams, 18 and 43 RS-failed CADUs. Symptom → cause: board
+  `eth_ok` short by exactly those counts, no CRC/FIFO errors; host `ip -s link` TX dropped = 54 = 26 + 28; load ~16
+  on 16 cores (other sessions). The kernel drops at the USB-Ethernet adapter. Fix: `board_gs_rx.py` records the
+  interface's `tx_dropped` delta per replay and the board's `ingest_lost`. Rerun (the CSV): 0/0/2 dropped =
+  ingest_lost 0/0/2; the 2 at 5.6× cost 2 CADUs + 10 RS-failed, gated out; no damaged packet emitted. This closes
+  the "lost datagrams, cause open" question from Phase B.
+- Bitstream `build/board/arty_rx_eth_top.bit` (2026-11-09 19:55) predates the SET_NCO commit df47769 by an hour;
+  it was built from that working tree (SET_NCO echoed in every replay), same file as `board_gs_rx.csv`.
+- Sidecar's commit is 2dbc24b (the code that ran); the interpretation was substituted for `[TBD]` after the run.

@@ -1,0 +1,4 @@
+replay_speed,achieved_speed,host_tx_dropped,datagrams,ring_full,cadu_packets,cadus_good,cadus_rs_failed,cadu_seq_missing,malformed,rs_symbols_corrected,stats_packets,board_ingest_lost,board_cadus_sent,board_fs_slips,board_mac_restarts,nco_confirmed,satdump_frames,common,only_ours,only_satdump,data_bits_differ,asm_frames_differ,parity_bytes_differ,result,packets,truth_packets,expected_packets,packets_exact,pd_satdump,pd_equal,pd_differ,pd_only_ours,pd_only_satdump,pd_explained,pd_unexplained,pd_result
+1,1.00,0,755,0,298,298,0,0,0,0,457,0,298,0,0,1,261,261,37,0,0,0,0,PASS,268,270,268,1,228,228,0,40,0,missing_in_satdump:40,0,PASS
+5,5.00,0,482,0,298,298,0,0,0,0,184,0,298,0,0,1,261,261,37,0,0,0,0,PASS,268,270,268,1,228,228,0,40,0,missing_in_satdump:40,0,PASS
+5.6,5.60,2,473,0,296,286,10,0,0,0,177,2,296,0,0,1,261,249,37,12,0,0,0,PASS,256,270,256,1,228,216,0,40,12,missing_in_ours:12;missing_in_satdump:40,0,PASS

@@ -432,8 +432,13 @@ parsers are fuzzed with libFuzzer in CI.
 achieved), and gs-rx received **298 / 298 CADUs** each time, none missing, malformed or overflowed. gs-diff against
 SatDump's decode of the same recording: **all 258 frames SatDump decoded are bit-identical**, including ASM and
 parity. The board's 40 extra frames are the 37 before SatDump's carrier pull-in and 3 after its last ([board_gs_rx.csv](data/results/board_gs_rx.csv)).
-This recording carries random data, not space packets. The packet path against SatDump is tested on loopback
-and waits for a real pass on hardware.
+That recording carries random data, so a second one (`make_synthetic_iq.py --packets`) carries 270 space packets
+on the MSU-MR APIDs. Board → gs-rx, at 1×, 5× and 5.6×: gs-rx's packets are **exactly the golden model's demux of the
+frames the board delivered** (268 of 270 at 1× and 5×; the other two touch frames the board never decodes), and
+`packet_diff` against SatDump finds 228 equal packets, none different and none unexplained
+([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)). At 5.6× the host dropped 2 datagrams under load;
+the 12 CADUs this cost were gated out and no damaged packet was emitted. The packets are random, not image data:
+an image needs a real pass.
 
 ## On the board
 
@@ -542,6 +547,7 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 | Board top, simulation (MII in → CADU packets out) | 3 / 3 CADU packets bit-exact with the model, 501 stats packets intact, 0 loss at the 100 Mb/s line rate | 1,137 datagrams back to back (5.69×), 6 dB, `arty_rx_eth_top` from reset | [rx_top_rtl_decode.csv](data/results/rx_top_rtl_decode.csv) |
 | Whole receiver on the board | 15 / 15 replays: 298 CADU packets each, all matching the truth (892 data bytes), 0 RS symbols corrected, 0 codewords failed; one replay recovered from 14 MAC restarts at link-up (request 0005 stopgap) | Synthetic recording (300 CADUs, 8 dB, 34 s), `gs-replay` asked 1×, 5×, 5.6× (achieved 1.00, 3.4–4.2, 5.1–5.5), NCO word by SET_NCO, board reprogrammed per replay | [board_rx_eth.csv](data/results/board_rx_eth.csv) |
 | Board → `gs-rx` → `gs-diff` vs. SatDump | 298 / 298 CADUs received per replay at 1×, 5×, 5.39×; all 258 frames SatDump decoded bit-identical | Synthetic recording, 8 dB; SatDump 1.2.2 | [board_gs_rx.csv](data/results/board_gs_rx.csv) |
+| Board → `gs-rx` space packets vs. truth and SatDump | Packets equal the model's demux of the delivered frames in 3 / 3 replays (268 / 270 at 1×, 5×); 228 equal to SatDump, 0 different, 0 unexplained | Synthetic recording with VCID-5 packets (seed 2027, 8 dB); at 5.6× the host dropped 2 datagrams | [board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv) |
 | Receiver board top timing | WNS +0.256 ns, WHS +0.025 ns; 13,682 LUT, 8 RAMB36 + 7 RAMB18, 29 DSP | `arty_rx_eth_top`, 100 MHz, placed and routed | [board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv) |
 | Real passes decoded / CADU match vs. SatDump | `[TBD]` | — | — |
 | Hardware BER, Viterbi + NRZ-M (pre-RS) | 1.79×10⁻⁴ at 3.5 dB, 4.85×10⁻⁶ at 4.5 dB; 0.12–0.36 dB from the model, 2–4.5 dB | Arty, synthetic AWGN replay, ≥ 100 errors per point | [ber_board.csv](data/results/ber_board.csv) |
@@ -564,6 +570,10 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 - **The host reorders replay datagrams now and then** (2 of 40 replays of the DDC build). The receiver's ingest
   has a reorder buffer that puts them back (`ingest_late` counts any that arrive too late); 0 gaps in the
   15-replay campaign ([board_rx_eth.csv](data/results/board_rx_eth.csv)).
+- **A loaded host drops replay datagrams** before they reach the wire: the kernel's `tx_dropped` on the USB-Ethernet
+  adapter equals the board's `ingest_lost` (2 at 5.6× at load ~16 on 16 cores,
+  [board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)). A lost datagram is a 512-sample gap; RS gates
+  out the frames it damages. Replay real passes on a quiet host, or at 1×.
 - **eth_rx's RX FIFO can come up corrupted at PHY link-up** (1 in 20 reprograms on 2026-11-07, all after slow
   link-ups). Reported to fpga-eth-core's owner (request 0005); until it holds the MAC in reset until link-up,
   the top detects the impossible FIFO level and restarts the MAC. That stopgap is tested in simulation; it
