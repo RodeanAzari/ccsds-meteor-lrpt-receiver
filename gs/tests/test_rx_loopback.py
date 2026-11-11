@@ -142,6 +142,32 @@ def test_board_packets_to_cadus_and_space_packets(binary: Path, tmp_path: Path) 
     assert p.only_satdump == p.explained["missing_in_ours"] + p.explained["our_drop"] >= 2
 
 
+def test_idle_ignores_stats_packets(binary: Path, tmp_path: Path) -> None:
+    """A board sends a stats packet every 100 ms while it is up (docs/protocol.md), so after a replay the stream
+    never goes quiet: --idle must count only other datagrams, or gs-rx never stops (seen on the board, 2026-11-11)."""
+    port = free_port()
+    proc = subprocess.Popen([str(binary), "--out", str(tmp_path / "rx"), "--port", str(port), "--idle", "1"],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        time.sleep(0.3)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as tx:
+            tx.sendto(cadu_packet(0, bytes(1024)), ("127.0.0.1", port))
+            end = time.monotonic() + 4.0
+            seq = 0
+            while time.monotonic() < end and proc.poll() is None:
+                tx.sendto(stats_packet(seq, [seq] * len(FIELDS)), ("127.0.0.1", port))
+                seq += 1
+                time.sleep(0.1)
+        assert proc.poll() is not None, "gs-rx still running 4 s into a stats-only stream with --idle 1"
+        stdout, stderr = proc.communicate(timeout=10)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+    assert proc.returncode == 0, stderr
+    summary = dict(line.split("=", 1) for line in stdout.split())
+    assert int(summary["cadu_packets"]) == 1 and int(summary["stats_packets"]) >= 5  # stats arrived while it waited
+
+
 def test_view_without_status_or_with_bad_arguments(tmp_path: Path) -> None:
     r = subprocess.run([str(VIEW), str(tmp_path), "--once"], capture_output=True, text=True, timeout=10)
     assert r.returncode == 1 and "cannot read" in r.stderr

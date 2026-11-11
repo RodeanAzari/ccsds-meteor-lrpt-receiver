@@ -6,11 +6,12 @@
 // Network thread -> lock-free SPSC ring -> processing thread (this one). DIR/cadus.bin: every CADU whose
 // codewords all corrected, 1,024 bytes each, in arrival order (SatDump's .cadu layout); DIR/packets.bin: the
 // space packets, back to back (each self-delimiting). Stops on SIGINT/SIGTERM, after --idle seconds without a
-// datagram (default 5, counted from start), or after --seconds. The summary (every counter, and the board's
-// last stats packet) goes to stdout and DIR/gs-rx.txt. Every 0.5 s while running, the same lines plus state
-// and elapsed_ms go to DIR/status.txt (written to status.txt.tmp, then renamed), which gs-view draws (ADR
-// 0016); at the end, state=final. Nothing is dropped silently: a full ring is counted (ring_full), a failed
-// status write too (status_write_errors).
+// datagram other than a stats packet (default 5, counted from start; a board sends stats every 100 ms while
+// it is up, so they would keep a finished replay running), or after --seconds. The summary (every counter,
+// and the board's last stats packet) goes to stdout and DIR/gs-rx.txt. Every 0.5 s while running, the same
+// lines plus state and elapsed_ms go to DIR/status.txt (written to status.txt.tmp, then renamed), which
+// gs-view draws (ADR 0016); at the end, state=final. Nothing is dropped silently: a full ring is counted
+// (ring_full), a failed status write too (status_write_errors).
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -246,7 +247,9 @@ int main(int argc, char** argv) {
                 stop = true;
                 break;
             }
-            last_rx.store(now_ns(), std::memory_order_relaxed);
+            if (n == 0 || buf[0] != gs::kTypeStats) {  // stats packets don't count as activity (--idle)
+                last_rx.store(now_ns(), std::memory_order_relaxed);
+            }
             if (slot == nullptr) {
                 ring_full.fetch_add(1, std::memory_order_relaxed);
                 continue;
