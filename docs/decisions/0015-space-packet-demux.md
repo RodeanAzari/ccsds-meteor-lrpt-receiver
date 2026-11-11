@@ -41,6 +41,12 @@ No version, APID or idle-packet filtering: SatDump does none either.
 - gs-rx's packet stream equals SatDump's on unbroken stretches; around a lost CADU it lacks the one packet SatDump
   emits damaged. `gs-diff` has to align the two streams (by APID and sequence count) and report gap-adjacent
   differences separately.
+  **Amended 2026-11-10 (user's choice):** `gs-diff` (C++) compares CADUs only (buildplan §8.5); the packets are
+  compared by `scripts/packet_diff.py`, against `satdump_demux` over SatDump's .cadu (SatDump 1.2.2 writes no
+  packets). It keys packets by where they start (VCDU counter, zone offset), not by APID and sequence count, which
+  wrap within a pass. A difference is expected only where it touches a CADU one side lacks, a SatDump packet that
+  crosses a gap or is short, a CADU where the golden model drops a packet, or SatDump's held-back last packet;
+  anything else fails.
 - The counters (`DemuxCounts`) go into gs-rx's report and `gs-view`.
 
 ## Measured evidence

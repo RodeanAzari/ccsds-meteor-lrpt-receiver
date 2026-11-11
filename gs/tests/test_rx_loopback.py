@@ -24,8 +24,10 @@ import pytest
 
 from model.space_packets import demux, mux, space_packet
 from scripts.board_stats import FIELDS
+from scripts.packet_diff import compare, split_cadus, split_packets
 
 BINARY = Path(os.environ.get("GS_RX", "build/gs-Release/gs-rx"))
+DIFF = Path(os.environ.get("GS_DIFF", "build/gs-Release/gs-diff"))
 HDR = struct.Struct(">BBHIQ")
 
 
@@ -101,6 +103,20 @@ def test_board_packets_to_cadus_and_space_packets(binary: Path, tmp_path: Path) 
     for k, v in want.items():
         assert int(summary[k]) == v, f"{k} = {summary[k]}, want {v}"
     assert int(summary["board.ingest_ok"]) == 100 and int(summary["board.ctrl_bad"]) == 100 + len(FIELDS) - 1
+
+    # The comparison tools on gs-rx's own files, against a decode that has every CADU (as SatDump might): the two
+    # CADUs gs-rx lacks are listed, not failed, and so are the packets they hold.
+    satdump = tmp_path / "satdump.cadu"
+    satdump.write_bytes(b"".join(cadus))
+    r = subprocess.run([str(DIFF), str(out / "cadus.bin"), str(satdump)], capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stdout + r.stderr
+    d = dict(line.split("=", 1) for line in r.stdout.split())
+    assert (d["common"], d["only_ours"], d["only_satdump_first"]) == (str(len(good)), "0", "5/1020,5/1030")
+    p = compare(split_cadus((out / "cadus.bin").read_bytes(), "ours"),
+                split_packets((out / "packets.bin").read_bytes()), cadus)
+    assert p.passed and p.unexplained == []
+    assert p.equal + p.explained["satdump_tail"] == len(want_packets)  # SatDump holds back the stream's last one
+    assert p.only_satdump == p.explained["missing_in_ours"] + p.explained["our_drop"] >= 2
 
 
 def test_bad_arguments_fail_loudly(binary: Path) -> None:

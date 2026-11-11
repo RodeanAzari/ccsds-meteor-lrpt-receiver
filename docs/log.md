@@ -995,3 +995,24 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   own source lines: those were not results, rerun.
 - `make fuzz`: two targets (board parser 2.6 M runs, demux 373 k runs, 60 s each), no findings. Not in CI yet.
 - Not done: gs-rx on a real board stream (board held by P2); `gs-diff`, `gs-view`.
+
+## 2026-11-10 (cont.): gs-diff (CADUs) and packet_diff (space packets)
+
+- Scope (user's choice): `gs-diff` in C++ compares CADUs only (buildplan §8.5); `scripts/packet_diff.py` compares
+  gs-rx's packets with `satdump_demux` over SatDump's .cadu (SatDump 1.2.2 writes no packets). ADR 0015 amended.
+- `gs-diff OURS SATDUMP`: frames matched by (VCID, VCDU counter); pass = at least one common frame and every
+  common frame's bytes 4-895 equal; ASM and parity differences counted apart; first divergence as frame, byte,
+  bit (0 = MSB); a repeated key or a partial CADU is an input error (exit 2). 8 GoogleTests + 5 CLI tests.
+- `packet_diff`: packets keyed by where they start (VCDU counter, zone offset), since the 14-bit sequence count
+  wraps within a pass. First version's rules missed two legitimate cases found while planting bugs: a length one
+  short (SatDump emits it whole, gs-rx drops it: now explained by the golden model's drops on our CADUs,
+  `our_drop`) and a full-length SatDump packet across a gap (the gap check had been masked by the short-packet
+  check in every test). A gs-rx packet across a gap of its own was first excused by SatDump's side of the same key:
+  now always unexplained. An overlap rule I added for "SatDump swallows the next packet's start" was removed:
+  the port cuts a packet in progress at the next pointer, so that can't happen.
+- Planted bugs: gs-diff 10/10 caught; packet_diff 14/15 + 1 more after a test with SatDump's last pointer read as
+  2047. Survivor: the tail rule's one-zone condition (only reachable with fabricated data).
+- Chained onto the gs-rx loopback test: gs-rx's own files against a decode with every CADU: gs-diff PASS with the
+  RS-failed and never-sent CADUs listed (5/1020, 5/1030); packet_diff PASS, 3 packets `missing_in_ours`, 1
+  `satdump_tail`. First expectation there forgot the tail packet (test was wrong, fixed).
+- clang-tidy rejected a `FILE*` reader in gs-diff (owning-memory, stream state): replaced by `std::ifstream`.
