@@ -7,13 +7,15 @@ Digilent Arty A7-100T with C++ ground-station tools around it. Recordings are ca
 the board over UDP, and decoded down to CCSDS frames: digital downconversion, timing and carrier recovery, frame
 sync, Viterbi K=7 r½, derandomization and Reed-Solomon RS(255,223)×4.
 
-**Status: Phase B (the DDC) done; C and D in progress.** The full receive chain exists as a Python model. It decodes synthetic signals end to end
-and agrees with BER theory, and SatDump, the reference decoder, decodes the model's synthetic recording with every
-frame matching. The first RTL block, the **digital downconverter, runs on the board at 100 MHz** and matches the
-bit-true model on **all 16,384 outputs, read back two independent ways** (UART and JTAG/ILA), and again when the
-samples arrive over Ethernet from `gs-replay`. The synchronization
-chain (matched filter, AGC, Costas, Farrow/Gardner) is in RTL and bit-exact in simulation, and its output decodes to
-the frames that were sent. No real satellite recording has been decoded yet; the capture kit arrives around 2026-11-25.
+**Status: Phase B (the DDC) done; C–F in progress, waiting for a real recording.** The whole receiver runs on the
+board at 100 MHz: a recording replayed over Ethernet goes through the DDC, sync chain, frame sync, Viterbi, NRZ-M,
+derandomizer and Reed-Solomon in RTL, and the CADUs come back over Ethernet to the C++ ground station. On a synthetic
+recording, **every CADU the board decoded matches a sent frame (298 / 298, 15 / 15 replays up to 5.6× real time)**,
+and **all 258 frames SatDump decoded are bit-identical to the board's**. The space packets the ground station
+recovers from the board's output equal the golden model's and SatDump's. Hardware BER before RS is 0.12–0.36 dB from
+the model; after RS, 0 errors from 3 dB up. Every RTL block is bit-exact against a Python bit-true model, which in
+turn matches the float model and BER theory. **No real satellite recording has been decoded yet**; the capture kit
+arrives around 2026-11-25.
 
 Every number below comes from a CSV in [`data/results/`](data/results/) or a report in
 [`docs/reports/`](docs/reports/), produced by a `make` target. Each CSV has a sidecar `.md` with the commit,
@@ -25,7 +27,7 @@ command, tool versions, input and an interpretation. `[TBD]` means not measured 
 Python bit-true model's output for the same input (dots): 16,384 of 16,384 samples identical. The input is a
 synthetic OQPSK snippet at 8 dB Eb/N0 in block RAM. On the right, the unsynchronized I/Q: a noisy ring, still
 rotating at the 1 kHz residual carrier. Timing and carrier recovery (Phase C) turn it into four clusters. This is a
-stand-in hero image: the intended one, a Meteor image decoded by this receiver next to SatDump's, needs Phases C–F.
+stand-in hero image: the intended one, a Meteor image decoded by this receiver next to SatDump's, needs a real pass.
 `make plots`, from [`ddc_board_ila_iq.csv`](data/results/ddc_board_ila_iq.csv).*
 
 ## At a glance
@@ -33,7 +35,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | | |
 |---|---|
 | **Target signal** | Meteor-M N2-4 LRPT, 72k mode: OQPSK, 72 ksym/s, conv K=7 r½, NRZ-M, CCSDS randomizer, RS(255,223) interleave 4. Parameters read from SatDump 1.2.2's source ([signal-spec.md](docs/signal-spec.md)) |
-| **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → Costas + Farrow/Gardner → encoded-ASM sync → Viterbi → NRZ-M → derandomizer → RS×4. **In RTL: the DDC (on the board); the sync chain, RRC → AGC → Costas → Farrow/Gardner (simulation), whose output decodes to the sent frames ([sync_chain_rtl_decode.csv](data/results/sync_chain_rtl_decode.csv)); the frame sync, the Viterbi decoder, NRZ-M, the derandomizer and RS (simulation), chained after the sync chain: from DDC output to CADUs that match the sent frames ([rx_chain_rtl_decode.csv](data/results/rx_chain_rtl_decode.csv)).** The whole chain after the DDC is in RTL; on the board so far only the DDC |
+| **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → AGC → Costas + Farrow/Gardner → encoded-ASM frame sync → Viterbi → NRZ-M → derandomizer → RS×4, **all in RTL and all on the board**, fed over 100 Mb/s Ethernet and sending CADUs and stats back. The host computes a coarse carrier estimate and loads it into the NCO ([ADR 0002](docs/decisions/0002-oqpsk-timing.md), [ADR 0014](docs/decisions/0014-control-commands.md)) |
 | **Whole receiver on the board** | **15 / 15 replays: 298 CADUs each, every one matching a sent frame** on its 892 data bytes, asked at 1×, 5× and 5.6× real time over Ethernet, synthetic recording (8 dB); no RS correction needed, every datagram placed in order by the ingest's reorder buffer ([board_rx_eth.csv](data/results/board_rx_eth.csv)). 13,682 LUT (21.6%), 100 MHz met, WNS +0.256 ns ([board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv)) |
 | **Real passes decoded** | 0. No recording yet; capture kit arrives about 2026-11-25 |
 | **CADU match vs. SatDump** | Synthetic recording: SatDump decoded 258 / 295 / 226 of 300 frames in three runs, **every decoded frame matching** ([satdump_crosscheck.csv](data/results/satdump_crosscheck.csv)). Real pass: `[TBD]` |
@@ -43,10 +45,10 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Viterbi throughput and headroom** | RTL decoder bit-exact with the model, errors included; **96 clocks per bit, 14.5× real time** at 100 MHz, RTL simulation ([viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv)). **Hardware BER before RS: 0.12–0.36 dB from the model** at 2–4.5 dB; after RS, 0 errors from 3 dB up ([ber_board.csv](data/results/ber_board.csv)) |
 | **Lock / Doppler** | Bit-true chain (bit-exact with the RTL), from reset at 6 dB with a 30 Hz/s ramp: **locks from −15 to +14 kHz in 16–35 ms** (4× the ±3.4 kHz Doppler); tracks the pass-maximum Doppler rate with **0.84 Hz rms error** ([sync_lock_range.csv](data/results/sync_lock_range.csv), [sync_doppler_track.csv](data/results/sync_doppler_track.csv)). On the board: `[TBD]` |
 | **Formal proofs** | Viterbi path metrics: a stall changes no metric (proven); the overflow bound holds 8 steps from reset (bounded), unbounded proof open ([docs/viterbi.md](docs/viterbi.md)). `[TBD]`: sync FSM, AXI-Stream, RS syndromes |
-| **Bugs caught** | 18 written up as symptom → root cause → fix ([below](#bugs-found)); 33 planted bugs, all caught |
-| **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC +2.453 ns, AGC +2.344 ns, Costas +2.360 ns, timing +1.604 ns, **whole sync chain +1.431 ns**, Viterbi decoder +1.895 ns, frame sync +0.653 ns, **sync chain → RS +0.629 ns** out of context ([synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv), [synth_sync_agc.csv](data/results/synth_sync_agc.csv), [synth_sync_costas.csv](data/results/synth_sync_costas.csv), [synth_sync_timing.csv](data/results/synth_sync_timing.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv), [synth_fec_framesync.csv](data/results/synth_fec_framesync.csv), [synth_rx_chain.csv](data/results/synth_rx_chain.csv)) |
-| **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**. RRC: 616 LUT, 1,874 FF, 2 DSP48E1. AGC: 163 LUT, 68 FF, 4 DSP48E1. Costas: 469 LUT, 153 FF, 7 DSP48E1, 1 RAMB18. Timing: 752 LUT, 564 FF, 9 DSP48E1. **Sync chain: 1,998 LUT (3.2%), 2,659 FF, 22 DSP48E1, 1 RAMB18.** Viterbi: 1,621 LUT (2.6%), 694 FF, 1 RAMB36, no DSP. Frame sync: 3,112 LUT (4.9%), 3,066 FF, 4 RAMB36, 1 DSP48E1. Every multiplier in a DSP |
-| **Ground station + CI** | `gs-replay` (C++20): 68,266 / 68,266 datagrams in order and byte-exact at 1× and 5× on loopback ([gs_replay_loopback.csv](data/results/gs_replay_loopback.csv)). `make ci`, run by [GitHub Actions on every push](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml): ruff, mypy, Verilator lint, 63 pytest, 39 cocotb, 8 GoogleTest (Release + ASan/UBSan), 4 loopback, clang-format, clang-tidy, cppcheck |
+| **Bugs caught** | 31 written up as symptom → root cause → fix ([below](#bugs-found)); planted bugs at every layer, each caught except one equivalent mutant ([list](#bugs-found), counts per campaign in [docs/log.md](docs/log.md)) |
+| **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC +2.453 ns, AGC +2.344 ns, Costas +2.360 ns, timing +1.604 ns, **whole sync chain +1.431 ns**, Viterbi decoder +1.895 ns, frame sync +0.653 ns, **sync chain → RS +0.629 ns** out of context; **whole receiver on the board +0.256 ns** placed and routed ([board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv), [synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv), [synth_sync_agc.csv](data/results/synth_sync_agc.csv), [synth_sync_costas.csv](data/results/synth_sync_costas.csv), [synth_sync_timing.csv](data/results/synth_sync_timing.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv), [synth_fec_framesync.csv](data/results/synth_fec_framesync.csv), [synth_rx_chain.csv](data/results/synth_rx_chain.csv)) |
+| **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**. RRC: 616 LUT, 1,874 FF, 2 DSP48E1. AGC: 163 LUT, 68 FF, 4 DSP48E1. Costas: 469 LUT, 153 FF, 7 DSP48E1, 1 RAMB18. Timing: 752 LUT, 564 FF, 9 DSP48E1. **Sync chain: 1,998 LUT (3.2%), 2,659 FF, 22 DSP48E1, 1 RAMB18.** Viterbi: 1,621 LUT (2.6%), 694 FF, 1 RAMB36, no DSP. Frame sync: 3,112 LUT (4.9%), 3,066 FF, 4 RAMB36, 1 DSP48E1. In the board build: RS decoder 4,232 LUT, 3 RAMB18; **whole receiver 13,682 LUT (21.6%), 8 RAMB36 + 7 RAMB18, 29 DSP48E1**. Every multiplier in a DSP |
+| **Ground station + CI** | C++20 `gs-replay`, `gs-rx` (RS gate, space-packet demux), `gs-diff`, `gs-view`. On the board's output: space packets equal to the golden model's in 3 / 3 replays, 228 equal to SatDump's, 0 unexplained ([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)). `make ci`, run by [GitHub Actions on every push](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml): ruff, mypy, Verilator lint, 179 pytest, 94 cocotb tests (30 builds), 60 GoogleTest (Release and ASan/UBSan) + 2 under TSan, 13 loopback, libFuzzer 30 s × 2 targets, clang-format, clang-tidy, cppcheck |
 
 ## Status
 
@@ -54,18 +56,18 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 |---|---|---|
 | 0 — Signal spec + capture kit | **In progress** | [signal-spec.md](docs/signal-spec.md) from SatDump's source; not yet confirmed on a real signal |
 | A — Python golden model | **In progress** | Float and bit-true chains decode synthetic signals; real recording pending |
-| B — Digital downconverter | **Done** (2026-11-07) | Bit-exact on the board from BRAM (UART and ILA) and over Ethernet from `gs-replay` (37 of 40 replays; the rest lost or reordered datagrams on the host side) |
+| B — Digital downconverter | **Done** (2026-11-07) | Bit-exact on the board from BRAM (UART and ILA) and over Ethernet from `gs-replay` (38 of 40 replays; the other 2 had datagrams reordered on the host side) |
 | C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. Real recording pending |
 | D — Viterbi + frame sync | **In progress** | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios), and in the chain from DDC output; hardware BER 0.12–0.36 dB from the model ([ber_board.csv](data/results/ber_board.csv)) |
 | E — Reed-Solomon + real decode | **In progress** | Stats packets back over Ethernet; RS decoder released as [fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core) `rs-core-v1.0`; NRZ-M, ASM check, derandomizer and RS in RTL after the Viterbi, bit-exact in simulation; **the whole receiver on the board decodes a replayed synthetic recording, 298 / 298 CADUs in 15 / 15 replays up to 5.6× real time**. A real pass next |
-| F — C++ ground station | **In progress** | `gs-replay`, `gs-rx` (RS gate, space packets), `gs-diff`, `gs-view`, fuzzed parsers; board → gs-rx bit-identical to SatDump on all 258 common frames ([board_gs_rx.csv](data/results/board_gs_rx.csv)) |
+| F — C++ ground station | **In progress** | `gs-replay`, `gs-rx` (RS gate, space packets), `gs-diff`, `gs-view`, fuzzed parsers; board → gs-rx bit-identical to SatDump on all 258 common frames ([board_gs_rx.csv](data/results/board_gs_rx.csv)); space packets from the board equal to the model's and SatDump's ([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)) |
 
 Architecture, ADR summary and clock-domain crossings: [docs/design.md](docs/design.md). Lab notebook with every
 measurement and bug: [docs/log.md](docs/log.md).
 
-**Blocked on another project:** streaming full passes to the board needs the shared Ethernet core
-[`fpga-eth-core`](https://github.com/RodeanAzari/fpga-eth-core) at tag `eth-core-v0.1`, and sending frames back needs
-`eth-core-v0.2`. Until then, hardware tests play IQ snippets from block RAM and read results over UART or the ILA.
+**Dependencies on other projects:** both gates on the shared Ethernet core are met (`eth-core-v0.1` for streaming
+to the board, `eth-core-v0.2` for sending frames back). One request is open with its owner: hold the MAC in reset
+until the PHY link is up (see Limitations); a stopgap in this repo covers it meanwhile.
 
 ### Shared components
 
@@ -75,7 +77,7 @@ and also serves a SerDes project as its KP4 FEC decoder:
 
 | Repository | What it provides here | How it is pinned |
 |---|---|---|
-| [**fpga-eth-core**](https://github.com/RodeanAzari/fpga-eth-core) | 10/100 MII MAC, CRC-32, async FIFO, IPv4/UDP RX/TX: the link that carries IQ from `gs-replay` to the board and decoded CADUs back | Git submodule at `rtl/eth/`, at `eth-core-v0.2`. RX (`eth_rx` → `udp_rx`) feeds the DDC in `arty_ddc_eth_top`; TX is for Phase E |
+| [**fpga-eth-core**](https://github.com/RodeanAzari/fpga-eth-core) | 10/100 MII MAC, CRC-32, async FIFO, IPv4/UDP RX/TX: the link that carries IQ from `gs-replay` to the board and decoded CADUs back | Git submodule at `rtl/eth/`, at `eth-core-v0.2`. RX (`eth_rx` → `udp_rx`) feeds the DDC; TX (`udp_tx` → `eth_tx`) carries the CADU and stats packets back |
 | [**tb-common**](https://github.com/RodeanAzari/tb-common) | Shared cocotb helpers: AXI-Stream source and sink with random valid/ready backpressure, an in-order scoreboard, seeded per-test RNG. Every block-level cocotb test in `tb/cocotb/` drives and checks its block through them (the board-top tests drive the MII pins and decode the UART pin themselves) | `pip install` from git at `tb-common-v0.1`, pinned in [`requirements.txt`](requirements.txt) |
 | [**fpga-rs-core**](https://github.com/RodeanAzari/fpga-rs-core) | Parameterized Reed-Solomon decoder (riBM, one symbol per clock), verified at CCSDS RS(255,223) and KP4 RS(544,514): the RS stage after the derandomizer, one instance with the ×4 deinterleave around it ([ADR 0012](docs/decisions/0012-rs-instance-count.md)) | Git submodule at `rtl/rs/`, at `rs-core-v1.0` |
 
@@ -94,18 +96,19 @@ flowchart LR
         FS --> VIT["Viterbi<br/>K=7 r½"]
         VIT --> BACK["NRZ-M, ASM check,<br/>derandomizer, RS×4"]
     end
-    BACK -- "CADUs + stats" --> GS["gs-rx / gs-diff / gs-view"]
+    BACK -- "CADUs + stats, UDP" --> GS["gs-rx / gs-diff / gs-view<br/>(C++)"]
+    GSR -.->|"SET_NCO (coarse estimate)"| DDC
     classDef done fill:#d4edda,stroke:#2e7d32;
-    classDef todo fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray: 4 3;
-    class DDC,GSR,ROM,RRC,SYNC,FS,VIT done;
-    class ETH,BACK,GS todo;
+    class DDC,GSR,ROM,RRC,SYNC,FS,VIT,ETH,BACK,GS done;
 ```
 
-Green is built and verified (the DDC on the board; the RRC, sync blocks, frame sync and Viterbi decoder in simulation); grey dashed is not built yet. The Python model covers the whole signal path, but not the Ethernet core or the host tools.
+Every block is built, bit-exact against the model in simulation, and running on the board; the BRAM ROM path was the
+Phase B bring-up. What is not verified yet is any of it on a real recording.
 
-- **Clocking:** one 100 MHz domain. The DDC needs 9.0 clocks per sample against 97.7 available at 1.024 MS/s. The
-  only crossings today are the asynchronous RESET and BTN0 inputs: a reset synchronizer and a two-flop synchronizer,
-  both false-pathed in XDC and listed in [design.md](docs/design.md).
+- **Clocking:** the datapath is one 100 MHz domain from the MMCM. The DDC needs 9.0 clocks per sample against 97.7
+  available at 1.024 MS/s. The one data crossing is the PHY's 25 MHz MII receive clock into the core, through
+  fpga-eth-core's Gray-pointer async FIFO; the MAC reset, the buttons and the MMCM lock go through synchronizers.
+  Every crossing is listed and constrained ([design.md](docs/design.md), ADR 0011).
 - **Interfaces:** AXI4-Stream between every block, with I and Q in one beat (`tdata = {Q, I}`). Every block honours
   backpressure, and pipelines stall as a whole, so nothing is dropped and the rails never skew.
 - **Data flow:** raw 8-bit unsigned I/Q at 1.024 MS/s, tuned 150 kHz off the signal to keep the RTL-SDR's DC spike
@@ -116,10 +119,10 @@ Green is built and verified (the DDC on the board; the RRC, sync blocks, frame s
 
 ## Verification
 
-Three layers so far, each checked against the layer above it. Nothing is called done until the layer below
+Each layer is checked against the layer above it. Nothing is called done until the layer below
 reproduces the layer above bit for bit.
 
-**Models** (`make model-test`, pytest, 63 tests including the host-side board scripts):
+**Models** (`make model-test`, pytest, 179 tests including the host-side board scripts):
 
 - The float model is checked against theory: uncoded BER matches Q(√(2Eb/N₀)) at every point from 0 to 8 dB, and
   soft Viterbi sits on the union bound from 3.5 dB up (1.79×10⁻⁵ measured vs. 1.81×10⁻⁵ at 4.0 dB)
@@ -130,7 +133,7 @@ reproduces the layer above bit for bit.
 - The bit-true model (DDC, RRC, AGC, Costas, Farrow, Gardner, Viterbi) decodes the same frames as the float model at
   every tested point, which is what lets RTL tests use exact comparison.
 
-**cocotb on Verilator** (`make sim`, 39 tests): each DDC block and the whole chain, bit-exact against
+**cocotb on Verilator** (`make sim` + `make sim-slow`, 94 tests in 30 builds): each DDC block and the whole chain, bit-exact against
 `model/ddc_fixed.py` on a modulated OQPSK signal with a Doppler ramp and DC offset, **under random input gaps and
 output stalls**. Each sync block (RRC, AGC, Costas, Farrow/Gardner timing) is bit-exact against
 `model/rrc_fixed.py` / `model/sync_fixed.py` the same way, with the loops driven through pull-in and their clamps. `sync_top` chains them and is bit-exact against the model
@@ -138,14 +141,22 @@ chain with the output slower than the chain, so stalls reach every inner link. `
 reset on three frames and decodes its output through the model's back end (frame sync, Viterbi, RS), and runs the
 chain through the RTL frame sync and Viterbi on five frames, every output bit checked. The Viterbi
 blocks are checked the same way: the branch metrics on all 256 input pairs, the ACS on every difference around the
-signed wrap, and the 64-state array, traceback and whole decoder bit-exact against `model/viterbi_fixed.py`. The board top is simulated too: the testbench decodes the UART pin and checks every dumped word.
+signed wrap, and the 64-state array, traceback and whole decoder bit-exact against `model/viterbi_fixed.py`. The back end (`fec_frame_extract`, `fec_cadu` with RS in both write-back modes), the Ethernet ingest with its reorder
+buffer (three depths), the command and packet blocks, and both board tops are tested the same way; the receiver
+top is driven through its MII pins at line rate and every CADU packet it sends is checked against the model.
 Coverage bins: `[TBD]`.
 
-**On the hardware:** the board top plays a 65,536-sample synthetic snippet from BRAM through the DDC at full speed.
-All 16,384 outputs are checked two ways: a CRC-protected UART dump (`make board-check`), and an ILA capture over
-JTAG, storage-qualified on the output handshake so the whole output fits in the buffer (`make ila-capture`).
+**On the hardware:** the Phase B top plays a 65,536-sample synthetic snippet from BRAM through the DDC at full
+speed. All 16,384 outputs are checked two ways: a CRC-protected UART dump (`make board-check`), and an ILA capture
+over JTAG, storage-qualified on the output handshake so the whole output fits in the buffer (`make ila-capture`).
 Both match the model with 0 mismatches. A script checks the ILA capture, which also proves the trigger alignment
-and probe bit order.
+and probe bit order. The receiver top is checked by scripts that replay a recording, then compare every CADU with
+the truth (`make rx-check`), with SatDump (`scripts/board_gs_rx.py`), or count bit errors (`scripts/ber_board.py`);
+each replay records the board's own counters.
+
+**Ground station** (`make gs-test`, GoogleTest + pytest loopback): every parser on frames captured from the RTL,
+the demultiplexer against the golden model's vectors, the lock-free ring under TSan, and gs-rx end to end on
+loopback. Both parsers are fuzzed (libFuzzer, 30 s per target in CI, 30 min weekly).
 
 **Formal** (`make formal`, SymbiYosys): the Viterbi's modulo path metrics. The bound (any two metrics within 180,
 so every modulo compare is exact) is SVA in `fec_acs_array.sv`, checked in every simulation. Proven: a stall changes
@@ -179,6 +190,17 @@ Each one is written up as symptom → root cause → fix in [docs/log.md](docs/l
 | 18 | After the timing block changed, the slow-sink chain test lost its last 2 outputs: the harness waited 200 clocks after the input ended, at ~125 clocks per output. The drain window now scales with the sink's ready rate (a test bug; 6,748 outputs had matched) | cocotb |
 | 19 | Frame-sync ring: windows overlap by 320 symbols, so the next window can start before the reader's position, and the input overwrote its first symbols while the reader finished the previous one | SVA `a_read_in_ring` in simulation |
 | 20 | Frame sync missed 100 MHz by 1.867 ns (threshold multiply → FSM → descriptor FIFO in one clock), then by 0.916 ns (`s_tready` in a loop through the FSM). The hit flags and `s_tready` are now registers | Vivado out-of-context timing |
+| 21 | The path-metric k-induction failed in 40 s on a run of stalls: k steps of induction can be one unreachable state held still. The bound proof now steps every clock, and a separate task proves a stall changes no metric | SymbiYosys counterexample |
+| 22 | The Ethernet ingest deadlocked when a datagram was one byte too long and the ring was full: the byte carrying `tlast` waited for room that never came. Only bytes that write a sample wait now | cocotb (DEPTH 512 only) |
+| 23 | No dump on a second Ethernet replay: opening the serial port did not reset the design this time (compare bug 7). `eth-check` reprograms the FPGA before each replay | Board run |
+| 24 | DDC dumps wrong with every sample present: whole datagrams reordered on the host, reproduced exactly by feeding the model the same order. The receiver's ingest now has a reorder buffer (ADR 0013) | Board run + model |
+| 25 | Replays dying with absurd counters (FIFO high-water 4,095 of 2,048): fpga-eth-core's RX FIFO comes up corrupted when the PHY link is slow to come up. Reported to its owner; a MAC-restart stopgap here, which fired on hardware once | Board stats counters |
+| 26 | `stats_packet` drove TVALID during reset | cocotb (second run after a reset) |
+| 27 | The MAC-restart stopgap counted one event twice (its reset request lags a cycle) | cocotb |
+| 28 | The `gs-replay` pacing test failed 1 run in 5 under load: it timed arrivals at thread wake-up, and loopback itself reorders under load (a test bug) | Repeated runs under load |
+| 29 | `gs-view` tests matched "-nan" as "-": a NaN rate would have passed (a test bug) | Planted bug |
+| 30 | `gs-rx` never stopped on `--idle` with a board attached: the stats packet every 100 ms reset its idle timer | First board run |
+| 31 | Replay datagrams lost at 5× and 5.6×: the host kernel drops them at the USB-Ethernet adapter under load (`tx_dropped` equals the board's `ingest_lost`). Now recorded per replay | Board counters vs. host counters |
 
 **Planted bugs, each caught:**
 - DDC: DC accumulator 4 bits short; a sign error in one NCO quadrant; CIC registers one bit short (caught only by
@@ -202,7 +224,18 @@ Each one is written up as symptom → root cause → fix in [docs/log.md](docs/l
 - Viterbi: plain comparison on wrapped path metrics; quantizer offset by one; traceback one step off; the
   best-state start ignored.
 - Board: the capture buffer's stale-read bug put back; the ILA parser with I and Q swapped.
-- `gs-replay`: sequence number written little-endian; pacing removed.
+- `gs-replay`: sequence number written little-endian; pacing removed; pacing skipped, speed doubled, speed ignored.
+- Formal: no metric reset; 8-bit metrics at 4-bit soft. (An ACS keeping the larger candidate is not a bound
+  violation, so the proof rightly passes it; cocotb catches its decisions.)
+- RS ([fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core)): 24 across the model and the RTL.
+- Ethernet ingest, command and board tops: 6 in the ingest, 3 in the DDC Ethernet top (one, a reset tied off, only
+  after the test replays across a reset); 6 in `ctrl_rx`, 3 more in the ingest and 3 in the receiver top for
+  SET_NCO; `cadus_sent` counting stats packets; the NCO word negated.
+- Ground station: 5 in the board-packet parser (one, an uncapped field count, also found by the fuzzer within
+  30 s); 7 in the demultiplexer (the 5-bit VCID mask only after a VCID-37 stream was added); 4 in the ring (two
+  memory-ordering bugs caught only by TSan); 3 in gs-rx's processing; 10 in gs-diff; 15 in `packet_diff` (one
+  after a test was added; one survivor, reachable only with fabricated data); 15 in gs-view; 2 for `--idle`; 7 in
+  the space-packet recording generator and the hardware packet check.
 
 ## Digital downconverter
 
@@ -476,12 +509,24 @@ The x-axis is the ILA sample index: one DDC output each, 3.906 µs apart at 256 
 **Over Ethernet.** `arty_ddc_eth_top` takes the same snippet from `gs-replay` instead of BRAM: 100 Mb/s MII →
 fpga-eth-core `eth_rx` → `udp_rx` → `iq_udp_ingest` → the same DDC, capture and UART dump (ADR 0011).
 `make eth-check` reprograms the FPGA before each replay, waits for the link, streams the snippet and compares the
-dump. 37 of 40 replays were bit-exact at 1×, 5× and 5.6× real time ([ddc_board_eth.csv](data/results/ddc_board_eth.csv));
-the other three lost or reordered datagrams before the board (see Limitations).
+dump. 38 of 40 replays were bit-exact at 1×, 5× and 5.6× real time ([ddc_board_eth.csv](data/results/ddc_board_eth.csv));
+in the other two, datagrams were reordered on the host before the board (bug 24).
 
 ![make eth-check at 1× and 5× real time, both 16,384 outputs with 0 mismatches](docs/media/2026-11-07_phase-b_eth-check-terminal.png)
 
 ![The Arty A7-100T with the Ethernet and USB cables in after a replay: LD4 heartbeat and LD5 capture full on, LD7 error off](docs/media/2026-11-07_phase-b_arty-ethernet.webp)
+
+**The whole receiver.** `arty_rx_eth_top` decodes a replayed recording and sends each CADU back as a packet with its
+status, plus a stats packet every 100 ms. A run of `scripts/board_gs_rx.py` on the space-packet recording, as
+printed (2026-11-11, [board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)):
+
+```
+coarse estimate 151015.5 Hz: NCO word 0x25C0FE00
+link up 3.1 s after programming
+gs-replay exit 0: gs-replay: data/synthetic/synthetic_packets_seed2027_1024000SPS.cu8 -> 239.1.1.1:26400  packets=68266 samples=34952192 elapsed=6.827 s  rate=5119971 S/s (5.00x real time, 82.56 Mb/s payload)  target=5.000x  late=25524
+speed 5: host_tx_dropped=0 datagrams=482 ring_full=0 cadu_packets=298 cadus_good=298 cadus_rs_failed=0 cadu_seq_missing=0 malformed=0 rs_symbols_corrected=0 stats_packets=184 nco_ok=True; gs-diff satdump_frames=261 common=261 only_ours=37 only_satdump=0 data_bits_differ=0 asm_frames_differ=0 parity_bytes_differ=0 result=PASS
+packets: packets=268 truth_packets=270 expected_packets=268 packets_exact=1 pd_satdump=228 pd_equal=228 pd_differ=0 pd_only_ours=40 pd_only_satdump=0 pd_explained=missing_in_satdump:40 pd_unexplained=0 pd_result=PASS
+```
 
 ## Demos
 
@@ -489,8 +534,10 @@ the other three lost or reordered datagrams before the board (see Limitations).
 |---|---|---|
 | DDC bit-exactness over UART | `make board prog board-check` | 16,384 outputs, 0 mismatches |
 | DDC bit-exactness over JTAG | `make board ILA=1 && make ila-capture` | 16,384 outputs, 0 mismatches |
-| DDC bit-exactness over Ethernet | `make board BOARD_TOP=arty_ddc_eth_top && make eth-check BOARD_TOP=arty_ddc_eth_top IFACE=<host IP on the cable> SPEED=1,5` | 16,384 outputs, 0 mismatches per replay (37 of 40) |
-| Replay a recording over UDP | `build/gs-Release/gs-replay FILE.cu8 [--speed X]` | Into the board's DDC (row above) |
+| DDC bit-exactness over Ethernet | `make board BOARD_TOP=arty_ddc_eth_top && make eth-check BOARD_TOP=arty_ddc_eth_top IFACE=<host IP on the cable> SPEED=1,5` | 16,384 outputs, 0 mismatches per replay (38 of 40) |
+| Whole receiver, CADUs vs. truth | `make board BOARD_TOP=arty_rx_eth_top && make rx-check IFACE=<host IP on the cable> SPEED=1,5,5.6` | 298 / 298 CADUs per replay, 15 / 15 replays |
+| Board → ground station vs. SatDump | `PYTHONPATH=. python scripts/board_gs_rx.py REC.cu8 SATDUMP.cadu --iface <IP> --speed 1,5,5.6 [--truth T.cadu T.packets]` | All frames SatDump decoded bit-identical; packets equal to the model's |
+| Replay a recording over UDP | `build/gs-Release/gs-replay FILE.cu8 [--speed X]` | Into the board (rows above) |
 | Demo video | — | `[TBD]` (Phase F) |
 
 Claim the shared board first: `python3 ~/fpga-coord/coord.py board claim P3 "<reason>"`.
@@ -502,8 +549,12 @@ Claim the shared board first: `python3 ~/fpga-coord/coord.py board claim P3 "<re
 | `ddc_top`, out of context | WNS +0.661 ns, WHS +0.112 ns, 100 MHz | 1,036 LUT, 1,659 FF, 6 DSP, 1 RAMB18 | [docs/reports/ooc/ddc_top/](docs/reports/ooc/ddc_top/) |
 | Board bring-up | WNS +1.521 ns, WHS +0.040 ns | 1,095 LUT, 1,853 FF, 6 DSP, 48 RAMB36 (ROM + capture), 1 RAMB18 | [docs/reports/board/arty_ddc_rom_top/](docs/reports/board/arty_ddc_rom_top/) |
 | Board bring-up + ILA | WNS +1.750 ns, WHS +0.024 ns | 2,544 LUT, 4,314 FF, 6 DSP, 64 RAMB36, 1 RAMB18 | [docs/reports/board/arty_ddc_rom_top_ila/](docs/reports/board/arty_ddc_rom_top_ila/) |
+| DDC over Ethernet | WNS +0.277 ns, WHS +0.022 ns | 2,457 LUT, 4,740 FF, 6 DSP, 18 RAMB36, 4 RAMB18 | [docs/reports/board/arty_ddc_eth_top/](docs/reports/board/arty_ddc_eth_top/) |
+| **Whole receiver** | WNS +0.256 ns, WHS +0.025 ns | 13,682 LUT, 13,984 FF, 29 DSP, 8 RAMB36, 7 RAMB18 | [docs/reports/board/arty_rx_eth_top/](docs/reports/board/arty_rx_eth_top/) |
+| Whole receiver, CADUs before RS (BER build) | WNS +0.074 ns, WHS +0.027 ns | 13,681 LUT, 13,931 FF, 29 DSP, 8 RAMB36, 7 RAMB18 | [docs/reports/board/arty_rx_eth_top_prers/](docs/reports/board/arty_rx_eth_top_prers/) |
 
-Device view, worst-path and schematic screenshots: `[TBD]` (Phase E, full design).
+Device view, worst-path and schematic screenshots: `[TBD]`, listed for capture in
+[portfolio-todo.md](docs/portfolio-todo.md).
 
 ## Results
 
@@ -564,8 +615,8 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
   impairments.
 - **Hardware BER is on synthetic AWGN only.** Fixed carrier offset, timing offset and clock error; no Doppler ramp,
   fading or real-recording impairment.
-- **Throughput figures are partly arithmetic.** The DDC's 10.8× is measured in simulation. The 5.69× Ethernet
-  ceiling and the Viterbi estimate are calculated.
+- **Throughput figures are partly arithmetic.** The per-block speeds (DDC 10.8×, sync chain 6.3×, Viterbi 14.5×)
+  are measured in simulation, and replays up to 5.6× decode on the board; the 5.69× Ethernet ceiling is calculated.
 - **Hold slack on the ILA build is +0.024 ns:** positive but thin. It's the debug build only.
 - **The host reorders replay datagrams now and then** (2 of 40 replays of the DDC build). The receiver's ingest
   has a reorder buffer that puts them back (`ingest_late` counts any that arrive too late); 0 gaps in the
@@ -601,33 +652,38 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make lint` | Verilator `-Wall`, each module as its own top, zero warnings |
 | `make lint-py` | ruff + mypy `--strict` on `model/` |
 | `make model-test` | Signal-spec check, RTL-table staleness check, pytest |
-| `make sim` | cocotb regression on Verilator (< 5 min) |
+| `make sim` / `make sim-slow` | cocotb regression on Verilator (< 5 min) / the frame-sync suite (~100 s) |
 | `make sim-full` | Long cocotb runs: the sync chain from reset, its output decoded (~4 min); the chain through the Viterbi (~10 min) |
 | `make formal` | SymbiYosys: Viterbi path-metric hold proof and 8-step bound (~12 min) |
 | `make gs` / `make gs-test` | Ground station, Release + Debug (ASan/UBSan); GoogleTest + loopback |
 | `make gs-lint` | clang-format check, clang-tidy (warnings are errors, every disabled check justified in `gs/.clang-tidy`), cppcheck |
-| `make ci` | Everything above |
+| `make fuzz [FUZZ_S=60]` / `make fuzz-ci` | libFuzzer on both packet parsers / 30 s each |
+| `make ci` | lint-py, lint, model-test, sim, sim-slow, gs-test, gs-lint, fuzz-ci |
 | `make synthetic-iq` | Write the synthetic pass-like recording and its truth |
 | `make synth-ooc TOP=<top>` | Out-of-context synthesis and place & route, reports and CSV |
 | `make board [ILA=1]` / `make prog` | Board bitstream (optionally with the ILA) / program the Arty |
 | `make board-check` / `make ila-capture` | Read back and check the DDC output over UART / JTAG |
+| `make eth-check` / `make rx-check` | Replay over Ethernet and check the DDC dump / every CADU against the truth |
 | `make gs-replay-results` | Measure `gs-replay` on loopback |
 | `make ber`, `*-study` | Model campaigns that write `data/results/` |
 | `make plots` | Regenerate every plot from `data/results/` |
 
 `make ci` runs everything that doesn't need Vivado or the board, and [GitHub Actions](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml) runs it on every push in an `ubuntu:26.04` container, so its compiler, clang-tidy, cppcheck, CMake, Python and Verilator (v5.050, built from source) match the development machine. Vivado and the board are local only, and their reports and CSVs are committed with the RTL that
-produced them. `make sim-full` and `make formal` are local only. `cov` and `fuzz` print "not implemented yet" and fail,
-rather than pretending.
+produced them. `make sim-full` and `make formal` are local only. `cov`, `synth`, `impl` and `reports` print "not implemented yet"
+and fail, rather than pretending.
 
 ## Repository layout
 
 | Path | Contents |
 |---|---|
 | `rtl/ddc/` | Ingest + DC block, NCO + mixer, CIC, droop FIR, `ddc_top` |
-| `rtl/io/`, `rtl/top/`, `rtl/lib/` | ROM source, capture + UART dump, Arty top; reset and bit synchronizers |
-| `model/` | Float receiver, transmit chain and channel, RS codec, bit-true DDC / RRC / sync / Viterbi |
-| `tb/cocotb/` | cocotb testbenches |
-| `gs/` | C++ ground station (`gs-replay`), GoogleTest and loopback tests |
+| `rtl/sync/` | RRC, AGC, Costas, Farrow/Gardner, `sync_top` |
+| `rtl/fec/` | Soft quantizer, frame sync, Viterbi, frame extract (NRZ-M), `fec_cadu` (ASM check, derandomizer, RS ×4) |
+| `rtl/io/`, `rtl/top/`, `rtl/lib/` | Ethernet ingest, commands, CADU and stats packets, ROM source and UART dump; `rx_chain` and the Arty tops; synchronizers and Xilinx wrappers |
+| `rtl/eth/`, `rtl/rs/` | Submodules: fpga-eth-core, fpga-rs-core (never edited here) |
+| `model/` | Float receiver, transmit chain and channel, RS codec, bit-true DDC / RRC / sync / frame sync / Viterbi / CADU, space packets |
+| `tb/cocotb/`, `tb/formal/` | cocotb testbenches; SymbiYosys proofs |
+| `gs/` | C++ ground station (`gs-replay`, `gs-rx`, `gs-diff`, `gs-view`), GoogleTest, loopback tests, fuzz targets |
 | `analysis/` | Campaigns, plots, result interpretations |
 | `scripts/` | Board checks, table generation, SatDump cross-check, Vivado wrapper |
 | `syn/`, `constr/` | Vivado Tcl (OOC, board, ILA capture), XDC |
@@ -638,11 +694,10 @@ rather than pretending.
 
 1. **A real recording:** capture a pass (or find a public 72k recording), decode it with SatDump, and confirm the
    spec and the model on it (Phases 0 and A).
-2. **Phase C:** lock on a real recording; the sync chain on the board, fed by the Ethernet replay that works now.
+2. **The real pass on the board:** lock (Phase C), decode it bit for bit against SatDump (Phases D, E), and recover
+   its space packets and image through the ground station (Phase F); then the hero image and the demo video.
 3. **Phase D:** the unbounded path-metric proof (bounded to 8 steps today).
-4. **Phase E:** a Reed-Solomon decoder shared with another project, and a real pass decoded on the FPGA bit-for-bit
-   against SatDump.
-5. **Phase F:** `gs-rx`, `gs-diff`, `gs-view`, a fuzzed parser, and the hero image and demo video.
+4. **Formal and coverage still planned:** the sync FSM, AXI-Stream handshakes, RS syndromes; coverage bins.
 
 ## License
 
