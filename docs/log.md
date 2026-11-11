@@ -1016,3 +1016,15 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   RS-failed and never-sent CADUs listed (5/1020, 5/1030); packet_diff PASS, 3 packets `missing_in_ours`, 1
   `satdump_tail`. First expectation there forgot the tail packet (test was wrong, fixed).
 - clang-tidy rejected a `FILE*` reader in gs-diff (owning-memory, stream state): replaced by `std::ifstream`.
+
+## 2026-11-10 (cont.): fuzzing in CI
+
+- `make ci` now ends with `fuzz-ci` (30 s per target = buildplan §6's "60 s fuzz run"; user's go-ahead on the
+  recommendation): 64 s locally including the incremental build, 1.6 M runs (board parser) and 266 k (demux), no
+  findings. Weekly workflow `fuzz-weekly.yml`: 30 min per target, Mondays 03:00 UTC and on demand.
+- CI image: libFuzzer's runtime is in `libclang-rt-21-dev`, which `clang` only recommends; the workflow installs with
+  `--no-install-recommends`, so `libclang-rt-dev` is now listed explicitly. Not yet seen running on GitHub.
+- Proof it fails loud: board parser's header length check weakened to 2 bytes: `make fuzz-ci` exit 2 at once,
+  input written to `build/fuzz/crash-*` (the path both workflows upload on failure). Reverted.
+- Crash policy (Makefile comment): fix, then commit the input to the target's seed directory; every run replays
+  seeds first, so it becomes a regression test with no extra code.

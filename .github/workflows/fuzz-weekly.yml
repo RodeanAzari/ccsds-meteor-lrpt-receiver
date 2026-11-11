@@ -1,0 +1,40 @@
+name: Fuzz (weekly)
+
+# Deep libFuzzer runs on the ground station's parsers: 30 min per target (Makefile `fuzz`). `make ci` runs 30 s
+# per target on every push; this one looks for the rare inputs a short run misses. A crash fails the run and its
+# input is uploaded: fix the bug, then commit the input to the target's seed directory (a regression from then on).
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"  # Mondays 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-24.04
+    container: ubuntu:26.04  # as ci.yml: the development machine's clang
+    timeout-minutes: 90
+    steps:
+      - name: Install system packages
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git make g++ cmake clang libclang-rt-dev
+
+      - uses: actions/checkout@v4
+
+      - name: Report tool versions
+        run: |
+          clang++ --version | head -1
+          cmake --version | head -1
+
+      - name: make fuzz (30 min per target)
+        run: make fuzz FUZZ_S=1800
+
+      - name: Upload fuzzer crash inputs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes
+          path: build/fuzz/crash-*
+          if-no-files-found: ignore

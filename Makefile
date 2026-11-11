@@ -4,7 +4,7 @@ RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' -not -path 'rtl/rs/*
 # (vendor-primitive stand-ins) resolve instances only.
 RTL_DIRS := $(sort $(dir $(RTL))) rtl/eth/rtl/ rtl/rs/rtl/ tb/models/
 
-.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results fec-rtl-results rx-top-rtl-results synth-ooc board prog board-check eth-check rx-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study sync-lock-study framesync-study plots synthetic-iq gs-replay-results gs-lint ci clean \
+.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results fec-rtl-results rx-top-rtl-results synth-ooc board prog board-check eth-check rx-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study sync-lock-study framesync-study plots synthetic-iq gs-replay-results gs-lint ci fuzz-ci clean \
         sim-slow sim-full cov formal gs gs-test fuzz synth impl reports
 
 setup:
@@ -181,7 +181,7 @@ gs-replay-results: gs
 	PYTHONPATH=. $(PY) scripts/gs_replay_results.py
 
 # Only what exists so far. Grows with each phase.
-ci: lint-py lint model-test sim sim-slow gs-test gs-lint
+ci: lint-py lint model-test sim sim-slow gs-test gs-lint fuzz-ci
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build sim_build
@@ -197,8 +197,13 @@ formal:
 # libFuzzer (gs/fuzz, CLAUDE.md §5.3), ASan + UBSan, FUZZ_S seconds per target: the board -> host packet parsers
 # (seeds: RTL-captured packets in gs/tests/data) and the space packet demux (seeds: gs/tests/data/demux vectors).
 # The corpora they grow stay in build/fuzz (always the first directory: libFuzzer writes into it). A crash leaves
-# crash-* in build/fuzz.
+# crash-* in build/fuzz and fails the target. Fix it, then commit the crash input to that target's seed directory:
+# every run replays the seeds first, so it stays a regression test. `make ci` runs 30 s per target (fuzz-ci:
+# buildplan §6's 60 s fuzz run); a weekly GitHub workflow runs 30 min per target (.github/workflows/fuzz-weekly.yml).
 FUZZ_S ?= 60
+fuzz-ci:
+	$(MAKE) fuzz FUZZ_S=30
+
 fuzz:
 	cmake -S gs -B build/gs-fuzz -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug -DGS_FUZZ=ON
 	cmake --build build/gs-fuzz --target board_packets_fuzz space_packets_fuzz -j
