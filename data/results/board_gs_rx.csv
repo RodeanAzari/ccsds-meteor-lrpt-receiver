@@ -1,0 +1,4 @@
+replay_speed,achieved_speed,datagrams,ring_full,cadu_packets,cadus_good,cadus_rs_failed,cadu_seq_missing,malformed,rs_symbols_corrected,stats_packets,board_cadus_sent,board_fs_slips,board_mac_restarts,nco_confirmed,satdump_frames,common,only_ours,only_satdump,data_bits_differ,asm_frames_differ,parity_bytes_differ,result
+1,1.00,755,0,298,298,0,0,0,0,457,298,0,0,1,258,258,40,0,0,0,0,PASS
+5,5.00,482,0,298,298,0,0,0,0,184,298,0,0,1,258,258,40,0,0,0,0,PASS
+5.6,5.39,477,0,298,298,0,0,0,0,179,298,0,0,1,258,258,40,0,0,0,0,PASS

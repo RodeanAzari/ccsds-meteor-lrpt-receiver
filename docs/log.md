@@ -1075,3 +1075,20 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   (> 20% bits off) and are excluded from the bit count.
 - Sidecar filled from the new interpretation by substituting its `[TBD]` (same text `write_result` would write),
   not by rerunning the 3-hour campaign.
+
+## 2026-11-11 (cont.): board → gs-rx → gs-diff vs SatDump
+
+- First board run into gs-rx (instead of board_rx.py's listener): gs-rx **never stopped on --idle**. Elapsed was
+  286 s when the driver's timeout ended it. Symptom → cause: the board sends a stats packet every 100 ms while it
+  is up, and every datagram reset the idle timer. Fix: stats packets (and only they) don't count as activity.
+  Loopback regression test; two planted bugs caught.
+- `scripts/board_gs_rx.py` (program, gs-rx, SET_NCO confirmed afterwards from board.nco_word, gs-replay, gs-diff):
+  1×, 5×, 5.6× asked (1.00/5.00/5.39 achieved). 298/298 CADUs each, 0 missing/malformed/ring_full, 0 RS
+  corrections. gs-diff vs SatDump's decode of the same recording: 258 common, 0 data bits / ASM / parity
+  different, 0 only-SatDump. Truth indices: board = frames 1–298, SatDump = 38–295 (the 40 extra).
+  `board_gs_rx.csv`.
+- The synthetic recording's data is random, so only ~1/64 of the CADUs have VCID 5 and no space packet is
+  recovered. The hardware packet path needs a real pass.
+- README: Ground station section filled; stale limitations corrected ("Only the DDC is in RTL", "No Ethernet",
+  no reorder buffer, MAC restart "not yet fired", "No fuzzing").
+- No asciinema on this host: the gs-view recording is listed in portfolio-todo for the user.

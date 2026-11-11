@@ -6,6 +6,18 @@
 - [ ] Screenshot: SatDump waterfall during your own pass
 - [ ] Image: SatDump's decoded image from that pass
 
+## Phase F (ground station)
+
+- [ ] Terminal recording (you; `sudo apt install asciinema`, not on this host yet): `gs-view` live during a board
+      replay at 1×. Claim the board, `rm -rf build/board_gs_rx`, then in two terminals:
+      1. `asciinema rec docs/media/YYYY-MM-DD_phase-f_gs-view.cast -c "build/gs-Release/gs-view build/board_gs_rx/0_1x"`
+         (it waits for the status file)
+      2. the committed command from `data/results/board_gs_rx.md` (`PYTHONPATH=. .venv/bin/python
+         scripts/board_gs_rx.py ... --speed 1,5,5.6`): its first replay is the 1× one gs-view watches; it rewrites
+         `board_gs_rx.csv` with a fresh run of the same command (commit it or `git checkout` it)
+      Expect sync LOCKED, CADUs climbing to 298, FER 0.000 %, then [final] 10 s after the last CADU, and gs-view
+      exits. The .cast is text; a GIF made from it (agg) must stay ≤ 8 MB.
+
 ## Phase E (whole receiver on the board)
 
 First decode on hardware, 2026-11-08: the synthetic recording replayed through `arty_rx_eth_top`, CADUs back over

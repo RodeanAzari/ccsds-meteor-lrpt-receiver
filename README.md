@@ -58,7 +58,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. Real recording pending |
 | D — Viterbi + frame sync | **In progress** | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios), and in the chain from DDC output; hardware BER 0.12–0.36 dB from the model ([ber_board.csv](data/results/ber_board.csv)) |
 | E — Reed-Solomon + real decode | **In progress** | Stats packets back over Ethernet; RS decoder released as [fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core) `rs-core-v1.0`; NRZ-M, ASM check, derandomizer and RS in RTL after the Viterbi, bit-exact in simulation; **the whole receiver on the board decodes a replayed synthetic recording, 298 / 298 CADUs in 15 / 15 replays up to 5.6× real time**. A real pass next |
-| F — C++ ground station | Not started (`gs-replay` done in B) | — |
+| F — C++ ground station | **In progress** | `gs-replay`, `gs-rx` (RS gate, space packets), `gs-diff`, `gs-view`, fuzzed parsers; board → gs-rx bit-identical to SatDump on all 258 common frames ([board_gs_rx.csv](data/results/board_gs_rx.csv)) |
 
 Architecture, ADR summary and clock-domain crossings: [docs/design.md](docs/design.md). Lab notebook with every
 measurement and bug: [docs/log.md](docs/log.md).
@@ -421,7 +421,19 @@ achieved rate, and a partial final datagram is reported, never silently dropped.
 recording, 68,266 datagrams at 1× and 5×, all in order and byte-exact, 1.00× and 5.00× achieved. To the board over
 Ethernet: see [On the board](#on-the-board).
 
-`gs-rx`, `gs-diff`, `gs-view` and the fuzzed packet parser: `[TBD]` (Phase F).
+`gs-rx` receives the board's packets. A network thread feeds a lock-free ring, and the processing thread runs the
+RS gate (only CADUs whose four codewords all decoded go on) and the space-packet demultiplexer
+([ADR 0015](docs/decisions/0015-space-packet-demux.md)). The data path does no allocation. `gs-diff` compares its
+CADUs with SatDump's frame by frame and bit by bit; `scripts/packet_diff.py` does the same for space packets. `gs-view`
+draws gs-rx's live status snapshot ([ADR 0016](docs/decisions/0016-gs-view-status-snapshot.md)). Both packet
+parsers are fuzzed with libFuzzer in CI.
+
+**On the board** (`scripts/board_gs_rx.py`): the synthetic recording was replayed at 1×, 5× and 5.6× (5.39×
+achieved), and gs-rx received **298 / 298 CADUs** each time, none missing, malformed or overflowed. gs-diff against
+SatDump's decode of the same recording: **all 258 frames SatDump decoded are bit-identical**, including ASM and
+parity. The board's 40 extra frames are the 37 before SatDump's carrier pull-in and 3 after its last ([board_gs_rx.csv](data/results/board_gs_rx.csv)).
+This recording carries random data, not space packets. The packet path against SatDump is tested on loopback
+and waits for a real pass on hardware.
 
 ## On the board
 
@@ -529,6 +541,7 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 | `gs-replay` on loopback | 68,266 / 68,266 in order, byte-exact at 1× and 5× | 34 s synthetic recording, WSL2 | [gs_replay_loopback.csv](data/results/gs_replay_loopback.csv) |
 | Board top, simulation (MII in → CADU packets out) | 3 / 3 CADU packets bit-exact with the model, 501 stats packets intact, 0 loss at the 100 Mb/s line rate | 1,137 datagrams back to back (5.69×), 6 dB, `arty_rx_eth_top` from reset | [rx_top_rtl_decode.csv](data/results/rx_top_rtl_decode.csv) |
 | Whole receiver on the board | 15 / 15 replays: 298 CADU packets each, all matching the truth (892 data bytes), 0 RS symbols corrected, 0 codewords failed; one replay recovered from 14 MAC restarts at link-up (request 0005 stopgap) | Synthetic recording (300 CADUs, 8 dB, 34 s), `gs-replay` asked 1×, 5×, 5.6× (achieved 1.00, 3.4–4.2, 5.1–5.5), NCO word by SET_NCO, board reprogrammed per replay | [board_rx_eth.csv](data/results/board_rx_eth.csv) |
+| Board → `gs-rx` → `gs-diff` vs. SatDump | 298 / 298 CADUs received per replay at 1×, 5×, 5.39×; all 258 frames SatDump decoded bit-identical | Synthetic recording, 8 dB; SatDump 1.2.2 | [board_gs_rx.csv](data/results/board_gs_rx.csv) |
 | Receiver board top timing | WNS +0.256 ns, WHS +0.025 ns; 13,682 LUT, 8 RAMB36 + 7 RAMB18, 29 DSP | `arty_rx_eth_top`, 100 MHz, placed and routed | [board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv) |
 | Real passes decoded / CADU match vs. SatDump | `[TBD]` | — | — |
 | Hardware BER, Viterbi + NRZ-M (pre-RS) | 1.79×10⁻⁴ at 3.5 dB, 4.85×10⁻⁶ at 4.5 dB; 0.12–0.36 dB from the model, 2–4.5 dB | Arty, synthetic AWGN replay, ≥ 100 errors per point | [ber_board.csv](data/results/ber_board.csv) |
@@ -541,9 +554,6 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
   which rail leads and which carries G1 are still open until a real recording is decoded.
 - **Recorded, not live RF.** By design, the board never sees RF. An RTL-SDR records on the host and the file is
   replayed.
-- **Only the DDC is in RTL.** Everything after it exists only in the model.
-- **No Ethernet yet.** The board plays a 64 ms snippet from block RAM. Streaming a pass depends on another project's
-  Ethernet core.
 - **Bit-true doesn't mean robust.** The model hasn't seen phase noise, interference, fading or a real RTL-SDR's
   impairments.
 - **Hardware BER is on synthetic AWGN only.** Fixed carrier offset, timing offset and clock error; no Doppler ramp,
@@ -551,18 +561,19 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 - **Throughput figures are partly arithmetic.** The DDC's 10.8× is measured in simulation. The 5.69× Ethernet
   ceiling and the Viterbi estimate are calculated.
 - **Hold slack on the ILA build is +0.024 ns:** positive but thin. It's the debug build only.
-- **The host reorders replay datagrams now and then** (2 of 40 replays; the board's counters show every
-  datagram arrived intact, out of order). The ingest releases them in arrival order, so such a replay is not
-  bit-exact. A reorder buffer is not built; the gap counter in the stats packet flags every such replay.
+- **The host reorders replay datagrams now and then** (2 of 40 replays of the DDC build). The receiver's ingest
+  has a reorder buffer that puts them back (`ingest_late` counts any that arrive too late); 0 gaps in the
+  15-replay campaign ([board_rx_eth.csv](data/results/board_rx_eth.csv)).
 - **eth_rx's RX FIFO can come up corrupted at PHY link-up** (1 in 20 reprograms on 2026-11-07, all after slow
   link-ups). Reported to fpga-eth-core's owner (request 0005); until it holds the MAC in reset until link-up,
-  the top detects the impossible FIFO level and restarts the MAC. That stopgap is tested in simulation; no
-  corruption occurred in the latest 40-replay campaign, so it has not yet fired on hardware.
+  the top detects the impossible FIFO level and restarts the MAC. That stopgap is tested in simulation; it
+  fired once on hardware (2026-11-11: 14 restarts before the replay began, then every CADU decoded;
+  [board_rx_eth.csv](data/results/board_rx_eth.csv)).
 - **Opening the serial port reset the ROM design on 2026-11-04 but not the Ethernet design on 2026-11-07; why is
   not established.** The CRC on the UART dump makes the check immune to a reset, and `eth-check` reprograms the FPGA
   before each replay rather than rely on one.
 - **72k mode only.** If the satellite switches to 80k (interleaved) mode, this receiver won't decode it.
-- **No fuzzing yet.** The fuzz target is the radio-packet parser in `gs-rx` (Phase F), which doesn't exist; `make fuzz` fails as not implemented.
+- **Fuzzing is short so far.** 30 s per target in every CI run (no crash yet); the weekly 30-minute run has not run yet.
 
 ## Build and reproduce
 
