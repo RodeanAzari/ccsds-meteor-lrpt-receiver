@@ -1028,3 +1028,21 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   input written to `build/fuzz/crash-*` (the path both workflows upload on failure). Reverted.
 - Crash policy (Makefile comment): fix, then commit the input to the target's seed directory; every run replays
   seeds first, so it becomes a regression test with no extra code.
+
+## 2026-11-11: board: reorder-ingest regression not reproduced; first MAC restarts on hardware; SET_NCO on hardware
+
+- Board free (P1 had it until ~23:30). The host's cable adapter (`enx8cae4caa0ec7`) now has a static 192.168.10.1
+  (was APIPA 169.254.235.36); the board (192.168.10.2) learns the host from the replay, so `IFACE=192.168.10.1`.
+  The link came up only once our bitstream was loaded (P1's design doesn't drive the PHY).
+- `make rx-check SPEED=5.6 x4 DUMP=build/dump`, then the full 15-replay campaign (1/5/5.6×) on the current build
+  (reorder ingest + ctrl_rx): **19/19 replays, 298/298 CADUs bit-exact, 0 RS symbols corrected**, ingest_gap 0 in
+  every one. The 2026-11-08 "5/8 fail" did not reproduce; cause not established (link/address state then).
+  Achieved speeds below target (5×: 3.4-4.2, 5.6×: 5.1-5.5; host load ~7.5).
+- SET_NCO's first hardware use: `ctrl_ok` counts it, `nco_word` reads back 0x25C11200 (the computed word).
+- Replay 10 (5×): **mac_restarts = 14**, all before the first replay datagram (the board's first stats packet
+  already has 14 with eth_ok 1 = the SET_NCO command); the replay then decoded perfectly. First time the request
+  0005 stopgap fired on hardware; raw counters sent to P2 in request 0005 (MAC-only restart clears it; counters
+  consistent, so a persistently bad RX clock looks unlikely).
+- The first 4-replay run overwrote `board_rx_eth.csv` (15 rows of the older build) with 4 rows; rerunning the full
+  campaign replaced it properly. Interpretation rewritten; README rows updated (also its stale timing row:
+  +0.580 ns from the build before ctrl_rx; now +0.256 ns, 13,682 LUT).
