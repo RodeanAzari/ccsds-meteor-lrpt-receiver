@@ -45,6 +45,15 @@ PACKET_COLS = ["packets", "truth_packets", "expected_packets", "packets_exact", 
                "pd_only_ours", "pd_only_satdump", "pd_explained", "pd_unexplained", "pd_result"]
 
 
+def tx_dropped(ip: str) -> int:
+    """The host interface's kernel TX drop counter: replay datagrams that never reached the wire."""
+    out = subprocess.run(["ip", "-4", "-o", "addr"], capture_output=True, text=True, check=True).stdout
+    names = [line.split()[1] for line in out.splitlines() if f"inet {ip}/" in line]
+    if len(names) != 1:
+        raise RuntimeError(f"no single interface has {ip}: {names}")
+    return int(Path(f"/sys/class/net/{names[0]}/statistics/tx_dropped").read_text())
+
+
 def key_values(text: str) -> dict[str, str]:
     return dict(line.split("=", 1) for line in text.split() if "=" in line)
 
@@ -87,8 +96,10 @@ def replay_once(cu8: Path, satdump: Path, iface: str, speed: str, bit: str, word
             for _ in range(SET_NCO_SENDS):
                 s.sendto(set_nco_command(word), (REPLAY_GROUP, REPLAY_PORT))
                 time.sleep(0.3)
+        dropped0 = tx_dropped(iface)
         rp = subprocess.run([str(GS_REPLAY), str(cu8), "--iface", iface, "--speed", speed], capture_output=True,
                             text=True, check=False)
+        dropped = tx_dropped(iface) - dropped0
         said = (rp.stdout + rp.stderr).strip()
         print(f"gs-replay exit {rp.returncode}: {said}", flush=True)
         if rp.returncode != 0:
@@ -110,10 +121,12 @@ def replay_once(cu8: Path, satdump: Path, iface: str, speed: str, bit: str, word
     ok = (all(summary.get(k) == "0" for k in ("cadu_seq_missing", "malformed", "ring_full")) and nco_ok
           and diff.get("result") == "PASS"
           and all(diff.get(k) == "0" for k in DIFF_COLS[3:7]))
-    print(f"speed {speed}: " + " ".join(f"{k}={summary.get(k)}" for k in RX_COLS) + f" nco_ok={nco_ok}; gs-diff "
+    print(f"speed {speed}: host_tx_dropped={dropped} " + " ".join(f"{k}={summary.get(k)}" for k in RX_COLS)
+          + f" nco_ok={nco_ok}; gs-diff "
           + " ".join(f"{k}={diff.get(k)}" for k in DIFF_COLS), flush=True)
-    row: list[object] = [speed, rate.group(1) if rate else "", *(summary.get(k, "") for k in RX_COLS),
-                         summary.get("board.cadus_sent", ""), summary.get("board.fs_slips", ""),
+    row: list[object] = [speed, rate.group(1) if rate else "", dropped, *(summary.get(k, "") for k in RX_COLS),
+                         summary.get("board.ingest_lost", ""), summary.get("board.cadus_sent", ""),
+                         summary.get("board.fs_slips", ""),
                          summary.get("board.mac_restarts", ""), int(nco_ok), *(diff.get(k, "") for k in DIFF_COLS)]
     if truth:
         prow, pok = packet_check(out, satdump, truth)
@@ -137,7 +150,8 @@ def run(cu8: Path, satdump: Path, iface: str, speeds: list[str], tune_hz: float,
         else "make synthetic-iq"
     write_result(
         "board_gs_rx_packets" if truth else "board_gs_rx",
-        ["replay_speed", "achieved_speed", *RX_COLS, "board_cadus_sent", "board_fs_slips", "board_mac_restarts",
+        ["replay_speed", "achieved_speed", "host_tx_dropped", *RX_COLS, "board_ingest_lost", "board_cadus_sent",
+         "board_fs_slips", "board_mac_restarts",
          "nco_confirmed", *DIFF_COLS, *(PACKET_COLS if truth else [])],
         rows,
         f"{cu8.name} ({source}) streamed by gs-replay to arty_rx_eth_top on the Arty A7-100T, one replay per "
