@@ -186,14 +186,18 @@ ci: lint-py lint model-test sim sim-slow gs-test gs-lint fuzz-ci
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build sim_build
 
-# SymbiYosys (buildplan §8.3), ~14 min (830 s on 2026-11-12): the unbounded path-metric proof, the hold task and the ghost_* tasks
-# (tb/formal/fec_acs_array.sby; its 8-step bounded task, bmc4, is run by hand). Run directories and log in build/formal/.
+# SymbiYosys (buildplan §8.3): the unbounded path-metric proof, the hold task and the ghost_* tasks (830 s on 2026-11-12;
+# tb/formal/fec_acs_array.sby; its 8-step bounded task, bmc4, is run by hand), then the AXI4-Stream handshake proofs
+# on 17 blocks (tb/formal/axis.sby, 542 s). Run directories and logs in build/formal/.
 GHOST_TASKS := ghost_e ghost_b1 ghost_b2 ghost_b3 ghost_b4 ghost_b5 ghost_b6 ghost_lemma ghost_spread
 formal:
 	@mkdir -p build/formal
 	cd tb/formal && sby -f -j 4 --prefix ../../build/formal/fec_acs_array fec_acs_array.sby hold $(GHOST_TASKS) \
 		> ../../build/formal/fec_acs_array.log 2>&1 || { grep -E 'summary|DONE|ERROR' ../../build/formal/fec_acs_array.log | tail -20; exit 1; }
 	@grep -E 'DONE' build/formal/fec_acs_array.log
+	cd tb/formal && sby -f -j 6 --prefix ../../build/formal/axis axis.sby \
+		> ../../build/formal/axis.log 2>&1 || { grep -E 'summary|DONE|ERROR' ../../build/formal/axis.log | tail -20; exit 1; }
+	@grep -E 'DONE' build/formal/axis.log
 
 # libFuzzer (gs/fuzz, CLAUDE.md §5.3), ASan + UBSan, FUZZ_S seconds per target: the board -> host packet parsers
 # (seeds: RTL-captured packets in gs/tests/data) and the space packet demux (seeds: gs/tests/data/demux vectors).

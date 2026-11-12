@@ -1139,3 +1139,27 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   reset by step 1–2 (27 s). A branch metric of up to 31 (> BM_MAX) fails B1 and B6 (24–34 s). The sign-extended
   metric needed 14 steps to break the bound, out of reach of the 8-step bmc4.
 - cocotb `test_fec_acs_array` 3/3 PASS; `make lint` clean.
+
+## 2026-11-12 (cont.): AXI4-Stream handshake proofs
+
+- `tb/formal/axis_props.sv`: per interface, tvalid low the cycle after reset; a stalled beat (tvalid && !tready)
+  keeps tvalid, tdata, tlast, tuser next cycle. Assumed on inputs, asserted on outputs. `tb/formal/axis.sby`: 17
+  wrappers in `tb/formal/axis/` (reset in cycle 0, all else free; deep buffers shrunk by parameter). Read with
+  yosys-slang (Yosys's parser takes no `return`).
+- All 17 proven (k-induction, depth 20–80; fec_frame_extract with abc pdr): 542 s, `sby -j 6`.
+- fec_frame_extract failed at step 5 with free inputs. Symptom: tuser changed under a stalled beat. Cause: the
+  harness offered a frame bit before its window's flags were pushed (empty flag FIFO), which the chain can't do: the
+  flags tap the Viterbi's input and the bits are its output. Fix: the wrapper models that (lag of output behind
+  input > 0, windows STEPS long, lag ≤ 2·STEPS) and asserts the flag FIFO never overflows. k-induction then failed on
+  unreachable states; PDR proves it in 6.4 min.
+- Not covered: sync_rrc (ddc_comp_fir at 57 taps; base case reached step 63 of 64 in 48 min before the cap; its
+  logic is ddc_comp_fir's, proven at 31 taps); fec_cadu (RS decoder inside). The RTL's own concurrent SVA isn't read
+  (yosys-slang defines SYNTHESIS; with it undefined it rejects `|=>`).
+- Planted bugs, all caught as base-case traces from reset:
+  - ddc_cic: valid dropped without ready; input accepted under a stalled output; m_tvalid not reset.
+  - pkt_arb2: valid before the grant.
+  - fec_soft_quant: rail select stepping without ready.
+  - cadu_packet: body bytes taken while the output is stalled.
+  At depth 8 two ddc_cic mutants only failed induction (its first output beat needs ~8 cycles); depth 20 makes them
+  real traces.
+- Request 0013 (P4): serdes-lab added to fpga-rs-core's Used by (local commit, not pushed).

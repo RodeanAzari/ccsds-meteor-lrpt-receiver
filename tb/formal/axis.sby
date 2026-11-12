@@ -1,0 +1,115 @@
+# AXI4-Stream handshake properties on block boundaries (buildplan §8.3): tb/formal/axis_props.sv on each
+# block's inputs (assumed) and outputs (asserted), through a wrapper in tb/formal/axis/. Read with
+# yosys-slang: Yosys's own parser takes no `return`, which the RTL's functions use. It defines SYNTHESIS,
+# so the RTL's own SVA is not read here (yosys-slang rejects its `|=>`; Verilator checks it in every
+# simulation). Not covered: sync_rrc, which is ddc_comp_fir with 57 taps (its handshake
+# logic is ddc_comp_fir's, proven here at 31 taps; 57 taps did not finish its base case in 48 min); fec_cadu
+# (the RS decoder inside). fec_frame_extract uses abc pdr: k-induction fails on states its environment
+# model cannot reach.
+[tasks]
+ddc_ingest
+ddc_nco_mixer
+ddc_cic
+ddc_comp_fir
+sync_agc
+sync_costas
+sync_timing
+fec_soft_quant
+fec_traceback
+fec_viterbi
+fec_fs_window
+fec_frame_extract
+iq_udp_ingest
+capture_dump
+cadu_packet
+stats_packet
+pkt_arb2
+
+[options]
+mode prove
+ddc_ingest: depth 20
+ddc_nco_mixer: depth 20
+ddc_cic: depth 20
+ddc_comp_fir: depth 40
+sync_agc: depth 20
+sync_costas: depth 20
+sync_timing: depth 20
+fec_soft_quant: depth 20
+fec_traceback: depth 40
+fec_viterbi: depth 40
+fec_fs_window: depth 40
+fec_frame_extract: depth 40
+iq_udp_ingest: depth 40
+capture_dump: depth 40
+cadu_packet: depth 40
+stats_packet: depth 80
+pkt_arb2: depth 20
+
+[engines]
+fec_frame_extract: abc pdr
+~fec_frame_extract: smtbmc bitwuzla
+
+[script]
+plugin -i slang
+ddc_ingest: read_slang --top ddc_ingest_fv axis_props.sv ddc_ingest.sv ddc_ingest_fv.sv
+ddc_nco_mixer: read_slang --top ddc_nco_mixer_fv axis_props.sv ddc_nco_mixer.sv ddc_nco_mixer_fv.sv
+ddc_cic: read_slang --top ddc_cic_fv axis_props.sv ddc_cic.sv ddc_cic_fv.sv
+ddc_comp_fir: read_slang --top ddc_comp_fir_fv axis_props.sv ddc_comp_fir.sv ddc_comp_fir_fv.sv
+sync_agc: read_slang --top sync_agc_fv axis_props.sv sync_agc.sv sync_agc_fv.sv
+sync_costas: read_slang --top sync_costas_fv axis_props.sv sync_costas.sv sync_costas_fv.sv
+sync_timing: read_slang --top sync_timing_fv axis_props.sv sync_timing.sv sync_timing_fv.sv
+fec_soft_quant: read_slang --top fec_soft_quant_fv axis_props.sv fec_soft_quant.sv fec_soft_quant_fv.sv
+fec_traceback: read_slang --top fec_traceback_fv axis_props.sv fec_traceback.sv fec_traceback_fv.sv
+fec_viterbi: read_slang --top fec_viterbi_fv axis_props.sv fec_viterbi.sv fec_acs_array.sv fec_acs.sv fec_bm.sv fec_traceback.sv fec_viterbi_fv.sv
+fec_fs_window: read_slang --top fec_fs_window_fv axis_props.sv fec_fs_window.sv fec_fs_window_fv.sv
+fec_frame_extract: read_slang --top fec_frame_extract_fv axis_props.sv fec_frame_extract.sv fec_frame_extract_fv.sv
+iq_udp_ingest: read_slang --top iq_udp_ingest_fv axis_props.sv iq_udp_ingest.sv iq_udp_ingest_fv.sv
+capture_dump: read_slang --top capture_dump_fv axis_props.sv capture_dump.sv capture_dump_fv.sv
+cadu_packet: read_slang --top cadu_packet_fv axis_props.sv cadu_packet.sv cadu_packet_fv.sv
+stats_packet: read_slang --top stats_packet_fv axis_props.sv stats_packet.sv stats_packet_fv.sv
+pkt_arb2: read_slang --top pkt_arb2_fv axis_props.sv pkt_arb2.sv pkt_arb2_fv.sv
+prep
+
+[files]
+axis_props.sv
+ddc_ingest: ../../rtl/ddc/ddc_ingest.sv
+ddc_ingest: axis/ddc_ingest_fv.sv
+ddc_nco_mixer: ../../rtl/ddc/ddc_nco_mixer.sv
+ddc_nco_mixer: ../../rtl/ddc/nco_lut.mem
+ddc_nco_mixer: axis/ddc_nco_mixer_fv.sv
+ddc_cic: ../../rtl/ddc/ddc_cic.sv
+ddc_cic: axis/ddc_cic_fv.sv
+ddc_comp_fir: ../../rtl/ddc/ddc_comp_fir.sv
+ddc_comp_fir: ../../rtl/ddc/comp_fir_taps.mem
+ddc_comp_fir: axis/ddc_comp_fir_fv.sv
+sync_agc: ../../rtl/sync/sync_agc.sv
+sync_agc: axis/sync_agc_fv.sv
+sync_costas: ../../rtl/sync/sync_costas.sv
+sync_costas: ../../rtl/ddc/nco_lut.mem
+sync_costas: axis/sync_costas_fv.sv
+sync_timing: ../../rtl/sync/sync_timing.sv
+sync_timing: axis/sync_timing_fv.sv
+fec_soft_quant: ../../rtl/fec/fec_soft_quant.sv
+fec_soft_quant: axis/fec_soft_quant_fv.sv
+fec_traceback: ../../rtl/fec/fec_traceback.sv
+fec_traceback: axis/fec_traceback_fv.sv
+fec_viterbi: ../../rtl/fec/fec_viterbi.sv
+fec_viterbi: ../../rtl/fec/fec_acs_array.sv
+fec_viterbi: ../../rtl/fec/fec_acs.sv
+fec_viterbi: ../../rtl/fec/fec_bm.sv
+fec_viterbi: ../../rtl/fec/fec_traceback.sv
+fec_viterbi: axis/fec_viterbi_fv.sv
+fec_fs_window: ../../rtl/fec/fec_fs_window.sv
+fec_fs_window: axis/fec_fs_window_fv.sv
+fec_frame_extract: ../../rtl/fec/fec_frame_extract.sv
+fec_frame_extract: axis/fec_frame_extract_fv.sv
+iq_udp_ingest: ../../rtl/io/iq_udp_ingest.sv
+iq_udp_ingest: axis/iq_udp_ingest_fv.sv
+capture_dump: ../../rtl/io/capture_dump.sv
+capture_dump: axis/capture_dump_fv.sv
+cadu_packet: ../../rtl/io/cadu_packet.sv
+cadu_packet: axis/cadu_packet_fv.sv
+stats_packet: ../../rtl/io/stats_packet.sv
+stats_packet: axis/stats_packet_fv.sv
+pkt_arb2: ../../rtl/io/pkt_arb2.sv
+pkt_arb2: axis/pkt_arb2_fv.sv

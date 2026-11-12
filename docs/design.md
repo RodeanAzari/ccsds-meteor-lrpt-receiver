@@ -34,6 +34,8 @@ encoded ASM, `signal-spec.md`) are implemented in the model but have no ADR yet.
 - I/Q travel together in one beat: `tdata = {Q, I}`, each rail at its `docs/fixed-point.md` width. The cu8 input is
   `{Q_u8, I_u8}`, the replay byte order (I, then Q) read as a little-endian 16-bit word.
 - Blocks with internal pipelines advance all stages together on `ce = !m_tvalid || m_tready`; nothing is dropped.
+- The handshake rules (a beat once offered stays, unchanged, until taken; no valid right after reset) are proven on
+  17 blocks by `tb/formal/axis.sby` (`make formal`).
 - DDC chain (`rtl/ddc/ddc_top.sv`): `ddc_ingest` → `ddc_nco_mixer` → `ddc_cic` → `ddc_comp_fir`.
 - Sync chain (`rtl/sync/sync_top.sv`, ADR 0002): `sync_rrc`, which is `ddc_comp_fir` with the 57 RRC taps (same arithmetic;
   one FIR to verify, not two) → `sync_agc` (one sample in flight, so the per-sample gain update lands before the
