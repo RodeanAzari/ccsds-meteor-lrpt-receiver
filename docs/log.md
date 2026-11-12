@@ -1189,3 +1189,25 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   - a confirm's second frame one symbol off (a_outputs): base-case trace;
   - judging one late (a_judge_due) and losing lock one miss late (a_flywheel): induction at depth 20, and BMC at
     depth 60 gives traces from reset at steps 37 and 35.
+
+## 2026-11-12 (cont.): RS syndromes proven (fpga-rs-core)
+
+- fpga-rs-core 3390b01: `tb/formal/rs_syndrome_fv.sv` checks rs_syndrome against the definition
+  S_j = sum r_i b_j^(N-1-i). Its GF multiply and powers are written independently of rs_gf_pkg.
+- Properties: synd_o while synd_valid_o; sym_last_o at position N-1; sym_ready_o low exactly when a last symbol would
+  overwrite unclaimed syndromes; synd_valid_o exactly while unclaimed.
+- Sets: GF(16) N=15; GF(16) N=10 FCR 5 PRIM 7; GF(8) N=7. All PASS (k-induction, depth 34), 76 s; cover: two
+  codewords back to back.
+- Planted bugs, all base-case traces at depth 34:
+  - root exponent +1;
+  - no reload at position 0;
+  - ready ignoring the claim;
+  - synd_valid set/clear order;
+  - last position one early;
+  - a wrong reduction in gf_mul.
+  At depth 4, three of them failed only induction.
+- On the way:
+  - A first gf_mul mutant was equivalent: `^` binds tighter than `|`, so the "wrong" polynomial was the original.
+  - Labelled asserts inside a for loop crash Yosys (duplicate cell name).
+  - Induction needed the position-range helper.
+- No RTL change and no new tag. Buildplan §8.3 formal list complete.
