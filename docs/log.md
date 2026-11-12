@@ -1163,3 +1163,29 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   At depth 8 two ddc_cic mutants only failed induction (its first output beat needs ~8 cycles); depth 20 makes them
   real traces.
 - Request 0013 (P4): serdes-lab added to fpga-rs-core's Used by (local commit, not pushed).
+
+## 2026-11-12 (cont.): frame sync FSM proven
+
+- `fec_fs_fsm.sv` SVA, also checked by Verilator in every simulation:
+  - a_queue: at most CANDIDATES queued peaks, each 1..FRAME old, oldest first, so none passes its due position;
+    empty in lock.
+  - a_judge_due: the lock's expected ASM + SLIP is 0..FRAME+SLIP ahead.
+  - a_misses: misses_q ≤ 15.
+  - a_outputs: descriptors only on en_i; a confirm's two frames are FRAME apart, neither flywheel.
+- Harness `tb/formal/fec_fs_fsm_fv.sv` (FRAME = 16, 8-bit positions; flywheel_i constant after reset):
+  - a_spacing: locked frames FRAME ± 2 apart;
+  - a_flywheel: at most flywheel_i flywheel frames in a row;
+  - helpers: the newest frame + FRAME projects exp_q; the run of flywheel frames = misses_q; lock implies a frame
+    was emitted.
+- prove: PASS in 11 s (k-induction, depth 20).
+- cover: PASS in 311 s; reaches lock, a two-frame confirm, slip, loss of lock, a flywheel frame, a dropped peak and
+  an early frame (steps 6–36).
+- On the way:
+  - a_spacing failed induction until the helpers above were added.
+  - a_lock_emitted then failed in the base case (step 18). Cause: a harness bug, where "clear when not locked"
+    overrode the confirm's set in the same cycle. Fixed by ordering the clear first.
+- Planted bugs, all caught:
+  - a peak due one late (a_outputs) and the full-queue check off by one (a_queue): base-case traces;
+  - a confirm's second frame one symbol off (a_outputs): base-case trace;
+  - judging one late (a_judge_due) and losing lock one miss late (a_flywheel): induction at depth 20, and BMC at
+    depth 60 gives traces from reset at steps 37 and 35.

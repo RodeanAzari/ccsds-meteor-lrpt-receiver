@@ -197,6 +197,36 @@ module fec_fs_fsm #(
         end
     end
 
+`ifndef SYNTHESIS
+    // Invariants (tb/formal/fec_fs_fsm.sby proves them unbounded at small parameters; Verilator checks them in every
+    // simulation). Positions are compared as POS_BITS-bit differences, exact while FRAME + SLIP < 2^(POS_BITS-1).
+    logic inv_queue, inv_judge, inv_out;
+
+    always_comb begin
+        // The verify queue: at most CANDIDATES peaks, each 1 .. FRAME positions old, oldest first, so every peak
+        // reaches its due position (age FRAME) while queued; empty in LOCK.
+        inv_queue = qcount_q <= QW'(CANDIDATES) && (!locked_q || qcount_q == '0);
+        for (int i = 0; i < CANDIDATES; i++) begin
+            if (QW'(i) < qcount_q) begin
+                if (pos_q - qpos_q[i] == '0 || pos_q - qpos_q[i] > POS_BITS'(FRAME)) inv_queue = 1'b0;
+                if (i > 0 && pos_q - qpos_q[i] >= pos_q - qpos_q[i-1]) inv_queue = 1'b0;
+            end
+        end
+        // LOCK: the expected ASM is judged when pos reaches exp + SLIP, which is 0 .. FRAME + SLIP positions ahead,
+        // so no judgment is skipped.
+        inv_judge = !locked_q || (exp_q + POS_BITS'(SLIP) - pos_q) <= POS_BITS'(FRAME + SLIP);
+        // Descriptors only on en_i; a confirm's two frames are FRAME apart and neither is flywheel.
+        inv_out = (!d_valid_o[0] && !d_valid_o[1]) || en_i;
+        if (d_valid_o[1] && (d_first_o[1] - d_first_o[0] != POS_BITS'(FRAME) || d_fly_o[0] || d_fly_o[1]))
+            inv_out = 1'b0;
+    end
+
+    a_queue:     assert property (@(posedge clk_i) disable iff (rst_i) inv_queue);
+    a_judge_due: assert property (@(posedge clk_i) disable iff (rst_i) inv_judge);
+    a_misses:    assert property (@(posedge clk_i) disable iff (rst_i) misses_q <= 5'd15);  // the 5-bit count never wraps
+    a_outputs:   assert property (@(posedge clk_i) disable iff (rst_i) inv_out);
+`endif
+
     assign locked_o  = locked_q;
     assign dropped_o = dropped_q;
     assign slips_o   = slips_q;

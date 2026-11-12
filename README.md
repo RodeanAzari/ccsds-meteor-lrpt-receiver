@@ -44,7 +44,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Coding gain at BER 10⁻⁵** | Model only, before NRZ-M: 10⁻⁵ at 4.28 dB with 4-bit soft decisions (4.15 dB unquantized) against 9.59 dB for uncoded OQPSK theory, a 5.3 dB gain (5.4 dB unquantized) ([soft_width_ber.csv](data/results/soft_width_ber.csv)). **Hardware, after NRZ-M: 10⁻⁵ at 4.32 dB**, interpolated between the 4.0 and 4.5 dB points, a 5.3 dB gain ([ber_board.csv](data/results/ber_board.csv)) |
 | **Viterbi throughput and headroom** | RTL decoder bit-exact with the model, errors included; **96 clocks per bit, 14.5× real time** at 100 MHz, RTL simulation ([viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv)). **Hardware BER before RS: 0.12–0.36 dB from the model** at 2–4.5 dB; after RS, 0 errors from 3 dB up ([ber_board.csv](data/results/ber_board.csv)) |
 | **Lock / Doppler** | Bit-true chain (bit-exact with the RTL), from reset at 6 dB with a 30 Hz/s ramp: **locks from −15 to +14 kHz in 16–35 ms** (4× the ±3.4 kHz Doppler); tracks the pass-maximum Doppler rate with **0.84 Hz rms error** ([sync_lock_range.csv](data/results/sync_lock_range.csv), [sync_doppler_track.csv](data/results/sync_doppler_track.csv)). On the board: `[TBD]` |
-| **Formal proofs** | Viterbi path metrics: the overflow bound proven unbounded, with the 9-bit modulo metrics proven equal to exact ones mod 512 ([docs/viterbi.md](docs/viterbi.md)). AXI4-Stream handshake rules proven on 17 blocks' boundaries. `[TBD]`: sync FSM, RS syndromes |
+| **Formal proofs** | Viterbi path metrics: the overflow bound proven unbounded, with the 9-bit modulo metrics proven equal to exact ones mod 512 ([docs/viterbi.md](docs/viterbi.md)). AXI4-Stream handshake rules proven on 17 blocks' boundaries. Frame sync FSM: queue, lock timing, frame spacing and flywheel limit proven. `[TBD]`: RS syndromes |
 | **Bugs caught** | 31 written up as symptom → root cause → fix ([below](#bugs-found)); planted bugs at every layer, each caught except one equivalent mutant ([list](#bugs-found), counts per campaign in [docs/log.md](docs/log.md)) |
 | **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC +2.453 ns, AGC +2.344 ns, Costas +2.360 ns, timing +1.604 ns, **whole sync chain +1.431 ns**, Viterbi decoder +1.895 ns, frame sync +0.653 ns, **sync chain → RS +0.629 ns** out of context; **whole receiver on the board +0.256 ns** placed and routed ([board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv), [synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv), [synth_sync_agc.csv](data/results/synth_sync_agc.csv), [synth_sync_costas.csv](data/results/synth_sync_costas.csv), [synth_sync_timing.csv](data/results/synth_sync_timing.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv), [synth_fec_framesync.csv](data/results/synth_fec_framesync.csv), [synth_rx_chain.csv](data/results/synth_rx_chain.csv)) |
 | **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**. RRC: 616 LUT, 1,874 FF, 2 DSP48E1. AGC: 163 LUT, 68 FF, 4 DSP48E1. Costas: 469 LUT, 153 FF, 7 DSP48E1, 1 RAMB18. Timing: 752 LUT, 564 FF, 9 DSP48E1. **Sync chain: 1,998 LUT (3.2%), 2,659 FF, 22 DSP48E1, 1 RAMB18.** Viterbi: 1,621 LUT (2.6%), 694 FF, 1 RAMB36, no DSP. Frame sync: 3,112 LUT (4.9%), 3,066 FF, 4 RAMB36, 1 DSP48E1. In the board build: RS decoder 4,232 LUT, 3 RAMB18; **whole receiver 13,682 LUT (21.6%), 8 RAMB36 + 7 RAMB18, 29 DSP48E1**. Every multiplier in a DSP |
@@ -169,7 +169,15 @@ arbiter, an offered beat is never withdrawn or changed before it is taken, and n
 given the same of each input. Proven unbounded, by k-induction or, for `fec_frame_extract`, PDR. That block needs a
 model of its environment: its flags come from a tap on the Viterbi's input, so its output may not run ahead of that
 tap. Not covered: `sync_rrc` (it is `ddc_comp_fir` with 57 taps, and the 31-tap proof stands for its logic) and
-`fec_cadu` (the RS decoder inside). Still planned (buildplan §8.3): the sync FSM and RS syndromes.
+`fec_cadu` (the RS decoder inside).
+The frame sync FSM (`tb/formal/fec_fs_fsm.sby`, at FRAME = 16), proven unbounded:
+- every queued peak is verified at its due position, and the queue never overflows;
+- in lock, no expected ASM goes unjudged;
+- consecutive locked frames are FRAME ± 2 symbols apart;
+- at most `flywheel` flywheel frames in a row;
+- a confirm's two frames are FRAME apart.
+A cover task reaches lock, a slip, loss of lock, a dropped peak and an early frame, so none of this holds vacuously.
+Still planned (buildplan §8.3): RS syndromes, in [fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core).
 
 ### Bugs found
 
@@ -236,7 +244,9 @@ Each one is written up as symptom → root cause → fix in [docs/log.md](docs/l
   reset, a sign-extended branch metric (which the 8-step bounded check could not reach), an ACS keeping the larger
   candidate, and a branch metric above BM_MAX. AXI-Stream: a valid dropped without ready, input accepted under
   a stalled output, and an unreset valid (`ddc_cic`); an ungranted valid (`pkt_arb2`); a rail select stepping
-  without ready (`fec_soft_quant`); body bytes taken while the output is stalled (`cadu_packet`).
+  without ready (`fec_soft_quant`); body bytes taken while the output is stalled (`cadu_packet`). Frame sync
+  FSM: a peak due one late, the full-queue check off by one, a lock judging one late, loss of lock one miss late, and
+  a confirm's second frame one symbol off.
 - RS ([fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core)): 24 across the model and the RTL.
 - Ethernet ingest, command and board tops: 6 in the ingest, 3 in the DDC Ethernet top (one, a reset tied off, only
   after the test replays across a reset); 6 in `ctrl_rx`, 3 more in the ingest and 3 in the receiver top for
@@ -374,7 +384,13 @@ full verify queue, and a sink slow enough to stall the input at the ring
 ([framesync_rtl_sim.csv](data/results/framesync_rtl_sim.csv)). A 128k-ring build also stalls it at the descriptor
 FIFO. Out of context it meets 100 MHz with WNS +0.653 ns
 and uses 3,112 LUT, 3,066 FF, 4 RAMB36 and 1 DSP48E1 ([synth_fec_framesync.csv](data/results/synth_fec_framesync.csv)).
-Sync-FSM formal proof: `[TBD]`.
+The FSM is proven formally (`make formal`, `tb/formal/fec_fs_fsm.sby`, at FRAME = 16):
+- the verify queue never overflows and verifies every peak when it comes due;
+- no lock judgment is skipped;
+- locked frames are FRAME ± 2 apart;
+- no more than `flywheel` flywheel frames run in a row.
+
+Its invariants are SVA in `fec_fs_fsm.sv`, so Verilator also checks them in every simulation.
 
 ## Viterbi decoder
 
@@ -664,7 +680,7 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make model-test` | Signal-spec check, RTL-table staleness check, pytest |
 | `make sim` / `make sim-slow` | cocotb regression on Verilator (< 5 min) / the frame-sync suite (~100 s) |
 | `make sim-full` | Long cocotb runs: the sync chain from reset, its output decoded (~4 min); the chain through the Viterbi (~10 min) |
-| `make formal` | SymbiYosys: Viterbi path-metric bound (unbounded) and hold proof, AXI4-Stream handshakes on 17 blocks (~23 min) |
+| `make formal` | SymbiYosys: Viterbi path-metric bound (unbounded) and hold proof, AXI4-Stream handshakes on 17 blocks, frame sync FSM (~28 min) |
 | `make gs` / `make gs-test` | Ground station, Release + Debug (ASan/UBSan); GoogleTest + loopback |
 | `make gs-lint` | clang-format check, clang-tidy (warnings are errors, every disabled check justified in `gs/.clang-tidy`), cppcheck |
 | `make fuzz [FUZZ_S=60]` / `make fuzz-ci` | libFuzzer on both packet parsers / 30 s each |
@@ -706,7 +722,7 @@ and fail, rather than pretending.
    spec and the model on it (Phases 0 and A).
 2. **The real pass on the board:** lock (Phase C), decode it bit for bit against SatDump (Phases D, E), and recover
    its space packets and image through the ground station (Phase F); then the hero image and the demo video.
-3. **Formal and coverage still planned:** the sync FSM, RS syndromes; coverage bins.
+3. **Formal and coverage still planned:** RS syndromes (in fpga-rs-core); coverage bins.
 
 ## License
 
