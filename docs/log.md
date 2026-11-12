@@ -1115,3 +1115,27 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - Bitstream `build/board/arty_rx_eth_top.bit` (2026-11-09 19:55) predates the SET_NCO commit df47769 by an hour;
   it was built from that working tree (SET_NCO echoed in every replay), same file as `board_gs_rx.csv`.
 - Sidecar's commit is 2dbc24b (the code that ran); the interpretation was substituted for `[TBD]` after the run.
+
+## 2026-11-12: Viterbi path-metric bound proven unbounded
+
+- Ghost state in `fec_acs_array.sv` (`ACS_GHOST`): a 12-bit exact metric copy g_m and, for j = 1..6, U_j[v] = the
+  best g_m j steps back over the states reaching s >> j == v in j steps, + 30j. Invariants E (pm == g_m mod 512) and
+  B_j (0 <= U_j[s>>j] - g_m[s] <= 30j). At j = 6 the coset is every state, so the bound follows.
+- Attempt 1: invariants with min-over-all-entries terms (a coset-min ancestor bound A, a min-chain M, a range bound R),
+  all in one 1-step induction: still running after 9.5 h. Symptom → cause: one query carrying 64-deep min chains.
+  Fix 1: one sby task per group, each assuming all groups via a register holding the previous cycle's results
+  (g_ok_prev_q). E, A1 and A2 passed (10, 15, 102 min); the min-chain groups timed out at 2 h.
+  Fix 2: replaced A, M and R with the min-free band B (the lower bound because branch metrics are ≥ 0). E and B1–B6
+  passed in 3–22 min (10 tasks in parallel).
+- Spread derivation straight from E+B timed out at 2 h (a_spread's 63-deep 32-bit max/min chains). Added a per-state
+  lemma L (rel(s) in [U_6 - 180 - g_m[0], U_6 - g_m[0]]): L passed in 4 min and a_spread from L in 4.4 min. The first
+  L run was stopped by Claude Code under memory pressure; it passed on the rerun.
+- Spurious induction failure on the first split run: g_hold's `$past` registers are free at the start of a 1-step
+  induction. g_hold is proven by task hold, so it is left out of the ghost tasks.
+- `make formal` = hold + 9 ghost tasks, `sby -j 4`: all PASS in 830 s. Task `step` (open k-induction) removed;
+  `bmc4` kept for running by hand.
+- Planted bugs (copies of the source): a sign-extended branch metric in the ACS, an ACS keeping the larger
+  candidate, and no metric reset each fail ghost_e (induction ~30 s). BMC depth 4 on ghost_e gives a trace from
+  reset by step 1–2 (27 s). A branch metric of up to 31 (> BM_MAX) fails B1 and B6 (24–34 s). The sign-extended
+  metric needed 14 steps to break the bound, out of reach of the 8-step bmc4.
+- cocotb `test_fec_acs_array` 3/3 PASS; `make lint` clean.

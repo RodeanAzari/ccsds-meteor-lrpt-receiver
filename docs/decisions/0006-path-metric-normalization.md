@@ -43,3 +43,18 @@ bound within 8 steps of reset at 4 bits. **The unbounded proof is open**: k-indu
 no metric reset and a metric one bit too narrow are caught; a sign-extended branch metric needs 14 or more steps to
 break the bound, beyond the bounded depth. The decision stands. In the model recurrence, the spread reaches
 4·BMmax at most, a third below the bound the width is sized for.
+
+## Amendment (2026-11-12): the bound is proven unbounded
+
+`make formal` now proves the bound in every reachable state. It adds ghost state to `fec_acs_array.sv` (`ACS_GHOST`):
+- a 12-bit exact copy of the metrics;
+- for j = 1..6, the best metric j steps ago over each coset of states that reach a state in exactly j steps.
+
+Two invariants then hold:
+- E: the 9-bit modulo metrics equal the exact ones mod 512;
+- B_j: each metric lies between its coset's best and that plus j·BMmax.
+
+Both are 1-step inductive, and at j = 6 B is the bound. Each invariant group is its own SymbiYosys task, assuming all
+groups one step earlier. Details and timings are in `docs/viterbi.md`. The proof also catches the sign-extended
+branch metric the bounded check could not reach. E shows more than the bound: the modulo ACS computes exactly what an
+unbounded one would, so the decision needs no further evidence.

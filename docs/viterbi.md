@@ -49,16 +49,33 @@ and any two candidates by at most 210 < 256.
   - *Proven:* with free handshakes, a stall changes no metric, so a harness that steps every clock reaches every
     metric state the array can. k-induction can't see through stalls (k held cycles can be one state), hence the
     split.
-  - *Bounded:* no input sequence breaks the bound within 8 steps of reset, at 4 bits.
-  - *Open:* the unbounded proof (task `step`). The bound needs 7 unrolled steps of k-induction, since every state is
-    reachable from the best state 6 steps back, and no one-step invariant of this form closes. Each step holds 64
-    ACS units. On 2026-11-06, with the bound written as 2,016 pair assertions, the base case passed in 13 minutes
-    and the induction had not finished after 6.5 hours; the same proof at 1 and 2 bits timed out after 2 hours. The
-    max − min form replaced it (same condition, much cheaper in simulation); its induction is being rerun.
-  - *Planted bugs:* path metrics not reset and an 8-bit metric for 4-bit soft are caught in under 30 s. A
-    sign-extended branch metric breaks the bound only after 14 steps, even with the worst input at every step (1-bit,
-    model recurrence): beyond the bounded depth, so only the open proof would catch it. An ACS that keeps the larger
-    candidate stays bounded (the argument is symmetric); the bit-exact cocotb tests catch it.
+  - *Proven, unbounded* (tasks `ghost_*`, 2026-11-12): the bound holds in every reachable state. Plain k-induction
+    on the bound needs 7 unrolled steps, each with 64 ACS units, and had not finished after 6.5 hours (2026-11-06).
+    The proof instead adds ghost state (`ACS_GHOST` in `fec_acs_array.sv`) that makes it 1-step inductive:
+    - `g_m[s]`: the metrics again, 12 bits wide, with an exact compare.
+    - `U_j[v]` for j = 1..6: the best metric j steps ago over the states that reach s in exactly j steps
+      (s >> j == v), plus j × 30.
+    - The invariants: E, `pm_q[s] == g_m[s] mod 512` (the modulo ACS picks the exact minimum), and B_j,
+      `0 <= U_j[s >> j] − g_m[s] <= 30j` (a metric is at least its ancestors' best, as branch metrics are ≥ 0, and at
+      most that plus j steps' worth).
+    - At j = 6 every state is in the coset, so all metrics lie in [U_6 − 180, U_6]: the bound.
+    - Each group is one task that asserts it and assumes all groups one step earlier. Two more tasks derive a
+      per-state lemma, then the bound, from them. Checking them all in one query had not finished after 9 hours. A
+      first ghost with min-over-all-states invariants timed out at 2 hours per task. With the min-free band B,
+      `make formal` runs every task in 830 s (4 in parallel).
+    - E is stronger than the bound: the 9-bit modulo ACS computes exactly what an unbounded ACS would, forever.
+  - *Bounded* (task `bmc4`, by hand): no input sequence breaks the bound within 8 steps of reset, at 4 bits.
+  - *Planted bugs* (in copies of the source, 2026-11-12):
+    - The ghost proof fails in under 35 s on each of:
+      - a sign-extended branch metric in the ACS;
+      - an ACS keeping the larger candidate;
+      - path metrics not reset;
+      - a branch metric one above BM_MAX.
+    - For the first three, BMC on task `ghost_e` gives a trace from reset that breaks E by step 2.
+    - The sign-extended metric breaks the bound itself only after 14 steps, so the 8-step bounded check missed it.
+    - The BM_MAX + 1 mutant breaks the proof's premise (B fails). A trace in which it breaks the bound itself was
+      not sought.
+    - Earlier, against `bmc4`: no reset and an 8-bit metric for 4-bit soft were caught in under 30 s.
 - **Simulation**: the modulo decoder matches the float decoder bit for bit over 32 × 4,096 bits at σ = 1.0; the
   largest spread seen is 104 of the 180 bound (`model/tests/test_viterbi_fixed.py`). In the model recurrence, an
   input chosen to maximize the spread at every step reaches 4 × BM_MAX (8 at 1 bit, 24 at 2 bits), so the 6 × BM_MAX

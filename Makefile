@@ -186,11 +186,12 @@ ci: lint-py lint model-test sim sim-slow gs-test gs-lint fuzz-ci
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build sim_build
 
-# SymbiYosys (buildplan §8.3), ~12 min: the path-metric hold proof and 8-step bounded check (tb/formal/
-# fec_acs_array.sby; its unbounded task, step, is open and run by hand). Run directories and log in build/formal/.
+# SymbiYosys (buildplan §8.3), ~14 min (830 s on 2026-11-12): the unbounded path-metric proof, the hold task and the ghost_* tasks
+# (tb/formal/fec_acs_array.sby; its 8-step bounded task, bmc4, is run by hand). Run directories and log in build/formal/.
+GHOST_TASKS := ghost_e ghost_b1 ghost_b2 ghost_b3 ghost_b4 ghost_b5 ghost_b6 ghost_lemma ghost_spread
 formal:
 	@mkdir -p build/formal
-	cd tb/formal && sby -f --prefix ../../build/formal/fec_acs_array fec_acs_array.sby hold bmc4 \
+	cd tb/formal && sby -f -j 4 --prefix ../../build/formal/fec_acs_array fec_acs_array.sby hold $(GHOST_TASKS) \
 		> ../../build/formal/fec_acs_array.log 2>&1 || { grep -E 'summary|DONE|ERROR' ../../build/formal/fec_acs_array.log | tail -20; exit 1; }
 	@grep -E 'DONE' build/formal/fec_acs_array.log
 

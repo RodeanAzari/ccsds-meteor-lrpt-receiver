@@ -1,33 +1,52 @@
 # ADR 0006: modulo path metrics stay within the spread bound (K - 1) * BM_MAX = 180 (4-bit soft, 9-bit metrics).
 #
-# make formal runs hold and bmc4:
-#   hold  proven (k-induction): with free handshakes, a stall changes no metric, so a harness that steps every
-#         clock reaches every metric state the array can. Leaves the spread assertions out (ACS_HOLD_ONLY): through
-#         stalls, k cycles of k-induction can be one state.
-#   bmc4  bounded: no input sequence breaks the bound within 8 steps of reset (~12 min).
-# step is the unbounded proof (k-induction, depth 8; every state is reachable from the best state 6 steps back and
-# no 1-step invariant of this form closes). It is OPEN: on 2026-11-06 its base case passed and its induction had not
-# finished after 6.5 hours (docs/viterbi.md). Run it by hand: sby -f fec_acs_array.sby step.
-# Engine bitwuzla: yices took 9 minutes to reach base-case step 7.
+# make formal runs hold and the ghost_* tasks (sby -j 4, 830 s on 2026-11-12); together they prove a_spread unbounded:
+#   hold     proven (k-induction): with free handshakes, a stall changes no metric, so a harness that steps every
+#            clock reaches every metric state the array can. Leaves the spread assertions out (ACS_HOLD_ONLY): through
+#            stalls, k cycles of k-induction can be one state.
+#   ghost_*  proven (1-step induction, stepping every clock): the ghost invariants E and B_1..B_6 of fec_acs_array.sv
+#            (ACS_GHOST), one group per task, each assuming all groups one step earlier; then lemma L and a_spread
+#            from them. Plain k-induction on a_spread (depth 8) had not finished after 6.5 hours.
+#   bmc4     bounded cross-check, run by hand: no input sequence breaks the bound within 8 steps of reset (~12 min).
+# Engine bitwuzla: yices took 9 minutes to reach base-case step 7 of bmc4.
 [tasks]
 hold
 bmc4
-step
+ghost_e: ghost
+ghost_b1: ghost
+ghost_b2: ghost
+ghost_b3: ghost
+ghost_b4: ghost
+ghost_b5: ghost
+ghost_b6: ghost
+ghost_lemma: ghost
+ghost_spread: ghost
 
 [options]
 hold: mode prove
 hold: depth 3
 bmc4: mode bmc
 bmc4: depth 8
-step: mode prove
-step: depth 8
+ghost: mode prove
+ghost: depth 1
 
 [engines]
 smtbmc bitwuzla
 
 [script]
-~hold: read -formal fec_bm.sv fec_acs.sv fec_acs_array.sv
-~hold: read -formal -D ALWAYS_STEP fec_acs_array_fv.sv
+bmc4: read -formal fec_bm.sv fec_acs.sv fec_acs_array.sv
+bmc4: read -formal -D ALWAYS_STEP fec_acs_array_fv.sv
+ghost_e: verilog_defines -DGHOST_SEL=0
+ghost_b1: verilog_defines -DGHOST_SEL=1
+ghost_b2: verilog_defines -DGHOST_SEL=2
+ghost_b3: verilog_defines -DGHOST_SEL=3
+ghost_b4: verilog_defines -DGHOST_SEL=4
+ghost_b5: verilog_defines -DGHOST_SEL=5
+ghost_b6: verilog_defines -DGHOST_SEL=6
+ghost_lemma: verilog_defines -DGHOST_SEL=7
+ghost_spread: verilog_defines -DGHOST_SEL=8
+ghost: read -formal -D ACS_GHOST fec_bm.sv fec_acs.sv fec_acs_array.sv
+ghost: read -formal -D ALWAYS_STEP fec_acs_array_fv.sv
 hold: read -formal -D ACS_HOLD_ONLY fec_bm.sv fec_acs.sv fec_acs_array.sv
 hold: read -formal fec_acs_array_fv.sv
 prep -top fec_acs_array_fv
