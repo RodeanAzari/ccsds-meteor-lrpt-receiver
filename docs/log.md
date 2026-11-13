@@ -1251,3 +1251,21 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - `make reports` checks: missing tag, bad tag, existing snapshot, planted WNS −0.012 ns: each refused.
 - No snapshots for v0.1-ddc and v0.4-rs: the reports in the tree are from later RTL, so a copy now would mislabel
   them. Snapshots start with the next milestone.
+
+## 2026-11-13: capture kit bench check (Phase 0)
+
+- Kit connected: V-dipole → SAWbird+ NOAA (powered only through the coax) → RTL-SDR Blog V3 → laptop, dongle
+  attached to WSL with usbipd-win (`--auto-attach`). rtl-sdr 2.0.2 (Ubuntu); `rtl_test -t`: R820T tuner, 29 gains.
+- Bug: first `usbipd attach` took the Synaptics fingerprint reader (06cb:00bd), not the dongle (0bda:2838).
+  `rtl_test` said "No supported devices found". Fix: attach busid 2-1, unbind the reader.
+- Bug: the dongle dropped out of WSL 30 s after attach, as the first streaming test started (vhci_hcd: connection
+  closed; usbipd showed it Shared again). Cause not found; reattached with `--auto-attach`.
+- `rtl_test -s 1024000`, 60 s: 0 samples per million lost; the one "lost at least 116 bytes" printed after the
+  Ctrl-C, while the reads were cancelled.
+- Bias tee (`rtl_biast -b 1`), 2 s at 137.75 MHz, gain 20.7, antenna on: the noise floor rose by 40–44 dB across
+  the 1.024 MHz window, highest at the centre. So the LNA is powered, and the bias tee stays on when `rtl_sdr` opens
+  the dongle (the 2.0.2 `rtl_sdr` has no `-T`).
+- Gain sweep, bias tee on, 2 s each (rms of I, samples at 0 or 255): 3.7 dB: 17 LSB, 0.006 %; 8.7: 28 LSB, 0.17 %;
+  12.5: 36 LSB, 0.85 %; 16.6: 51 LSB, 3.9 %; 20.7: 64 LSB, 7.7 %. `-g 0` is the tuner AGC in rtl_sdr, not 0 dB
+  (86 LSB, 25 % clipped). No narrowband spur over 5 dB in any capture: it's broadband noise. Starting gain for the
+  first pass: 3.7 dB.
