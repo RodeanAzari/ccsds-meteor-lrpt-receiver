@@ -1,0 +1,15 @@
+# coverage
+
+- **Commit:** `554ad9a4f7189ab486b695ae50f11134b64ec2e8 (with uncommitted changes)`
+- **Command:** `make cov`
+- **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1, Verilator 5.050 --coverage-user, cocotb 2.1.0
+- **Input:** synthetic, the cocotb suites' own seeds (make cov: make sim, sim-slow and sim-full with COV=1). No real recording.
+
+This is functional coverage closure for buildplan §8.2. The bins are the `cov_*` cover properties next to the RTL they observe, counted by Verilator `--coverage-user` over every cocotb suite (block tests and chain tests added up). docs/coverage.md lists the bins and the exclusions.
+
+- **Closed: every bin is hit except one group, which is excluded with a reason.** Loop lock states have no bin: the RTL has no loop lock detector, and lock is judged by the frame sync (ADR 0002), whose states are binned. Loop lock is measured instead, in sync_lock_range.csv and sync_lock_costas.csv.
+- **RS: every correction count 0–16 and the uncorrectable case.** Counts 4 and 6–15 were missed until test_fec_cadu got three frames with those error patterns. A count of 2 means one codeword per build, since the test runs with RS_WRITEBACK 1 and 0.
+- **Frame sync: every transition, a slip at each of −2..+2, and each of the 4 hypotheses winning.** A slip of −2 was missed until test_fec_framesync got two dropped samples (fs_slip_m2). A mutant blind to −2 fails that test. Several bins are hit only once or twice: lose, slips ±1 and ±2, and hypotheses 1 to 3. Each comes from one directed scenario, not from random stimulus.
+- **Backpressure: both sides of every streaming block stalled.** capture_dump's input stall was missed, because both board tops send exactly one buffer of samples. test_capture_dump now overfills the buffer and checks the extra words are held, not dropped. ddc_comp_fir's counts include both of its instances, the DDC compensation FIR and the RRC.
+- **Viterbi: the metric wrap is hit 20,100 times.** Modulo metrics never normalize (ADR 0006); the wrap is the event that replaces normalization, and `make formal` proves the spread bound across it.
+- Hit counts depend on the random backpressure seeds and change from run to run. The closure verdict does not depend on them.

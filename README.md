@@ -45,10 +45,11 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Viterbi throughput and headroom** | RTL decoder bit-exact with the model, errors included; **96 clocks per bit, 14.5× real time** at 100 MHz, RTL simulation ([viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv)). **Hardware BER before RS: 0.12–0.36 dB from the model** at 2–4.5 dB; after RS, 0 errors from 3 dB up ([ber_board.csv](data/results/ber_board.csv)) |
 | **Lock / Doppler** | Bit-true chain (bit-exact with the RTL), from reset at 6 dB with a 30 Hz/s ramp: **locks from −15 to +14 kHz in 16–35 ms** (4× the ±3.4 kHz Doppler); tracks the pass-maximum Doppler rate with **0.84 Hz rms error** ([sync_lock_range.csv](data/results/sync_lock_range.csv), [sync_doppler_track.csv](data/results/sync_doppler_track.csv)). On the board: `[TBD]` |
 | **Formal proofs** | Viterbi path metrics: the overflow bound proven unbounded, with the 9-bit modulo metrics proven equal to exact ones mod 512 ([docs/viterbi.md](docs/viterbi.md)). AXI4-Stream handshake rules proven on 17 blocks' boundaries. Frame sync FSM: queue, lock timing, frame spacing and flywheel limit proven. RS syndromes proven against their definition (in fpga-rs-core) |
+| **Functional coverage** | **73 / 73 bins hit** (frame sync transitions and slips, each hypothesis, RS corrections 0–16 + uncorrectable, Viterbi metric wrap, backpressure on every interface); loop lock states excluded, no lock detector ([coverage.csv](data/results/coverage.csv)) |
 | **Bugs caught** | 31 written up as symptom → root cause → fix ([below](#bugs-found)); planted bugs at every layer, each caught except one equivalent mutant ([list](#bugs-found), counts per campaign in [docs/log.md](docs/log.md)) |
 | **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC +2.453 ns, AGC +2.344 ns, Costas +2.360 ns, timing +1.604 ns, **whole sync chain +1.431 ns**, Viterbi decoder +1.895 ns, frame sync +0.653 ns, **sync chain → RS +0.629 ns** out of context; **whole receiver on the board +0.256 ns** placed and routed ([board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv), [synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv), [synth_sync_agc.csv](data/results/synth_sync_agc.csv), [synth_sync_costas.csv](data/results/synth_sync_costas.csv), [synth_sync_timing.csv](data/results/synth_sync_timing.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv), [synth_fec_framesync.csv](data/results/synth_fec_framesync.csv), [synth_rx_chain.csv](data/results/synth_rx_chain.csv)) |
 | **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**. RRC: 616 LUT, 1,874 FF, 2 DSP48E1. AGC: 163 LUT, 68 FF, 4 DSP48E1. Costas: 469 LUT, 153 FF, 7 DSP48E1, 1 RAMB18. Timing: 752 LUT, 564 FF, 9 DSP48E1. **Sync chain: 1,998 LUT (3.2%), 2,659 FF, 22 DSP48E1, 1 RAMB18.** Viterbi: 1,621 LUT (2.6%), 694 FF, 1 RAMB36, no DSP. Frame sync: 3,112 LUT (4.9%), 3,066 FF, 4 RAMB36, 1 DSP48E1. In the board build: RS decoder 4,232 LUT, 3 RAMB18; **whole receiver 13,682 LUT (21.6%), 8 RAMB36 + 7 RAMB18, 29 DSP48E1**. Every multiplier in a DSP |
-| **Ground station + CI** | C++20 `gs-replay`, `gs-rx` (RS gate, space-packet demux), `gs-diff`, `gs-view`. On the board's output: space packets equal to the golden model's in 3 / 3 replays, 228 equal to SatDump's, 0 unexplained ([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)). `make ci`, run by [GitHub Actions on every push](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml): ruff, mypy, Verilator lint, 179 pytest, 94 cocotb tests (30 builds), 60 GoogleTest (Release and ASan/UBSan) + 2 under TSan, 13 loopback, libFuzzer 30 s × 2 targets, clang-format, clang-tidy, cppcheck |
+| **Ground station + CI** | C++20 `gs-replay`, `gs-rx` (RS gate, space-packet demux), `gs-diff`, `gs-view`. On the board's output: space packets equal to the golden model's in 3 / 3 replays, 228 equal to SatDump's, 0 unexplained ([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)). `make ci`, run by [GitHub Actions on every push](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml): ruff, mypy, Verilator lint, 179 pytest, 96 cocotb tests (31 builds), 60 GoogleTest (Release and ASan/UBSan) + 2 under TSan, 13 loopback, libFuzzer 30 s × 2 targets, clang-format, clang-tidy, cppcheck |
 
 ## Status
 
@@ -133,7 +134,7 @@ reproduces the layer above bit for bit.
 - The bit-true model (DDC, RRC, AGC, Costas, Farrow, Gardner, Viterbi) decodes the same frames as the float model at
   every tested point, which is what lets RTL tests use exact comparison.
 
-**cocotb on Verilator** (`make sim` + `make sim-slow`, 94 tests in 30 builds): each DDC block and the whole chain, bit-exact against
+**cocotb on Verilator** (`make sim` + `make sim-slow`, 96 tests in 31 builds): each DDC block and the whole chain, bit-exact against
 `model/ddc_fixed.py` on a modulated OQPSK signal with a Doppler ramp and DC offset, **under random input gaps and
 output stalls**. Each sync block (RRC, AGC, Costas, Farrow/Gardner timing) is bit-exact against
 `model/rrc_fixed.py` / `model/sync_fixed.py` the same way, with the loops driven through pull-in and their clamps. `sync_top` chains them and is bit-exact against the model
@@ -144,7 +145,12 @@ blocks are checked the same way: the branch metrics on all 256 input pairs, the 
 signed wrap, and the 64-state array, traceback and whole decoder bit-exact against `model/viterbi_fixed.py`. The back end (`fec_frame_extract`, `fec_cadu` with RS in both write-back modes), the Ethernet ingest with its reorder
 buffer (three depths), the command and packet blocks, and both board tops are tested the same way; the receiver
 top is driven through its MII pins at line rate and every CADU packet it sends is checked against the model.
-Coverage bins: `[TBD]`.
+**Functional coverage** (`make cov`, Verilator `--coverage-user` over every suite): the bins of buildplan §8.2 are
+cover properties next to the RTL ([docs/coverage.md](docs/coverage.md)). The frame sync's transitions are covered,
+along with slips at −2..+2, each of 4 hypotheses winning, every RS correction count 0–16 and an uncorrectable
+codeword, the Viterbi metric wrap, and a stall on both sides of every streaming block. **All 73 bins are hit**, and
+one group (loop lock states) is excluded with a reason, since there is no loop lock detector
+([coverage.csv](data/results/coverage.csv)). Closing it took two new scenarios and one new block test.
 
 **On the hardware:** the Phase B top plays a 65,536-sample synthetic snippet from BRAM through the DDC at full
 speed. All 16,384 outputs are checked two ways: a CRC-protected UART dump (`make board-check`), and an ILA capture
@@ -682,6 +688,7 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make model-test` | Signal-spec check, RTL-table staleness check, pytest |
 | `make sim` / `make sim-slow` | cocotb regression on Verilator (< 5 min) / the frame-sync suite (~100 s) |
 | `make sim-full` | Long cocotb runs: the sync chain from reset, its output decoded (~4 min); the chain through the Viterbi (~10 min) |
+| `make cov` | Functional coverage over `make sim`, `sim-slow` and `sim-full`; fails on a missed bin (~70 min) |
 | `make formal` | SymbiYosys: Viterbi path-metric bound (unbounded) and hold proof, AXI4-Stream handshakes on 17 blocks, frame sync FSM (~28 min) |
 | `make gs` / `make gs-test` | Ground station, Release + Debug (ASan/UBSan); GoogleTest + loopback |
 | `make gs-lint` | clang-format check, clang-tidy (warnings are errors, every disabled check justified in `gs/.clang-tidy`), cppcheck |
@@ -697,8 +704,8 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make plots` | Regenerate every plot from `data/results/` |
 
 `make ci` runs everything that doesn't need Vivado or the board, and [GitHub Actions](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml) runs it on every push in an `ubuntu:26.04` container, so its compiler, clang-tidy, cppcheck, CMake, Python and Verilator (v5.050, built from source) match the development machine. Vivado and the board are local only, and their reports and CSVs are committed with the RTL that
-produced them. `make sim-full` and `make formal` are local only. `cov`, `synth`, `impl` and `reports` print "not implemented yet"
-and fail, rather than pretending.
+produced them. `make sim-full`, `make cov` and `make formal` are local only. `synth`, `impl` and `reports` print "not implemented
+yet" and fail, rather than pretending.
 
 ## Repository layout
 
@@ -724,7 +731,6 @@ and fail, rather than pretending.
    spec and the model on it (Phases 0 and A).
 2. **The real pass on the board:** lock (Phase C), decode it bit for bit against SatDump (Phases D, E), and recover
    its space packets and image through the ground station (Phase F); then the hero image and the demo video.
-3. **Coverage still planned:** coverage bins (buildplan §8.2).
 
 ## License
 

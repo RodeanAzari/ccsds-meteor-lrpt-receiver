@@ -1211,3 +1211,29 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   - Labelled asserts inside a for loop crash Yosys (duplicate cell name).
   - Induction needed the position-range helper.
 - No RTL change and no new tag. Buildplan §8.3 formal list complete.
+
+## 2026-11-12 (cont.): functional coverage closed (buildplan §8.2)
+
+- `make cov`: every cocotb suite (sim, sim-slow, sim-full) built with Verilator `--coverage-user`; the `cov_*` cover
+  properties next to the RTL are merged by `scripts/coverage_report.py` into `coverage.csv`. **73 / 73 bins hit**,
+  loop lock states excluded (no loop lock detector; ADR 0002). docs/coverage.md lists bins and exclusions.
+- Deviation from buildplan §6/§8.2: Verilator's own coverage instead of cocotb-coverage, and the report goes to
+  `data/results/coverage.csv` (sidecar, interpretation) instead of `docs/reports/coverage/`. The bins sit in the
+  RTL beside the logic they observe, and the result follows the measurement rules.
+- Bugs/traps:
+  - Report crashed on `g_cov_rs__BRA__*__KET__`. Cause: Verilator merges the covers of every generate-loop
+    iteration into one point, so per-index bins (RS 0–16, queue depth, slip, hypothesis) were a single count. Fix:
+    one cover per line through a file-local macro; the report now refuses a cover inside a generate loop.
+  - Covers broke formal reads (native parser: `@` in a module-level cover; slang: array element in a property).
+    Fix: the simulation bins sit under `ifndef FORMAL` / `ifndef SYNTHESIS`.
+- Missed bins closed with tests:
+  - RS corrections 4 and 6–15: test_fec_cadu got three frames with those patterns, and asserts the stimulus spans
+    0..16 + uncorrectable.
+  - Slip −2: new fs_slip_m2 (two dropped samples), bit-exact with the model; framesync_rtl_sim.csv regenerated.
+    A mutant blind at d = −2 fails it.
+  - capture_dump input stall: both board tops send exactly one buffer. New test_capture_dump overfills it and
+    checks the extra words are held, plus the dump and CRC and a repeat dump. Planted bugs, all caught: tready
+    ignoring full, CRC without final XOR, read address off by one.
+- Runs: the first `make cov` (67 min) ended in the report crash above. The second was reaped under memory pressure
+  during sim-full. The merged data is its sim + sim-slow, a sim-full rerun (69 min), and a sim-slow rerun with
+  fs_slip_m2, all from the same RTL.
