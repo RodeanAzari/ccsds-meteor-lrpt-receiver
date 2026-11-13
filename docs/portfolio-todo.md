@@ -18,6 +18,18 @@
       Expect sync LOCKED, CADUs climbing to 298, FER 0.000 %, then [final] 10 s after the last CADU, and gs-view
       exits. The .cast is text; a GIF made from it (agg) must stay ≤ 8 MB.
 
+- [ ] **Demo video (you, 60–120 s; buildplan §11 demo video), the whole setup in action.** Requested 2026-11-13.
+      In frame together: the V-dipole, SAWbird+ and RTL-SDR V3, and the Arty with its Ethernet cable, all attached
+      to the laptop. On screen: the antenna picking up the pass (SatDump waterfall, or a live terminal or
+      dashboard view), the board and Ethernet processing it (`gs-view`: sync, CADU count, FER, the board's
+      counters), and the end result (the decoded image). Unlisted YouTube or a GitHub attachment, linked from the
+      README; never committed.
+      Open question, decide before filming: the receiver is built to replay recordings, so the planned cut is the
+      pass captured live, then that recording replayed into the board. A truly live chain (`rtl_sdr` streamed
+      through `gs-replay` during the pass) would need streaming input in gs-replay, and the coarse NCO estimate
+      before the first sample (ADR 0002, 0014). It isn't the "RF ADC into the FPGA" that §10 rules out, but it
+      isn't built either. Needs the real decode (Phases C–F on a recording) first.
+
 ## Phase E (whole receiver on the board)
 
 First decode on hardware, 2026-11-08: the synthetic recording replayed through `arty_rx_eth_top`, CADUs back over
