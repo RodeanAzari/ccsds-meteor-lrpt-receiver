@@ -695,6 +695,8 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make fuzz [FUZZ_S=60]` / `make fuzz-ci` | libFuzzer on both packet parsers / 30 s each |
 | `make ci` | lint-py, lint, model-test, sim, sim-slow, gs-test, gs-lint, fuzz-ci |
 | `make synthetic-iq` | Write the synthetic pass-like recording and its truth |
+| `make synth` / `make impl` | The receiver out of context (`rx_chain`) / the board top placed and routed (`arty_rx_eth_top`) |
+| `make reports TAG=<tag>` | Freeze every build's timing and utilization in `docs/reports/<tag>/`; refuses negative slack |
 | `make synth-ooc TOP=<top>` | Out-of-context synthesis and place & route, reports and CSV |
 | `make board [ILA=1]` / `make prog` | Board bitstream (optionally with the ILA) / program the Arty |
 | `make board-check` / `make ila-capture` | Read back and check the DDC output over UART / JTAG |
@@ -704,8 +706,9 @@ Prerequisites, with versions in [docs/toolchain.md](docs/toolchain.md):
 | `make plots` | Regenerate every plot from `data/results/` |
 
 `make ci` runs everything that doesn't need Vivado or the board, and [GitHub Actions](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml) runs it on every push in an `ubuntu:26.04` container, so its compiler, clang-tidy, cppcheck, CMake, Python and Verilator (v5.050, built from source) match the development machine. Vivado and the board are local only, and their reports and CSVs are committed with the RTL that
-produced them. `make sim-full`, `make cov` and `make formal` are local only. `synth`, `impl` and `reports` print "not implemented
-yet" and fail, rather than pretending.
+produced them. `make sim-full` and `make cov` are local only. `make formal` runs in
+[a weekly workflow](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/formal-weekly.yml)
+(and on demand) with the pinned oss-cad-suite.
 
 ## Repository layout
 

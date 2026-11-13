@@ -232,6 +232,12 @@ fuzz:
 	cd build/fuzz && ../gs-fuzz/space_packets_fuzz demux ../../gs/tests/data/demux -max_total_time=$(FUZZ_S) \
 		-max_len=65536 -print_final_stats=1
 
-# Fail loudly instead of pretending these work.
-synth impl reports:
-	@echo "make $@: not implemented yet (needs RTL or C++ from a later phase)" >&2; exit 1
+# Buildplan §6 names: the whole receiver out of context (synth) and on the board, placed and routed (impl).
+synth:
+	$(MAKE) synth-ooc TOP=rx_chain
+impl:
+	$(MAKE) board BOARD_TOP=arty_rx_eth_top
+
+# Milestone snapshot of every committed build's timing and utilization: make reports TAG=v0.5-first-real-decode.
+reports:
+	$(PY) scripts/snapshot_reports.py $(TAG)

@@ -272,6 +272,12 @@ make clean
 
 - `make lint sim formal model-test gs gs-test`
 - a 60 s fuzz run
+
+As built (decided 2026-11-13): `make ci` on every push holds everything above except `make formal`, which runs
+weekly and on demand (`.github/workflows/formal-weekly.yml`, about 28 min locally), like the 30-minute fuzz run.
+`make synth` is `make synth-ooc TOP=rx_chain`, `make impl` is `make board BOARD_TOP=arty_rx_eth_top`, and every
+build commits its reports to `docs/reports/{ooc,board}/<name>/`; `make reports TAG=<tag>` freezes a copy of them
+for a milestone and refuses negative slack.
 - clang-tidy, cppcheck and ruff clean
 
 **A broken CI gets fixed before anything else.**

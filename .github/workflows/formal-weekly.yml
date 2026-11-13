@@ -1,0 +1,52 @@
+name: Formal (weekly)
+
+# make formal (buildplan §8.3): the Viterbi path-metric bound (unbounded, 9 ghost-invariant tasks + hold), the
+# AXI4-Stream handshake rules on 17 blocks, and the frame sync FSM. About 28 min on the development machine; too
+# long for every push, so it runs weekly and on demand. The toolchain is the oss-cad-suite build pinned in
+# docs/toolchain.md (SymbiYosys, Yosys with the yosys-slang plugin, bitwuzla, abc). A failing task uploads its logs.
+
+on:
+  schedule:
+    - cron: "0 3 * * 3"  # Wednesdays 03:00 UTC (the fuzz run is Mondays)
+  workflow_dispatch:
+
+env:
+  OSS_CAD_SUITE: "2026-10-07"  # docs/toolchain.md
+
+jobs:
+  formal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install oss-cad-suite
+        run: |
+          v="${OSS_CAD_SUITE//-/}"
+          curl -fsSL -o /tmp/ocs.tgz \
+            "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/${OSS_CAD_SUITE}/oss-cad-suite-linux-x64-${v}.tgz"
+          tar -xzf /tmp/ocs.tgz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      - name: Report tool versions
+        run: |
+          cat "$HOME/oss-cad-suite/VERSION"
+          sby --version
+          yosys -V
+          nproc
+          free -g | head -2
+
+      - name: make formal
+        run: make formal
+
+      - name: Upload formal logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formal-logs
+          path: |
+            build/formal/*.log
+            build/formal/*/logfile.txt
+          if-no-files-found: ignore
