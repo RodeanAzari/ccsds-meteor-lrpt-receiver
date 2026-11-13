@@ -1218,7 +1218,8 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   properties next to the RTL are merged by `scripts/coverage_report.py` into `coverage.csv`. **73 / 73 bins hit**,
   loop lock states excluded (no loop lock detector; ADR 0002). docs/coverage.md lists bins and exclusions.
 - Deviation from buildplan §6/§8.2: Verilator's own coverage instead of cocotb-coverage, and the report goes to
-  `data/results/coverage.csv` (sidecar, interpretation) instead of `docs/reports/coverage/`. The bins sit in the
+  `data/results/coverage.csv` (sidecar, interpretation) instead of `docs/reports/coverage/` (buildplan updated to
+  match, 2026-11-13). The bins sit in the
   RTL beside the logic they observe, and the result follows the measurement rules.
 - Bugs/traps:
   - Report crashed on `g_cov_rs__BRA__*__KET__`. Cause: Verilator merges the covers of every generate-loop

@@ -233,7 +233,8 @@ targets not implemented yet.
 |---|---|
 | Vivado ML Standard (batch Tcl) | Synthesis, implementation, ILA |
 | Verilator | Lint, simulation |
-| cocotb + cocotb-coverage | Testbenches, coverage |
+| cocotb | Testbenches |
+| Verilator `--coverage-user` | Functional coverage: SVA `cover` bins in the RTL (§8.2) |
 | SymbiYosys | Formal on small blocks (§8.3) |
 | Python 3 (NumPy, SciPy, matplotlib, pytest) | Golden model, BER campaigns, plots |
 | C++20, CMake, GoogleTest, clang-tidy, cppcheck, libFuzzer | Ground station |
@@ -249,7 +250,7 @@ make setup         # .venv + pinned requirements.txt; git submodule update --ini
 make lint          # verilator --lint-only -Wall, zero warnings
 make sim           # fast cocotb regression (< 5 min)
 make sim-full      # long runs: full-pass sims, long BER sweeps in sim
-make cov           # coverage report → docs/reports/coverage/
+make cov           # coverage bins over sim, sim-slow, sim-full → data/results/coverage.csv
 make formal        # SymbiYosys (§8.3)
 make model-test    # pytest: golden model vs. CCSDS vectors and the committed IQ snippet
 make gs            # cmake build of ground-station tools (Release + Debug/ASan/UBSan)
@@ -306,6 +307,11 @@ make clean
   - backpressure per interface
 
   **Coverage closure means 100% of defined bins**, with a written justification for any exclusion.
+  The bins are `cov_*` SVA `cover` properties next to the RTL they observe, counted by Verilator
+  `--coverage-user` in every cocotb suite and merged by `scripts/coverage_report.py` into
+  `data/results/coverage.csv` (sidecar and interpretation as for any result). Exclusions and their justifications
+  live in `docs/coverage.md`; an exclusion whose bin gets hit fails the report. Indexed bins are one `cover` per
+  line: Verilator merges a generate loop's covers into one point.
 
 ### 8.3 Formal (SymbiYosys)
 
