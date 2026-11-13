@@ -1269,3 +1269,17 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   12.5: 36 LSB, 0.85 %; 16.6: 51 LSB, 3.9 %; 20.7: 64 LSB, 7.7 %. `-g 0` is the tuner AGC in rtl_sdr, not 0 dB
   (86 LSB, 25 % clipped). No narrowband spur over 5 dB in any capture: it's broadband noise. Starting gain for the
   first pass: 3.7 dB.
+
+## 2026-11-13: first real pass, not decodable
+
+- Pass: Meteor-M N2-4, 19:17–19:32 UTC, 64° max predicted (own SGP4 from SatDump's TLE, not cross-checked).
+  Recorded 19:14:55–19:34:00 UTC, gain 3.7 dB, bias tee on. File length matches the clock (1,145.2 s): no USB loss.
+  No sample at 0 or 255. Row in data/MANIFEST.md.
+- Waterfall (5 s rows): the signal shows at 137.9 MHz only from about 19:22 to 19:24 UTC, around the predicted peak,
+  at most 4.6 dB above a reference band at 137.5 MHz (100 kHz each). Several bursts raise the whole 1 MHz at once
+  (about 3, 5, 10 and 11–12.5 min in): cause unknown.
+- SatDump 1.2.2, `--freq_shift -150000 --dc_block` (the command that decodes the synthetic recordings): 72k pipeline
+  Viterbi NOSYNC throughout, peak SNR 0.34 dB; 80k pipeline NOSYNC, peak SNR 1.0 dB. Zero CADUs.
+- So the capture chain works (rate, format, no losses, tuning lands the signal at +150 kHz), but the received signal
+  is far too weak. Suspects: antenna siting and orientation, the interference bursts. The recording is not usable for
+  Phase 0; the next pass needs a better antenna setup.
