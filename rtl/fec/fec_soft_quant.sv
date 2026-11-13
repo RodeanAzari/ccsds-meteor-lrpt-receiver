@@ -48,6 +48,12 @@ module fec_soft_quant #(
         else if (s_tvalid_i && m_tready_i)  odd_q <= ~odd_q;
     end
 
+`ifndef SYNTHESIS
+    // Coverage bins (make cov, docs/coverage.md): backpressure on each interface.
+    cov_bp_s: cover property (@(posedge clk_i) disable iff (rst_i) s_tvalid_i && !s_tready_o);
+    cov_bp_m: cover property (@(posedge clk_i) disable iff (rst_i) m_tvalid_o && !m_tready_i);
+`endif
+
 endmodule
 
 `default_nettype wire

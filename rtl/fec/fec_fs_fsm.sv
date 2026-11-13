@@ -225,6 +225,38 @@ module fec_fs_fsm #(
     a_judge_due: assert property (@(posedge clk_i) disable iff (rst_i) inv_judge);
     a_misses:    assert property (@(posedge clk_i) disable iff (rst_i) misses_q <= 5'd15);  // the 5-bit count never wraps
     a_outputs:   assert property (@(posedge clk_i) disable iff (rst_i) inv_out);
+
+`ifndef FORMAL  // simulation coverage only (fec_fs_fsm.sby has its own covers); slang takes no array element here
+    // Coverage bins (make cov, docs/coverage.md): states and transitions, each hypothesis winning.
+    cov_fsm_confirm:   cover property (@(posedge clk_i) disable iff (rst_i) en_i && confirm && !qearly_q[0]);  // SEARCH -> LOCK, two frames
+    cov_fsm_early:     cover property (@(posedge clk_i) disable iff (rst_i) en_i && confirm && qearly_q[0]);   // SEARCH -> LOCK, first frame early
+    cov_fsm_due_miss:  cover property (@(posedge clk_i) disable iff (rst_i) en_i && verify_due && !confirm);   // SEARCH: a due peak fails
+    cov_fsm_drop:      cover property (@(posedge clk_i) disable iff (rst_i) en_i && drop);                     // SEARCH: queue full
+    cov_fsm_hold:      cover property (@(posedge clk_i) disable iff (rst_i) en_i && judge && found && !slip);  // LOCK -> LOCK on time
+    cov_fsm_fly:       cover property (@(posedge clk_i) disable iff (rst_i) en_i && judge && !found && !lose); // LOCK -> LOCK, flywheel
+    cov_fsm_lose:      cover property (@(posedge clk_i) disable iff (rst_i) en_i && lose);                     // LOCK -> SEARCH
+    // One cover per line: Verilator merges a generate loop's covers into one point. A bin past a parameter's range
+    // (CANDIDATES 4, SLIP 2, HYPS 4) is never hit and fails make cov loudly.
+`define COV_QUEUE(n)      cov_fsm_queue_``n: cover property (@(posedge clk_i) disable iff (rst_i) !locked_q && qcount_q == QW'(n));
+`define COV_SLIP(name, d) cov_fsm_slip_``name: cover property (@(posedge clk_i) disable iff (rst_i) en_i && judge && slip && !lose && asm_pos == exp_q + POS_BITS'(d));
+`define COV_HYP(h)        cov_hyp_win_``h: cover property (@(posedge clk_i) disable iff (rst_i) en_i && confirm && qhyp_q[0] == HW'(h));
+    `COV_QUEUE(1)
+    `COV_QUEUE(2)
+    `COV_QUEUE(3)
+    `COV_QUEUE(4)
+    `COV_SLIP(m2, -2)
+    `COV_SLIP(m1, -1)
+    `COV_SLIP(0, 0)  // same position, another hypothesis
+    `COV_SLIP(p1, 1)
+    `COV_SLIP(p2, 2)
+    `COV_HYP(0)
+    `COV_HYP(1)
+    `COV_HYP(2)
+    `COV_HYP(3)
+`undef COV_QUEUE
+`undef COV_SLIP
+`undef COV_HYP
+`endif
 `endif
 
     assign locked_o  = locked_q;

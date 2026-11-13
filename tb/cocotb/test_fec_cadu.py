@@ -22,7 +22,7 @@ from tb_common.axis import AxisBeat, AxisSink, AxisSource
 from model.cadu_fixed import CaduOut
 from model.coding import CADU_BITS, build_cadus, frame_to_cadu, nrzm_encode
 
-FRAMES = 6
+FRAMES = 9
 WRITEBACK = os.environ.get("PARAM_RS_WRITEBACK", "1") != "0"  # tb/cocotb/run.py parameter set
 
 
@@ -33,7 +33,8 @@ def _frames(seed: int) -> list[tuple[np.ndarray, tuple[bool, bool, bool]]]:  # t
     out = []
     # (byte errors per codeword, ASM bit flips)
     patterns = [((0, 0, 0, 0), 0), ((1, 5, 16, 17), 3), ((16, 16, 16, 16), 0), ((17, 0, 30, 2), 32),
-                ((0, 0, 0, 0), 1), ((3, 3, 3, 3), 0)]
+                ((0, 0, 0, 0), 1), ((3, 3, 3, 3), 0), ((4, 6, 7, 8), 0), ((9, 10, 11, 12), 2),
+                ((13, 14, 15, 4), 0)]
     for f in range(FRAMES):
         frame = on_air[f].copy()
         if f == 4:
@@ -97,9 +98,9 @@ async def _run(dut: Any, name: str, frames: list[Any], p_valid: float, p_ready: 
 async def cadus_and_status_match_the_model(dut: Any) -> None:
     frames = _frames(21)
     statuses = [_expected(b, f)[1] for b, f in frames]
-    # The stimulus spans every RS outcome: clean, corrected, at the limit (16) and failed codewords.
+    # The stimulus spans every RS outcome: every correction count 0..16 and failed codewords (make cov's RS bins).
     fields = [(s >> (9 + 6 * c)) & 0x3F for s in statuses for c in range(4)]
-    assert {0, 5, 16, 0x20} <= set(fields)
+    assert set(range(17)) | {0x20} <= set(fields)
     await _run(dut, "cadu_model", frames, 0.8, 0.7)
     assert int(dut.len_err_o.value) == 0
 

@@ -224,6 +224,17 @@ module fec_acs_array #(
     end
 `endif
 
+`ifndef FORMAL  // simulation coverage only; Yosys's parser takes no module-level cover property
+    // Coverage bin (make cov, docs/coverage.md): the modulo metrics' counterpart of a normalization event, a metric
+    // wrapping past 2^PM_BITS.
+    logic cov_wrap;
+    always_comb begin
+        cov_wrap = 1'b0;
+        for (int s = 0; s < N_STATES; s++) if (pm_q[s][PM_BITS-1] && !pm_d[s][PM_BITS-1]) cov_wrap = 1'b1;
+    end
+    cov_vit_wrap: cover property (@(posedge clk_i) disable iff (rst_i) s_tvalid_i && s_tready_o && cov_wrap);
+`endif
+
     // A metric changes only on an input handshake, so stalls add no metric values: the spread checks may step every
     // clock (fec_acs_array.sby, tasks bmc4/step and hold). Task hold proves it; the ghost tasks leave it out.
 `ifndef ACS_GHOST

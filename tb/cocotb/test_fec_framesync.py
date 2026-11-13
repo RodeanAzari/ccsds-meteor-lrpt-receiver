@@ -84,6 +84,13 @@ async def timing_slip_forward_two(dut) -> None:
 
 
 @test()
+async def timing_slip_back_two(dut) -> None:
+    """Two dropped samples: every later ASM two symbols early (d = -2, the other edge of the slip window)."""
+    s = np.delete(stream(6, 3), [2 * F + 5000, 2 * F + 5001])
+    await run_framesync(dut, "fs_slip_m2", symbols(s), 0.9, 0.8)
+
+
+@test()
 async def slip_search_prefers_minus_one_over_plus_one(dut) -> None:
     """ASM-like peaks at e - 1 and e + 1 and none at e: the -1 one is followed, as in the model (nearest first, then
     earlier)."""

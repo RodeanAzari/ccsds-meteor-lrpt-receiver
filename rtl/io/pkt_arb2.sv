@@ -66,6 +66,13 @@ module pkt_arb2 (
         m_tvalid_o && !m_tready_i |=> m_tvalid_o && $stable(m_tdata_o) && $stable(m_tlast_o));
 `endif
 
+`ifndef SYNTHESIS
+    // Coverage bins (make cov, docs/coverage.md): backpressure on each interface.
+    cov_bp_s0: cover property (@(posedge clk_i) disable iff (rst_i) s0_tvalid_i && !s0_tready_o);
+    cov_bp_s1: cover property (@(posedge clk_i) disable iff (rst_i) s1_tvalid_i && !s1_tready_o);
+    cov_bp_m: cover property (@(posedge clk_i) disable iff (rst_i) m_tvalid_o && !m_tready_i);
+`endif
+
 endmodule
 
 `default_nettype wire

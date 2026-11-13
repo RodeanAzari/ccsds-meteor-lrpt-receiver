@@ -67,6 +67,16 @@ sim-slow:
 sim-full:
 	$(PY) tb/cocotb/run.py --full
 
+# Functional coverage closure (buildplan §8.2): every cocotb suite (sim, sim-slow, sim-full) built with the cov_* cover
+# properties counted, then scripts/coverage_report.py: every bin hit or excluded in docs/coverage.md;
+# data/results/coverage.csv. Local only (sim-full is long).
+cov:
+	rm -f build/sim/*/coverage.dat
+	COV=1 $(PY) tb/cocotb/run.py
+	COV=1 $(PY) tb/cocotb/run.py --slow
+	COV=1 $(PY) tb/cocotb/run.py --full
+	$(PY) scripts/coverage_report.py
+
 # Record the DDC RTL's bit-exactness and throughput in data/results/ddc_rtl_sim.csv.
 ddc-rtl-results:
 	WRITE_RESULTS=1 $(PY) tb/cocotb/run.py test_ddc_top
@@ -223,5 +233,5 @@ fuzz:
 		-max_len=65536 -print_final_stats=1
 
 # Fail loudly instead of pretending these work.
-cov synth impl reports:
+synth impl reports:
 	@echo "make $@: not implemented yet (needs RTL or C++ from a later phase)" >&2; exit 1

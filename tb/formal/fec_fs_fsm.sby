@@ -19,7 +19,7 @@ smtbmc bitwuzla
 
 [script]
 plugin -i slang
-read_slang -U SYNTHESIS --top fec_fs_fsm_fv fec_fs_fsm.sv fec_fs_fsm_fv.sv
+read_slang -U SYNTHESIS -D FORMAL --top fec_fs_fsm_fv fec_fs_fsm.sv fec_fs_fsm_fv.sv
 prep
 
 [files]

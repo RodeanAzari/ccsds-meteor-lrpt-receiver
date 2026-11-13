@@ -205,6 +205,37 @@ module fec_cadu #(
         end
     end
 
+`ifndef SYNTHESIS
+    // Coverage bins (make cov, docs/coverage.md): each RS outcome on any codeword, 0..16 corrected or uncorrectable.
+    // One cover per line: Verilator merges a generate loop's covers into one point.
+`define COV_RS(e) cov_rs_corrected_``e: cover property (@(posedge clk_i) disable iff (rst_i) rs_m_valid && rs_m_last && !rs_m_user[RS_CNT] && rs_m_user[RS_CNT-1:0] == RS_CNT'(e));
+    `COV_RS(0)
+    `COV_RS(1)
+    `COV_RS(2)
+    `COV_RS(3)
+    `COV_RS(4)
+    `COV_RS(5)
+    `COV_RS(6)
+    `COV_RS(7)
+    `COV_RS(8)
+    `COV_RS(9)
+    `COV_RS(10)
+    `COV_RS(11)
+    `COV_RS(12)
+    `COV_RS(13)
+    `COV_RS(14)
+    `COV_RS(15)
+    `COV_RS(16)
+`undef COV_RS
+    cov_rs_fail: cover property (@(posedge clk_i) disable iff (rst_i) rs_m_valid && rs_m_last && rs_m_user[RS_CNT]);
+`endif
+
+`ifndef SYNTHESIS
+    // Coverage bins (make cov, docs/coverage.md): backpressure on each interface.
+    cov_bp_s: cover property (@(posedge clk_i) disable iff (rst_i) s_tvalid_i && !s_tready_o);
+    cov_bp_m: cover property (@(posedge clk_i) disable iff (rst_i) m_tvalid_o && !m_tready_i);
+`endif
+
 endmodule
 
 `default_nettype wire
