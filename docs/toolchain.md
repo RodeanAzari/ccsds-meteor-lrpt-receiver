@@ -18,4 +18,4 @@ Versions marked "installed" were read from the machine on 2026-11-02. `[TBD]` me
 | clang, clang-format, clang-tidy (libFuzzer ships with clang) | 21.1.8 (Ubuntu 21.1.8-6ubuntu1) | WSL Ubuntu 26.04, apt | Installed 2026-11-05; `make gs-lint`. libFuzzer: `make fuzz` (board packet parsers, space packet demux; 30 s each in `make ci`, 30 min weekly in `.github/workflows/fuzz-weekly.yml`); its runtime is apt `libclang-rt-dev`, not pulled in by `clang` without recommends |
 | cppcheck | 2.19.0 | WSL Ubuntu 26.04, apt | Installed 2026-11-05; `make gs-lint` |
 | SymbiYosys, Yosys, bitwuzla | SBY v0.69, Yosys 0.69+208, bitwuzla 0.9.1 | oss-cad-suite 20261007, `~/.local/opt/oss-cad-suite` | Working 2026-11-06; `make formal`. CI: weekly, `.github/workflows/formal-weekly.yml`, same build from GitHub |
-| rtl_sdr | `[TBD]` | — | Not installed |
+| rtl_sdr, rtl_test, rtl_biast | rtl-sdr 2.0.2-2build1 (Ubuntu package). Its `rtl_sdr` has no `-T` bias-tee option: turn the bias tee on with `rtl_biast -b 1` | WSL Ubuntu 26.04, apt; dongle attached with usbipd-win | Installed 2026-11-13; device not yet tested |
