@@ -1238,3 +1238,16 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - Runs: the first `make cov` (67 min) ended in the report crash above. The second was reaped under memory pressure
   during sim-full. The merged data is its sim + sim-slow, a sim-full rerun (69 min), and a sim-slow rerun with
   fs_slip_m2, all from the same RTL.
+
+## 2026-11-13: make synth / impl / reports; formal weekly in GitHub Actions
+
+- Decisions (user): `make synth` = `synth-ooc TOP=rx_chain`, `make impl` = `board BOARD_TOP=arty_rx_eth_top`;
+  `make reports TAG=<tag>` freezes every committed build's summary, timing and utilization in
+  `docs/reports/<tag>/` and refuses negative slack. `make formal` runs weekly and on demand
+  (`.github/workflows/formal-weekly.yml`, oss-cad-suite 2026-10-07), not on every push. Buildplan §6 updated.
+- `make synth` reran rx_chain OOC: WNS +0.629 ns, reports identical but for dates, so the coverage bins (under
+  `ifndef SYNTHESIS`) change no netlist. `make impl` not rerun (same target as the committed board build).
+- First GitHub formal run (workflow_dispatch, 4-core runner, 7 GB): every task PASS in 26 min (run 43376053990).
+- `make reports` checks: missing tag, bad tag, existing snapshot, planted WNS −0.012 ns: each refused.
+- No snapshots for v0.1-ddc and v0.4-rs: the reports in the tree are from later RTL, so a copy now would mislabel
+  them. Snapshots start with the next milestone.
