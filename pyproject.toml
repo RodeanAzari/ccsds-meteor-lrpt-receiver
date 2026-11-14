@@ -12,4 +12,4 @@ strict = true
 packages = ["model"]
 
 [tool.pytest.ini_options]
-testpaths = ["model/tests", "scripts/tests"]
+testpaths = ["model/tests", "scripts/tests", "analysis/tests"]
