@@ -2,7 +2,10 @@
 
 ## Phase 0 (needs the capture kit)
 
-- [ ] Photo: V-dipole antenna setup, showing orientation and clear sky
+- [x] Photo: V-dipole antenna setup, showing orientation and clear sky (2026-11-14 pass,
+      `docs/media/2026-11-14_phase-0_antenna-setup.webp`, in the README under Architecture)
+- [ ] Photo (you): the whole setup in one frame: V-dipole, SAWbird+ and RTL-SDR, laptop, and the Arty on its
+      Ethernet cable
 - [ ] Screenshot: SatDump waterfall during your own pass
 - [ ] Image: SatDump's decoded image from that pass
 

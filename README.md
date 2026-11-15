@@ -14,8 +14,8 @@ recording, **every CADU the board decoded matches a sent frame (298 / 298, 15 / 
 and **all 258 frames SatDump decoded are bit-identical to the board's**. The space packets the ground station
 recovers from the board's output equal the golden model's and SatDump's. Hardware BER before RS is 0.12–0.36 dB from
 the model; after RS, 0 errors from 3 dB up. Every RTL block is bit-exact against a Python bit-true model, which in
-turn matches the float model and BER theory. **No real satellite recording has been decoded yet**; the capture kit
-arrives around 2026-11-25.
+turn matches the float model and BER theory. **No real satellite recording has been decoded yet**: own passes are being
+recorded since 2026-11-13 ([MANIFEST](data/MANIFEST.md)), none decodable so far.
 
 Every number below comes from a CSV in [`data/results/`](data/results/) or a report in
 [`docs/reports/`](docs/reports/), produced by a `make` target. Each CSV has a sidecar `.md` with the commit,
@@ -37,7 +37,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Target signal** | Meteor-M N2-4 LRPT, 72k mode: OQPSK, 72 ksym/s, conv K=7 r½, NRZ-M, CCSDS randomizer, RS(255,223) interleave 4. Parameters read from SatDump 1.2.2's source ([signal-spec.md](docs/signal-spec.md)) |
 | **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → AGC → Costas + Farrow/Gardner → encoded-ASM frame sync → Viterbi → NRZ-M → derandomizer → RS×4, **all in RTL and all on the board**, fed over 100 Mb/s Ethernet and sending CADUs and stats back. The host computes a coarse carrier estimate and loads it into the NCO ([ADR 0002](docs/decisions/0002-oqpsk-timing.md), [ADR 0014](docs/decisions/0014-control-commands.md)) |
 | **Whole receiver on the board** | **15 / 15 replays: 298 CADUs each, every one matching a sent frame** on its 892 data bytes, asked at 1×, 5× and 5.6× real time over Ethernet, synthetic recording (8 dB); no RS correction needed, every datagram placed in order by the ingest's reorder buffer ([board_rx_eth.csv](data/results/board_rx_eth.csv)). 13,682 LUT (21.6%), 100 MHz met, WNS +0.256 ns ([board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv)) |
-| **Real passes decoded** | 0. No recording yet; capture kit arrives about 2026-11-25 |
+| **Real passes decoded** | 0. Own passes recorded since 2026-11-13, none decoded yet ([MANIFEST](data/MANIFEST.md)) |
 | **CADU match vs. SatDump** | Synthetic recording: SatDump decoded 258 / 295 / 226 of 300 frames in three runs, **every decoded frame matching** ([satdump_crosscheck.csv](data/results/satdump_crosscheck.csv)). Real pass: `[TBD]` |
 | **DDC on the board** | **16,384 / 16,384 outputs bit-exact** vs. the model, over UART ([ddc_board.csv](data/results/ddc_board.csv)) and again over JTAG/ILA ([ddc_board_ila.csv](data/results/ddc_board_ila.csv)); **fed over Ethernet by `gs-replay`, 38 of 40 replays bit-exact at 1×, 5× and 5.6× real time**; the other 2 arrived with datagrams reordered before the board, as its own counters show ([ddc_board_eth.csv](data/results/ddc_board_eth.csv)); 100 MHz, synthetic input |
 | **DDC throughput** | 9.0 clocks per input sample: **10.8× real time** at 100 MHz, RTL simulation ([ddc_rtl_sim.csv](data/results/ddc_rtl_sim.csv)) |
@@ -105,6 +105,12 @@ flowchart LR
 
 Every block is built, bit-exact against the model in simulation, and running on the board; the BRAM ROM path was the
 Phase B bring-up. What is not verified yet is any of it on a real recording.
+
+[<img src="docs/media/2026-11-14_phase-0_antenna-setup.webp" width="400" alt="V-dipole antenna on a chair in an open field, cabled to a laptop, recording a Meteor-M N2-4 pass">](docs/media/2026-11-14_phase-0_antenna-setup.webp)
+
+*The capture side during the 2026-11-14 Meteor-M N2-4 pass: a V-dipole on a chair in an open field, its feed running
+to the laptop through the SAWbird+ NOAA LNA and an RTL-SDR Blog V3, recording at 1.024 MS/s. A photo of the whole
+chain, antenna to laptop to Arty over Ethernet, is still to come.*
 
 - **Clocking:** the datapath is one 100 MHz domain from the MMCM. The DDC needs 9.0 clocks per sample against 97.7
   available at 1.024 MS/s. The one data crossing is the PHY's 25 MHz MII receive clock into the core, through
