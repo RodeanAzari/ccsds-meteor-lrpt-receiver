@@ -1283,3 +1283,20 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - So the capture chain works (rate, format, no losses, tuning lands the signal at +150 kHz), but the received signal
   is far too weak. Suspects: antenna siting and orientation, the interference bursts. The recording is not usable for
   Phase 0; the next pass needs a better antenna setup.
+
+## 2026-11-14: second real pass, no signal (logged 2026-11-15)
+
+- Pass: Meteor-M N2-4, 18:55–19:10 UTC, 41.5° max predicted. Open grass field, V-dipole on a chair, laptop beside it
+  (photo in the README). Recorded by the session itself: `rtl_biast -b 1`, then
+  `rtl_sdr -f 137750000 -s 1024000 -g 12.5`, 18:49:17–19:11:30 UTC (file birth to stop), 1,333.2 s, length matches
+  the clock. Gain raised from 3.7 to 12.5 dB after the 11-13 pass; rms of I ~50 (17 at 3.7 dB), 1.4–2.7% of
+  samples at 0 or 255. Row in data/MANIFEST.md.
+- `capture_quicklook time`: the 137.9 MHz band sits 2–4 dB below the 137.5 MHz reference throughout; no rise around
+  the predicted peak. Spectrum every 2 min (scratch survey, 16 kHz bins): a ~100 kHz-wide hump 4–5 dB over the
+  median, its centre drifting between about −390 and −120 kHz from the tuning (137.36–137.63 MHz), present from the
+  first to the last minute. Doppler is ±3.4 kHz and the pass is 15 min, so it is not Meteor: local interference.
+- SatDump `meteor_m2-x_lrpt --freq_shift -150000 --dc_block`: NOSYNC, peak SNR 0.0 dB, 0 CADUs. It prints v1.2.3
+  but is the same package as on 11-13 (`1.2.2+gb79af48-2`), not an upgrade.
+- Two passes, nothing decodable. Still open: whether N2-4 transmits at all now (72k/80k, 137.9 MHz), the local noise
+  sources (charger, laptop near the antenna), and the 12.5 dB gain clipping. The whole-setup photo for the README
+  is still to take.
