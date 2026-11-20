@@ -1300,3 +1300,17 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - Two passes, nothing decodable. Still open: whether N2-4 transmits at all now (72k/80k, 137.9 MHz), the local noise
   sources (charger, laptop near the antenna), and the 12.5 dB gain clipping. The whole-setup photo for the README
   is still to take.
+
+## 2026-11-20: N2-4 was transmitting during both of our passes (Phase 0)
+
+- SatNOGS Network API (`/api/observations/?norad_cat_id=59051`), queried 2026-11-20: N2-4 LRPT on 137.9 MHz,
+  many "good" observations a day, several with the signal in the waterfall and MSU-MR images decoded.
+- During our passes: 2026-11-13 19:17 UTC, KB9LEB decoded MSU-MR (same pass as our 19:14–19:34 recording);
+  2026-11-14 18:57 UTC, B1LL decoded MSU-MR and KB9LEB's waterfall has the signal (our recording 18:49–19:11).
+- So the satellite was on 137.9 MHz while we recorded. The 11-14 null (and the weak 11-13 signal) is our RF
+  setup or site, not the satellite. Still open: which part (antenna, coax/SMA, SAWbird+, local interference: the
+  drifting hump at 137.36–137.63 MHz, clipping at 12.5 dB). The mode (72k vs. 80k) isn't confirmed from SatNOGS;
+  SatDump's satellite list gives 72k as the normal mode.
+- Public-recording fallback, searched: no downloadable N2-4 72k IQ found. Kishore-T20/meteor-m2-4-cf32-dataset
+  has only a README; gdamdam's 2026-09-23 pass (2 MS/s cs16, 137.5 MHz centre, SDRplay, 3,796 frames in SatDump
+  1.2.2) is kept off-line, with only its checksum and logs public.
