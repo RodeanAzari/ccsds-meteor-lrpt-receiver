@@ -32,8 +32,12 @@ def write_result(
     seed: str,
     command: str | None = None,
     tools: str = "",
+    recording: str | None = None,
 ) -> Path:
-    """`command` overrides the analysis-module command line (e.g. for a cocotb run); `tools` adds to the versions."""
+    """`command` overrides the analysis-module command line (e.g. for a cocotb run); `tools` adds to the versions.
+
+    `recording` names a real input (its data/MANIFEST.md row) instead of the synthetic `seed`.
+    """
     RESULTS.mkdir(parents=True, exist_ok=True)
     path = RESULTS / f"{name}.csv"
     with path.open("w", newline="") as f:
@@ -49,12 +53,15 @@ def write_result(
         command = " ".join(["python", "-m", Path(sys.argv[0]).stem, *sys.argv[1:]]) + "` (module in `analysis/`)"
     else:
         command += "`"
+    input_line = (
+        f"real recording `{recording}` (data/MANIFEST.md)." if recording else f"synthetic, {seed}. No real recording."
+    )
     path.with_suffix(".md").write_text(
         f"# {name}\n\n"
         f"- **Commit:** `{_commit()}`\n"
         f"- **Command:** `{command}\n"
         f"- **Tools:** {versions}\n"
-        f"- **Input:** synthetic, {seed}. No real recording.\n\n"
+        f"- **Input:** {input_line}\n\n"
         f"{interpretation}\n"
     )
     print(f"wrote {path.relative_to(ROOT)}")
