@@ -7,11 +7,15 @@
 
 **Status of the evidence:**
 
-- **Read:** taken from SatDump source. Not yet exercised on a real signal.
+- **Read:** taken from SatDump source. Exercised together on a real signal (see below), not one by one.
 - **Computed:** also checked by `scripts/verify_signal_spec.py`.
-- **Open:** SatDump doesn't fix this value. It has to be measured from a recording.
+- **Measured:** SatDump doesn't fix this value; it was measured on a recording.
 
-Nothing here has been confirmed on a real recording yet. That is the remaining Phase 0 work.
+**Confirmed on a real recording (2026-11-21 pass, data/MANIFEST.md):** the float model, built from this file, decodes
+5,583 frames of the pass, and the 4,557 it shares with SatDump are equal in every data byte
+(`data/results/real_pass_model.csv`; `model/tests/test_real_snippet.py` on the committed snippet). A wrong coding
+value (conv code and output order, NRZ-M, frame, PN, RS) fails RS or the comparison; mutants planted in three of
+them were caught by that test. The analog values (symbol rate, RRC roll-off) are shown to work, not to be exact.
 
 ## Parameters
 
@@ -31,7 +35,7 @@ Nothing here has been confirmed on a real recording yet. That is the remaining P
 | Reed-Solomon | RS(255,223), poly 0x187, FCR 112, root spacing 11, 32 roots | Read | `reedsolomon.cpp:32`, `libs/correct/correct.h:180` |
 | RS interleave | Depth 4: codeword *b* byte *n* is at offset `n*4 + b` from byte 4 | Read | `pipelines/Meteor-M.json:195`, `reedsolomon.cpp:145` |
 | **RS basis** | **Conventional.** No dual-basis conversion for this pipeline. | Read | `pipelines/Meteor-M.json:196` |
-| Which rail leads, and which carries G1 | **Open.** See below. | Open | `viterbi_1_2.cpp`, `Viterbi1_2::work` |
+| Which rail leads, and which carries G1 | **The leading rail carries G1:** each G1 symbol goes out half a symbol before its G2 partner. Which of I or Q that is depends on the 90° carrier ambiguity. | Measured | `data/results/real_pass_model.csv` (`swap1_rs_good=0`) |
 
 `rs_dualbasis` defaults to `true` in the decoder module. Only the pipeline's explicit `false` makes it conventional.
 
@@ -72,8 +76,11 @@ It keeps the lowest BER under a threshold of 0.300, and declares loss after more
 
 180° and 270° aren't searched because NRZ-M decoding removes bit inversion, so 180° needs no correction.
 
-**Open:** because SatDump searches, its source doesn't say which rail leads on the air or which rail carries G1. Measure
-both on a recording in Phase A, and record the winning hypothesis here.
+**Measured (2026-11-21 pass):** SatDump's search hides which rail leads and which carries G1, so this came from a
+recording. Every RS-good frame the model decoded won with swap = 0: in the time-ordered serial stream each G1 symbol
+comes before its G2 partner, so the leading rail carries G1. The rotation hypothesis (0° or 90°) changes from one
+cold start to the next: which physical rail (I or Q) leads is the carrier's phase ambiguity, not a property of the
+signal. The search over {0°, 90°} stays; the swap hypotheses never won on this signal.
 
 ## SatDump demodulator, for reference
 
@@ -97,9 +104,9 @@ moved there from CLAUDE.md with the same numbers) and CLAUDE.md §12 haven't bee
 | # | Build plan | SatDump 1.2.2 | Consequence |
 |---|---|---|---|
 | 1 | No differential decoder in §3 | NRZ-M is on | **Add an NRZ-M block between Viterbi and the ASM check**, and NRZ-M encode in the §8.1 modulator. Without it no ASM ever matches. |
-| 2 | §3.5: correlate against one encoded ASM pattern, 4 rotations | Two complementary patterns, rotations {0°, 90°} | Correlate on absolute value with {0°, 90°} × swap × shift. Confirm on a recording in Phase A. |
+| 2 | §3.5: correlate against one encoded ASM pattern, 4 rotations | Two complementary patterns, rotations {0°, 90°} | Correlate on absolute value with {0°, 90°} × swap × shift. Confirmed on the 2026-11-21 recording (swap never wins). |
 | 3 | §3.7: dual-basis conversion is possible | Conventional | Drop the `[dual-basis conv]` stage in §3. |
-| 4 | §3.4: delay I | SatDump delays Q | Not a contradiction yet. It depends on the Open item above. |
+| 4 | §3.4: delay I | SatDump delays Q | Not a contradiction: which physical rail leads is the 90° carrier ambiguity (Phase ambiguity, measured). |
 | 5 | §3: timing, then carrier | Carrier, then timing | The model shows timing first fails on OQPSK. Carrier first, with a coarse estimate before it: ADR 0002. |
 | 6 | §8.5: 100% bit-exact CADUs | SatDump doesn't correct every byte it writes | See below. |
 
