@@ -1338,3 +1338,32 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   Open does nothing without zenity, and a typo'd samplerate (10.24 MS/s) gives two fake narrow lines and NOSYNC.
 - The setup photo suggests the dipole legs were longer than 53 cm (fully extended?); to measure before the next pass.
 - Next: confirm the spec on this recording (buildplan Phase 0), commit a < 5 MB snippet from the peak, run the model.
+
+## 2026-11-21 (evening): float model decodes the real pass, spec confirmed (Phase 0, Phase A)
+
+- `analysis/real_pass_study.py` on `2026-11-21T1943Z_meteor-m2-4_part2.cu8`, 240–1350 s (19:41:51–20:00:33 UTC),
+  30 s chunks overlapping 2 s, each from a cold start, frames merged by (VCID, counter): **5,583 frames with every RS
+  codeword good; SatDump 4,583; 4,557 in common, all equal on the 892 data bytes, 0 different**
+  (`real_pass_model.csv`).
+- Differences, placed by counter (scratch run of the study's `decode_chunk`): 946 model-only frames come before
+  SatDump's first (19:45:35 to ~19:48:10, SatDump not yet synced); 80 model-only fall in SatDump's gaps in the fade
+  at 19:56–19:57; the 26 SatDump-only are in the same fade, where the model's RS fails.
+- Carrier after the 150 kHz tuning offset: −350 Hz to −6.4 kHz, centred near −3.4 kHz. Soft SNR ~14 dB at 19:50,
+  falling to 7.5 dB within 30 s (raw power −6.2 to −11.5 dBFS over the same 30 s).
+- **Bug:** symptom: the first study run (before this session) decoded 201 of 263 frames in the 19:50:15 chunk, at
+  the pass peak; root cause: the soft stream was normalized by one mean over the 30 s run, and the signal fell to
+  0.69 of that mean, so the correlation peak dropped under frame sync's threshold (0.75 of the ideal peak) for the
+  last 7 s; fix: a running mean of |soft| over one coded frame (`serial_soft`), regression test with a 12 dB fade.
+  The chunk now gives 263/263. The RTL frame sync normalizes locally already (ADR 0010).
+- **Spec, rail/G1 (signal-spec.md):** every RS-good frame won with swap = 0: each G1 symbol is sent half a symbol
+  before its G2 partner, so the leading rail carries G1. The rotation hypothesis alternates between cold starts (the
+  90° carrier ambiguity). Recorded in the spec as Measured.
+- Snippet committed: `data/samples/2026-11-21T195100Z_meteor-m2-4_2.4s.cu8` (19:51:00, 2.4 s, 4.9 MB) plus SatDump's
+  20 frames there. `test_real_snippet.py` (11 s): exactly those 20 frames, data equal, RS good, swap = 0. Planted:
+  G2 before G1 (caught only by the swap check), NRZ-M removed, RS not interleaved: all caught.
+- SatDump on short cuts of the same recording writes no frames for about the first 25 s: 2.4 s → 0 CADUs, 10 s → 0,
+  30 s → 40, 60 s → 304. Not investigated; the snippet's truth comes from the full-recording decode.
+- `.gitattributes` now marks `*.cu8` and `*.cadu` binary: `text=auto eol=lf` only left the snippet alone because Git's
+  heuristic happened to call it binary (blob SHA-256 checked equal).
+- Next: the bit-true model on the recording (fixed-point DDC → sync → frame sync), then the RTL in simulation on the
+  snippet, then a board replay of the pass through `gs-rx` and `gs-diff`.
