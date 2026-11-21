@@ -1314,3 +1314,27 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - Public-recording fallback, searched: no downloadable N2-4 72k IQ found. Kishore-T20/meteor-m2-4-cf32-dataset
   has only a README; gdamdam's 2026-09-23 pass (2 MS/s cs16, 137.5 MHz centre, SDRplay, 3,796 frames in SatDump
   1.2.2) is kept off-line, with only its checksum and logs public.
+
+## 2026-11-21: first real decode, Meteor-M N2-4 (Phase 0)
+
+- Pass 19:43–19:59 UTC, 75.7° max predicted (CelesTrak TLE, epoch 2026-11-21 12:54 UTC). Field site, V-dipole on a
+  ~1 m pole, laptop on battery, phone hotspot off (airplane mode) during the recording.
+- Bench check first: antenna off SAWbird IN drops the noise from 15.6 to 0.7 LSB at 8.7 dB (dongle floor), so the
+  antenna path delivers RF and the SAWbird is powered the right way round. On site the noise at 8.7 dB was 2.5–2.9 LSB
+  (14 indoors); gain chosen 29.7 dB (21.4 LSB, 0% clipping).
+- Bug: the dongle dropped out of WSL at ~19:30:34 UTC (vhci_hcd disconnect), shortly after opening a new WSL window
+  (wt.exe → wsl.exe); `rtl_sdr` hung instead of exiting. Cause not established. Fix for the pass: `usbipd attach
+  --auto-attach` detached, plus `~/recordings/rec_loop.sh` (restarts `rtl_sdr` into a new part file after 6 s without
+  growth). Restarted 19:37:51 UTC; no further drops.
+- `capture_quicklook time` (30 s rows): 137.9 MHz band rises from ~0 dB to +20–22 dB over the 137.5 MHz reference at
+  19:50–19:53 UTC, back to ~2 dB by 19:58. A strong signal near 137.5 MHz appeared after 19:28 (rms 23 → 40–58 LSB,
+  2–3% clipping 19:38–19:41); cause unknown.
+- SatDump 1.2.2 72k pipeline: Viterbi and deframer SYNCED, peak SNR 16.5 dB, 4,583 CADUs, MSU-MR images (exits 1;
+  cause not in the log). MANIFEST rows added.
+- Media: setup photo; SatDump decoded image (MSA corrected map, rotated 180° to north-up, webp); recording replayed in
+  satdump-ui (Recorder, file source, −150 kHz shift): screenshot at ~47% (SNR 11.4 dB, Viterbi BER 0.0085, all RS
+  green) and a 15 s lock GIF (6.2 MB) cut from a screen recording kept off-repo. satdump-ui traps: ~2 min start-up
+  (SYN to 127.0.0.1:5444 hangs under mirrored networking), window opened off-screen on the 3840 px WSLg desktop,
+  Open does nothing without zenity, and a typo'd samplerate (10.24 MS/s) gives two fake narrow lines and NOSYNC.
+- The setup photo suggests the dipole legs were longer than 53 cm (fully extended?); to measure before the next pass.
+- Next: confirm the spec on this recording (buildplan Phase 0), commit a < 5 MB snippet from the peak, run the model.

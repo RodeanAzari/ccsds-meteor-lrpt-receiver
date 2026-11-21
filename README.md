@@ -7,15 +7,16 @@ Digilent Arty A7-100T with C++ ground-station tools around it. Recordings are ca
 the board over UDP, and decoded down to CCSDS frames: digital downconversion, timing and carrier recovery, frame
 sync, Viterbi K=7 r½, derandomization and Reed-Solomon RS(255,223)×4.
 
-**Status: Phase B (the DDC) done; C–F in progress, waiting for a real recording.** The whole receiver runs on the
+**Status: Phase B (the DDC) done; C–F in progress; first real pass recorded, not yet through this receiver.** The whole receiver runs on the
 board at 100 MHz: a recording replayed over Ethernet goes through the DDC, sync chain, frame sync, Viterbi, NRZ-M,
 derandomizer and Reed-Solomon in RTL, and the CADUs come back over Ethernet to the C++ ground station. On a synthetic
 recording, **every CADU the board decoded matches a sent frame (298 / 298, 15 / 15 replays up to 5.6× real time)**,
 and **all 258 frames SatDump decoded are bit-identical to the board's**. The space packets the ground station
 recovers from the board's output equal the golden model's and SatDump's. Hardware BER before RS is 0.12–0.36 dB from
 the model; after RS, 0 errors from 3 dB up. Every RTL block is bit-exact against a Python bit-true model, which in
-turn matches the float model and BER theory. **No real satellite recording has been decoded yet**: own passes are being
-recorded since 2026-11-13 ([MANIFEST](data/MANIFEST.md)), none decodable so far.
+turn matches the float model and BER theory. **The first own pass that decodes was recorded on 2026-11-21**: SatDump decodes
+4,583 CADUs and MSU-MR images from it ([MANIFEST](data/MANIFEST.md)). This receiver has not decoded a real recording
+yet; that is the next step.
 
 Every number below comes from a CSV in [`data/results/`](data/results/) or a report in
 [`docs/reports/`](docs/reports/), produced by a `make` target. Each CSV has a sidecar `.md` with the commit,
@@ -55,7 +56,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 
 | Phase | State | Key result |
 |---|---|---|
-| 0 — Signal spec + capture kit | **In progress** | [signal-spec.md](docs/signal-spec.md) from SatDump's source; not yet confirmed on a real signal |
+| 0 — Signal spec + capture kit | **In progress** | [signal-spec.md](docs/signal-spec.md) from SatDump's source; first decodable pass recorded 2026-11-21 (SatDump: 4,583 CADUs, peak SNR 16.5 dB, [MANIFEST](data/MANIFEST.md)); spec not yet confirmed on it |
 | A — Python golden model | **In progress** | Float and bit-true chains decode synthetic signals; real recording pending |
 | B — Digital downconverter | **Done** (2026-11-07) | Bit-exact on the board from BRAM (UART and ILA) and over Ethernet from `gs-replay` (38 of 40 replays; the other 2 had datagrams reordered on the host side) |
 | C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. Real recording pending |
@@ -106,11 +107,26 @@ flowchart LR
 Every block is built, bit-exact against the model in simulation, and running on the board; the BRAM ROM path was the
 Phase B bring-up. What is not verified yet is any of it on a real recording.
 
-[<img src="docs/media/2026-11-14_phase-0_antenna-setup.webp" width="400" alt="V-dipole antenna on a chair in an open field, cabled to a laptop, recording a Meteor-M N2-4 pass">](docs/media/2026-11-14_phase-0_antenna-setup.webp)
+[<img src="docs/media/2026-11-21_phase-0_antenna-setup.webp" width="400" alt="V-dipole antenna on a pole in an open field, cabled to a laptop, recording the 2026-11-21 Meteor-M N2-4 pass, the first one SatDump decoded">](docs/media/2026-11-21_phase-0_antenna-setup.webp)
 
-*The capture side during the 2026-11-14 Meteor-M N2-4 pass: a V-dipole on a chair in an open field, its feed running
-to the laptop through the SAWbird+ NOAA LNA and an RTL-SDR Blog V3, recording at 1.024 MS/s. A photo of the whole
+*The capture side during the 2026-11-21 Meteor-M N2-4 pass, the first one SatDump decoded (4,583 CADUs,
+`data/MANIFEST.md`): a V-dipole on a pole in an open field, its feed running to the laptop through the SAWbird+ NOAA
+LNA and an RTL-SDR Blog V3, recording at 1.024 MS/s. A photo of the whole
 chain, antenna to laptop to Arty over Ethernet, is still to come.*
+
+[<img src="docs/media/2026-11-21_phase-0_satdump-image.webp" width="400" alt="MSU-MR natural-colour image of the Great Lakes and eastern North America, decoded by SatDump from the 2026-11-21 Meteor-M N2-4 recording">](docs/media/2026-11-21_phase-0_satdump-image.webp)
+
+*What that pass carried: SatDump 1.2.2's MSU-MR natural-colour composite (MSA, map overlay) from the 2026-11-21
+recording, rotated 180° so north is up (the pass ran south to north). The Great Lakes are in the middle, Hudson Bay at
+the top; the striped rows at the top edge are the end of the pass, below 10° elevation. This is SatDump's decode;
+the same image out of this receiver is the hero image still to come.*
+
+![SatDump replaying the 2026-11-21 recording: the Meteor signal at 137.9 MHz in the waterfall, the OQPSK constellation locking into four clusters, Viterbi and deframer synced](docs/media/2026-11-21_phase-0_satdump-lock.gif)
+
+*The same recording replayed through SatDump's recorder at the pass's peak: the Meteor signal is the 120 kHz-wide band
+at 137.9 MHz, 150 kHz above the tuning (the line at 137.75 MHz is the dongle's DC spike). Once the 72k pipeline
+starts, the OQPSK constellation settles into four clusters and the Viterbi decoder and deframer sync. A still, with
+SNR and Reed-Solomon state: [2026-11-21_phase-0_satdump-waterfall.png](docs/media/2026-11-21_phase-0_satdump-waterfall.png).*
 
 - **Clocking:** the datapath is one 100 MHz domain from the MMCM. The DDC needs 9.0 clocks per sample against 97.7
   available at 1.024 MS/s. The one data crossing is the PHY's 25 MHz MII receive clock into the core, through
@@ -640,7 +656,7 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. All inputs synthetic until a re
 | Board → `gs-rx` → `gs-diff` vs. SatDump | 298 / 298 CADUs received per replay at 1×, 5×, 5.39×; all 258 frames SatDump decoded bit-identical | Synthetic recording, 8 dB; SatDump 1.2.2 | [board_gs_rx.csv](data/results/board_gs_rx.csv) |
 | Board → `gs-rx` space packets vs. truth and SatDump | Packets equal the model's demux of the delivered frames in 3 / 3 replays (268 / 270 at 1×, 5×); 228 equal to SatDump, 0 different, 0 unexplained | Synthetic recording with VCID-5 packets (seed 2027, 8 dB); at 5.6× the host dropped 2 datagrams | [board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv) |
 | Receiver board top timing | WNS +0.256 ns, WHS +0.025 ns; 13,682 LUT, 8 RAMB36 + 7 RAMB18, 29 DSP | `arty_rx_eth_top`, 100 MHz, placed and routed | [board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv) |
-| Real passes decoded / CADU match vs. SatDump | `[TBD]` | — | — |
+| Real passes decoded / CADU match vs. SatDump | This receiver: `[TBD]`. SatDump: 1 pass, 4,583 CADUs | Meteor-M N2-4, 2026-11-21, 75.7° max | [MANIFEST](data/MANIFEST.md) |
 | Hardware BER, Viterbi + NRZ-M (pre-RS) | 1.79×10⁻⁴ at 3.5 dB, 4.85×10⁻⁶ at 4.5 dB; 0.12–0.36 dB from the model, 2–4.5 dB | Arty, synthetic AWGN replay, ≥ 100 errors per point | [ber_board.csv](data/results/ber_board.csv) |
 | Hardware BER, Viterbi + RS (data bytes) | 9.64×10⁻⁵ at 2.5 dB; 0 errors in 42.5 M bits at each of 3–5 dB (< 7.0×10⁻⁸) | Same; 20 recordings per point from 3 dB | [ber_board.csv](data/results/ber_board.csv) |
 | Hardware BER, uncoded | Not measured: no tap before the Viterbi decoder | — | — |
@@ -736,8 +752,8 @@ produced them. `make sim-full` and `make cov` are local only. `make formal` runs
 
 ## Roadmap
 
-1. **A real recording:** capture a pass (or find a public 72k recording), decode it with SatDump, and confirm the
-   spec and the model on it (Phases 0 and A).
+1. **A real recording:** captured and decoded by SatDump on 2026-11-21. Next: confirm the spec and the model on it
+   (Phases 0 and A).
 2. **The real pass on the board:** lock (Phase C), decode it bit for bit against SatDump (Phases D, E), and recover
    its space packets and image through the ground station (Phase F); then the hero image and the demo video.
 

@@ -2,12 +2,12 @@
 
 ## Phase 0 (needs the capture kit)
 
-- [x] Photo: V-dipole antenna setup, showing orientation and clear sky (2026-11-14 pass,
-      `docs/media/2026-11-14_phase-0_antenna-setup.webp`, in the README under Architecture)
+- [x] Photo: V-dipole antenna setup, showing orientation and clear sky (2026-11-21 pass, the first decoded,
+      `docs/media/2026-11-21_phase-0_antenna-setup.webp`, in the README under Architecture; 2026-11-14 photo kept)
 - [ ] Photo (you): the whole setup in one frame: V-dipole, SAWbird+ and RTL-SDR, laptop, and the Arty on its
       Ethernet cable
-- [ ] Screenshot: SatDump waterfall during your own pass
-- [ ] Image: SatDump's decoded image from that pass
+- [x] Screenshot: SatDump waterfall during your own pass (2026-11-21 recording replayed in satdump-ui at ~47%: Viterbi and deframer SYNCED, SNR 11.4 dB; stale status bar cropped off. `docs/media/2026-11-21_phase-0_satdump-waterfall.png`)
+- [x] Image: SatDump's decoded image from that pass (2026-11-21, 4,583 CADUs): MSA natural colour with map, rotated north-up, `docs/media/2026-11-21_phase-0_satdump-image.webp`; lock GIF (first 15 s of a screen recording of the replay, original off-repo) `docs/media/2026-11-21_phase-0_satdump-lock.gif`; both in the README under Architecture
 
 ## Phase F (ground station)
 
