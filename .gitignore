@@ -32,3 +32,8 @@ vivado_*
 # Local working notes for Claude Code sessions, kept out of the repo (user, 2026-11-07)
 CLAUDE.md
 progress.md
+
+# The one committed real IQ snippet (data/samples/*.md)
+!data/samples/*.cu8
+# SatDump live output (satdump-ui)
+live_output/
