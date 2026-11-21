@@ -369,6 +369,30 @@ def board_ber_plot() -> None:
     plt.close(fig)
 
 
+def real_pass_plot() -> None:
+    """Float model through the 2026-11-21 pass vs. SatDump: data/results/real_pass_model."""
+    rows = [r for r in _rows("real_pass_model") if r["chunk_utc"] != "total"]
+    # Chunk start + 15 s, in minutes after 19:00 UTC (the recording starts 19:37:51).
+    t = [37 + 51 / 60 + (float(r["chunk_start_s"]) + 15) / 60 for r in rows]
+    fig, (top, bottom) = plt.subplots(2, 1, figsize=(9, 6), sharex=True, gridspec_kw={"height_ratios": [2, 1]})
+    top.plot(t, [int(r["frames_rs_good"]) for r in rows], "o-", color=BLUE, label="Float model, all RS codewords good")
+    top.plot(t, [int(r["equal_to_satdump"]) for r in rows], "o-", color=ORANGE, label="Of those, equal to SatDump's")
+    top.set_ylabel("Frames per 30 s chunk")
+    top.set_ylim(0, 300)
+    top.set_title("Meteor-M N2-4, 2026-11-21: this receiver's float model vs. SatDump 1.2.2", color=INK, loc="left")
+    top.legend(loc="center left", bbox_to_anchor=(0.5, 0.45))
+    # The carrier estimate means something only where frames decoded; elsewhere the loop follows noise.
+    locked = [
+        (x, float(r["median_carrier_hz"]) / 1e3) for x, r in zip(t, rows, strict=True) if r["frames_rs_good"] != "0"
+    ]
+    bottom.plot([x for x, _ in locked], [f for _, f in locked], "o-", color=AQUA, markersize=5)
+    bottom.set_ylabel("Carrier offset (kHz)")
+    bottom.set_xlabel("Minutes after 19:00 UTC")
+    fig.tight_layout()
+    fig.savefig(MEDIA / "2026-11-21_phase-a_real-pass-model.png", dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     _style()
     MEDIA.mkdir(parents=True, exist_ok=True)
@@ -383,6 +407,7 @@ def main() -> None:
     doppler_plot()
     constellation_gif()
     board_ber_plot()
+    real_pass_plot()
 
 
 if __name__ == "__main__":

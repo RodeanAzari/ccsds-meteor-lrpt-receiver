@@ -130,6 +130,13 @@ at 137.9 MHz, 150 kHz above the tuning (the line at 137.75 MHz is the dongle's D
 starts, the OQPSK constellation settles into four clusters and the Viterbi decoder and deframer sync. A still, with
 SNR and Reed-Solomon state: [2026-11-21_phase-0_satdump-waterfall.png](docs/media/2026-11-21_phase-0_satdump-waterfall.png).*
 
+![Frames decoded per 30 s through the 2026-11-21 pass: this receiver's float model decodes from about 2.5 minutes before SatDump's first frame, every frame in common is equal, and the carrier offset falls from -0.4 to -6.4 kHz](docs/media/2026-11-21_phase-a_real-pass-model.png)
+
+*The same pass through this receiver's float golden model (`make plots` from [real_pass_model.csv](data/results/real_pass_model.csv)). Top: frames per 30 s chunk with every RS codeword good (blue), and those equal to SatDump's frame with the same
+counter (orange): from 19:48:40 the curves coincide, all 4,557 common frames equal. The model decodes from 19:45:35,
+about 2.5 minutes before SatDump's first frame. Bottom: the model's carrier offset while decoding, the Doppler swing
+through closest approach. The RTL has not run this recording yet.*
+
 - **Clocking:** the datapath is one 100 MHz domain from the MMCM. The DDC needs 9.0 clocks per sample against 97.7
   available at 1.024 MS/s. The one data crossing is the PHY's 25 MHz MII receive clock into the core, through
   fpga-eth-core's Gray-pointer async FIFO; the MAC reset, the buttons and the MMCM lock go through synchronizers.

@@ -9,6 +9,13 @@
 - [x] Screenshot: SatDump waterfall during your own pass (2026-11-21 recording replayed in satdump-ui at ~47%: Viterbi and deframer SYNCED, SNR 11.4 dB; stale status bar cropped off. `docs/media/2026-11-21_phase-0_satdump-waterfall.png`)
 - [x] Image: SatDump's decoded image from that pass (2026-11-21, 4,583 CADUs): MSA natural colour with map, rotated north-up, `docs/media/2026-11-21_phase-0_satdump-image.webp`; lock GIF (first 15 s of a screen recording of the replay, original off-repo) `docs/media/2026-11-21_phase-0_satdump-lock.gif`; both in the README under Architecture
 
+## Phase A (golden model on a real pass)
+
+- [x] Plot: frames per 30 s, float model vs. SatDump, with the carrier offset, 2026-11-21 pass
+      (`docs/media/2026-11-21_phase-a_real-pass-model.png`, `make plots`; in the README under Architecture)
+- [ ] Image (Phase E, later): MSU-MR image decoded by this receiver's RTL from the same pass, next to SatDump's
+      (the intended hero image; needs the board replay of the pass)
+
 ## Phase F (ground station)
 
 - [ ] Terminal recording (you; `sudo apt install asciinema`, not on this host yet): `gs-view` live during a board
