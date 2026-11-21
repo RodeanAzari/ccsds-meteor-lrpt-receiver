@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import numpy.typing as npt
-from scipy import signal
+from scipy import ndimage, signal
 
 from model.channel import RRC_ALPHA, SYMBOL_RATE, Complex, Floats, rrc
 from model.coding import (
@@ -200,10 +200,16 @@ def oqpsk_timing(x: Complex, fs: float, kp: float, ki: float, per_rail_ted: bool
 
 
 def serial_soft(y: Complex) -> Floats:
-    """Interleave strobes into one soft stream: re[0], im[1], re[2], im[3], ..."""
+    """Interleave strobes into one soft stream: re[0], im[1], re[2], im[3], ...
+
+    Normalized by a running mean of |soft| over one coded frame, not the whole stream: frame sync's threshold is a
+    fraction of the ideal peak, and a real pass fades and swells within a run (docs/log.md, 2026-11-21).
+    """
     soft = y.imag.copy()
     soft[0::2] = y.real[0::2]
-    normalized: Floats = soft / np.mean(np.abs(soft))
+    window = min(CODED_FRAME_SYMBOLS, soft.size)
+    level = ndimage.uniform_filter1d(np.abs(soft), window, mode="nearest")
+    normalized: Floats = soft / level
     return normalized
 
 

@@ -51,11 +51,14 @@ def test_bit_true_rrc_costs_no_frames_and_no_soft_snr() -> None:
     raw = to_cu8(x, full_scale=4 * sigma)
     truth = {bytes(p) for p in data_bytes(plain)}
     outcome = []
-    for soft in (
-        demodulate_baseband(ddc_fixed(raw, CFG), CFG)[0],
-        demodulate_filtered(ddc_rrc_fixed(raw, CFG), CFG)[0],
+    for soft, _, y in (
+        demodulate_baseband(ddc_fixed(raw, CFG), CFG),
+        demodulate_filtered(ddc_rrc_fixed(raw, CFG), CFG),
     ):
-        a = np.abs(soft[soft.size // 10 :])
+        # SNR from the unnormalized strobes: soft is normalized by a running level, which adds its own variance.
+        strobes = y.imag.copy()
+        strobes[0::2] = y.real[0::2]
+        a = np.abs(strobes[strobes.size // 10 :])
         good = sum(bytes(c) in truth for c in data_bytes(decode_soft(soft, CFG).cadus))
         outcome.append((good, 10 * np.log10(np.mean(a) ** 2 / np.var(a))))
     assert outcome[1][0] == outcome[0][0] >= 4

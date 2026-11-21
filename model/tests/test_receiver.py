@@ -97,3 +97,21 @@ def test_noise_only_produces_no_frames() -> None:
     rng = np.random.default_rng(1)
     x = rng.standard_normal(600_000) + 1j * rng.standard_normal(600_000)
     assert decode_iq(x, RxConfig()).cadus.shape[0] == 0
+
+
+def test_signal_fading_within_the_stream_still_syncs() -> None:
+    # Regression, real pass 2026-11-21 (docs/log.md): the soft stream was normalized once over a 30 s chunk, and the
+    # frame-sync threshold is a fraction of the ideal peak. The signal fell to 0.69 of the chunk mean in its last 7 s
+    # and frame sync found none of those 66 frames, though a fresh start decoded them all. A pass fades and swells,
+    # so the level that sets the threshold has to follow it.
+    n = 16
+    plain, on_air = build_cadus(n, SEED)
+    tx = TxConfig()
+    x = modulate(encode_stream(on_air), tx)
+    fade = np.linspace(1.0, 0.25, x.size)  # -12 dB across the stream: 16 dB Eb/N0 at the start, 4 dB at the end
+    y = awgn(apply_carrier(x * fade, tx.fs, offset_hz=300.0), noise_sigma(16.0, tx.fs), SEED)
+    result = decode_iq(y, RxConfig(fs=tx.fs))
+    truth = {bytes(p) for p in data_bytes(plain)}
+    # n - 2 is every frame: the first goes to acquisition, the last lacks its Viterbi tail. With one normalization
+    # over the stream, 11-12 came back (seeds 11, 12; fades to 0.3-0.2).
+    assert sum(bytes(c) in truth for c in data_bytes(result.cadus)) >= n - 2
