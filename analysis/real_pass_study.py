@@ -1,12 +1,14 @@
-"""Decode a real pass with the float model and compare its CADUs with SatDump's (buildplan §9, Phase A).
+"""Decode a real pass with the float (or bit-true) model and compare its CADUs with SatDump's (buildplan §9, Phase A).
 
     python -m analysis.real_pass_study REC.cu8 SATDUMP.cadu --start-utc 2026-11-21T19:37:51 [--from-s S --to-s S]
+        [--bit-true]
 
 The recording is cut into chunks that overlap by more than one cold-start acquisition, each decoded from a cold
 start (the model is a batch decoder), and frames are merged by VCDU key (VCID, counter). A model frame counts only
-if all four RS codewords decode. Against SatDump: same key and the same 892 data bytes (signal-spec.md, "What
-gs-diff can compare") is a match; same key with other bytes is a difference. Writes data/results/real_pass_model.csv:
-one row per chunk, then a total row.
+if all four RS codewords decode. --bit-true runs the bit-true chain instead (what the RTL computes, bit for bit:
+host coarse estimate into the NCO, DDC, RRC, AGC, Costas, timing, 4-bit quantizer, frame sync, Viterbi, CADU stage)
+and writes real_pass_fixed.csv. Against SatDump: same key and the same 892 data bytes (signal-spec.md, "What
+gs-diff can compare") is a match; same key with other bytes is a difference. Writes one row per chunk, then a total row.
 """
 
 from __future__ import annotations
@@ -20,12 +22,19 @@ from pathlib import Path
 import numpy as np
 
 from analysis.common import write_result
+from model.cadu_fixed import cadus_from_windows
+from model.framesync_fixed import decode_windows, frame_sync_fixed, windows
 from model.receiver import RxConfig, data_bytes, decode_iq, ingest_cu8
+from model.sync_fixed import demodulate_fixed, freq_hz
+from model.viterbi_fixed import quantize
 
 FS = 1_024_000  # CLAUDE.md §1 capture rate
 TUNE_OFFSET_HZ = 150_000.0  # tuned 137.75 MHz, Meteor at 137.9 MHz (data/MANIFEST.md)
 FRAME = 1024
 DATA = slice(4, 4 + 892)  # signal-spec.md: SatDump leaves parity uncorrected, compare the data bytes only
+
+# The RTL's settings (tb/cocotb/test_rx_chain_full.py, ADR 0005): 4-bit soft, step ONE/4, threshold 0.75, flywheel 4.
+SOFT_BITS, SOFT_SHIFT, THR64, FLYWHEEL = 4, 10, 48, 4
 
 Key = tuple[int, int]
 
@@ -52,6 +61,28 @@ def decode_chunk(args: tuple[str, float, float]) -> dict[str, object]:
     }
 
 
+def decode_chunk_fixed(args: tuple[str, float, float]) -> dict[str, object]:
+    path, start_s, dur_s = args
+    raw = np.fromfile(path, dtype=np.uint8, count=int(dur_s * FS) * 2, offset=int(start_s * FS) * 2)
+    cfg = RxConfig(fs=FS, tune_offset_hz=TUNE_OFFSET_HZ)
+    soft, track, tune_hz = demodulate_fixed(raw, cfg)
+    u = quantize(soft, SOFT_BITS, SOFT_SHIFT)
+    wins, _ = windows(u, frame_sync_fixed(u, THR64, FLYWHEEL))
+    cadus = cadus_from_windows(decode_windows(wins), wins)
+    good = [min(c.corrections) >= 0 for c in cadus]
+    stacked = np.array([c.data for c in cadus], dtype=np.uint8).reshape(-1, FRAME)
+    frames = {vcdu_key(bytes(c.data)): bytes(d) for c, d, g in zip(cadus, data_bytes(stacked), good, strict=True) if g}
+    return {
+        "start_s": start_s,
+        "frames": frames,
+        "decoded": len(cadus),
+        "rs_failed": good.count(False),
+        # Carrier = NCO correction from the host's coarse estimate + the Costas loop's frequency register.
+        "freq_hz": tune_hz - TUNE_OFFSET_HZ + float(np.median(freq_hz(track, cfg))),
+        "hypotheses": collections.Counter((c.alternate, c.swap) for c, g in zip(cadus, good, strict=True) if g),
+    }
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("recording", type=Path)
@@ -62,6 +93,7 @@ def main() -> None:
     ap.add_argument("--chunk-s", type=float, default=30.0)
     ap.add_argument("--overlap-s", type=float, default=2.0, help="> cold-start acquisition (~0.2 s) plus a frame")
     ap.add_argument("--jobs", type=int, default=6, help="each job holds ~0.6 GB per 30 s chunk")
+    ap.add_argument("--bit-true", action="store_true", help="the bit-true chain (= RTL); ~16x slower than real time")
     a = ap.parse_args()
 
     total_s = a.recording.stat().st_size / 2 / FS
@@ -70,7 +102,7 @@ def main() -> None:
     starts = np.arange(a.from_s, end_s - a.overlap_s, step)
     jobs = [(str(a.recording), float(s), float(min(a.chunk_s, end_s - s))) for s in starts]
     with ProcessPoolExecutor(max_workers=a.jobs) as pool:
-        chunks = list(pool.map(decode_chunk, jobs))
+        chunks = list(pool.map(decode_chunk_fixed if a.bit_true else decode_chunk, jobs))
 
     raw = a.satdump_cadu.read_bytes()
     if len(raw) % FRAME:
@@ -128,7 +160,9 @@ def main() -> None:
         "median_carrier_hz",
         "hypotheses_rs_good",
     ]
-    write_result("real_pass_model", header, rows, seed="", recording=a.recording.name)
+    write_result(
+        "real_pass_fixed" if a.bit_true else "real_pass_model", header, rows, seed="", recording=a.recording.name
+    )
     print(rows[-1])
 
 
