@@ -22,7 +22,8 @@ board_gs_rx_packets.csv instead.
 With --recording NAME (a cut of a real pass, NAME its data/MANIFEST.md row), rows go to board_gs_rx_real.csv and
 a replay passes on gs-rx's checks, the NCO echo and gs-diff's own verdict (common frames, data bytes equal): frames
 only one decoder has, and ASM/parity bytes (SatDump leaves channel errors there, signal-spec.md), are counted, not
-failed. A real pass fades, so raise --idle above the longest gap between CADUs at the replay speed.
+failed. It also runs scripts/packet_diff.py on gs-rx's packets.bin against SatDump's (no truth exists), which must
+pass. A real pass fades, so raise --idle above the longest gap between CADUs at the replay speed.
 """
 
 from __future__ import annotations
@@ -49,6 +50,7 @@ DIFF_COLS = ["satdump_frames", "common", "only_ours", "only_satdump", "data_bits
              "parity_bytes_differ", "result"]
 PACKET_COLS = ["packets", "truth_packets", "expected_packets", "packets_exact", "pd_satdump", "pd_equal", "pd_differ",
                "pd_only_ours", "pd_only_satdump", "pd_explained", "pd_unexplained", "pd_result"]
+REAL_PACKET_COLS = ["packets", *PACKET_COLS[4:]]  # no truth for a real pass: gs-rx's packets against SatDump's
 
 
 def tx_dropped(ip: str) -> int:
@@ -64,6 +66,20 @@ def key_values(text: str) -> dict[str, str]:
     return dict(line.split("=", 1) for line in text.split() if "=" in line)
 
 
+def satdump_packet_check(out: Path, satdump: Path) -> tuple[list[object], bool]:
+    """gs-rx's packets against SatDump's (scripts/packet_diff.py), PACKET_COLS[4:]; passes with at least one equal
+    packet and nothing unexplained."""
+    try:
+        d = compare(split_cadus((out / "cadus.bin").read_bytes(), "ours"),
+                    split_packets((out / "packets.bin").read_bytes()),
+                    split_cadus(satdump.read_bytes(), "satdump"))
+    except InputError as e:  # a packet of ours that is not in our own CADUs: recorded as a failed replay
+        return [""] * 7 + [f"ERROR {e}"], False
+    explained = ";".join(f"{k}:{v}" for k, v in sorted(d.explained.items()))
+    return [d.satdump, d.equal, d.differ, d.only_ours, d.only_satdump, explained, len(d.unexplained),
+            "PASS" if d.passed else "FAIL"], d.passed
+
+
 def packet_check(out: Path, satdump: Path, truth: tuple[Path, Path]) -> tuple[list[object], bool]:
     """gs-rx's packets against the truth (exactly) and against SatDump (packet_diff), PACKET_COLS."""
     ours_cadus = split_cadus((out / "cadus.bin").read_bytes(), "ours")
@@ -73,17 +89,10 @@ def packet_check(out: Path, satdump: Path, truth: tuple[Path, Path]) -> tuple[li
     expected, _ = demux(c for c in truth_cadus if c[4:896] in got)
     exact = ours == expected
     row: list[object] = [len(ours), len(split_packets(truth[1].read_bytes())), len(expected), int(exact)]
-    try:
-        d = compare(ours_cadus, ours, split_cadus(satdump.read_bytes(), "satdump"))
-    except InputError as e:  # a packet of ours that is not in our own CADUs: recorded as a failed replay
-        row += [""] * 7 + [f"ERROR {e}"]
-        print(f"packets: {row}", flush=True)
-        return row, False
-    explained = ";".join(f"{k}:{v}" for k, v in sorted(d.explained.items()))
-    row += [d.satdump, d.equal, d.differ, d.only_ours, d.only_satdump, explained, len(d.unexplained),
-            "PASS" if d.passed else "FAIL"]
+    pd_row, pd_ok = satdump_packet_check(out, satdump)
+    row += pd_row
     print("packets: " + " ".join(f"{k}={v}" for k, v in zip(PACKET_COLS, row, strict=True)), flush=True)
-    return row, exact and d.passed and len(ours) > 0
+    return row, exact and pd_ok and len(ours) > 0
 
 
 def replay_passed(summary: dict[str, str], diff: dict[str, str], nco_ok: bool, real: bool) -> bool:
@@ -146,6 +155,12 @@ def replay_once(cu8: Path, satdump: Path, iface: str, speed: str, bit: str, word
         prow, pok = packet_check(out, satdump, truth)
         row += prow
         ok &= pok
+    elif real:
+        prow, pok = satdump_packet_check(out, satdump)
+        row += [summary.get("packets", ""), *prow]
+        print("packets: " + " ".join(f"{k}={v}" for k, v in zip(REAL_PACKET_COLS, row[-9:], strict=True)),
+              flush=True)
+        ok &= pok
     return row, ok
 
 
@@ -167,7 +182,7 @@ def run(cu8: Path, satdump: Path, iface: str, speeds: list[str], tune_hz: float,
         "board_gs_rx_packets" if truth else "board_gs_rx_real" if recording else "board_gs_rx",
         ["replay_speed", "achieved_speed", "host_tx_dropped", *RX_COLS, "board_ingest_lost", "board_cadus_sent",
          "board_fs_slips", "board_mac_restarts",
-         "nco_confirmed", *DIFF_COLS, *(PACKET_COLS if truth else [])],
+         "nco_confirmed", *DIFF_COLS, *(PACKET_COLS if truth else REAL_PACKET_COLS if recording else [])],
         rows,
         f"{cu8.name} ({source}) streamed by gs-replay to arty_rx_eth_top on the Arty A7-100T, one replay per "
         f"row from a freshly programmed board, received by gs-rx; NCO word 0x{word:08X} (coarse estimate {hz:.1f} Hz) "

@@ -14,7 +14,7 @@ import pytest
 
 from model.coding import encode_cadus
 from model.space_packets import demux
-from scripts.board_gs_rx import packet_check, replay_passed
+from scripts.board_gs_rx import packet_check, replay_passed, satdump_packet_check
 from scripts.make_synthetic_iq import packet_cadus
 
 N = 24
@@ -108,3 +108,25 @@ def test_synthetic_replay_fails_on_what_a_real_one_may_have() -> None:
 ])
 def test_real_replay_fails_on_loss_data_difference_or_nco(bad: tuple[dict[str, str], dict[str, str], bool]) -> None:
     assert not replay_passed(bad[0], bad[1], nco_ok=bad[2], real=True)
+
+
+# satdump_packet_check: the real-pass packet check, with no truth to compare against. It must pass when gs-rx's
+# packets are what its CADUs carry and fail when one is damaged or invented, or a real replay could hide a broken demux.
+def test_real_pass_packets_pass_against_satdump(tmp_path: Path, truth_cadus: list[bytes]) -> None:
+    out, satdump, _ = setup(tmp_path, truth_cadus)
+    row, ok = satdump_packet_check(out, satdump)
+    assert ok and row[-1] == "PASS" and row[1] > 0 and row[-2] == 0
+
+
+@pytest.mark.parametrize("damage", ["flip_bit", "add_lost_frame_packet"])
+def test_real_pass_packets_fail_when_damaged(tmp_path: Path, truth_cadus: list[bytes], damage: str) -> None:
+    good = demux(truth_cadus[1:N - 1])[0]
+    lost = [p for p in demux(truth_cadus)[0] if p not in good]
+    packets = {
+        "flip_bit": [good[0], bytes(np.frombuffer(good[5], np.uint8) ^ np.eye(1, len(good[5]), 6, np.uint8)[0]),
+                     *good[1:5], *good[6:]],
+        "add_lost_frame_packet": [lost[0], *good],
+    }[damage]
+    out, satdump, _ = setup(tmp_path, truth_cadus, packets)
+    _, ok = satdump_packet_check(out, satdump)
+    assert not ok
