@@ -17,8 +17,9 @@ the model; after RS, 0 errors from 3 dB up. Every RTL block is bit-exact against
 turn matches the float model and BER theory. **The first own pass that decodes was recorded on 2026-11-21**: SatDump decodes
 4,583 CADUs and MSU-MR images from it ([MANIFEST](data/MANIFEST.md)). **This receiver's float golden model decodes
 5,583 frames of that pass, and the 4,557 it shares with SatDump are equal in every data byte**
-([real_pass_model.csv](data/results/real_pass_model.csv)). The RTL has not decoded a real recording yet; that is
-the next step.
+([real_pass_model.csv](data/results/real_pass_model.csv)). **The bit-true model, which the RTL matches bit for bit,
+finds 4,582 of SatDump's 4,583 frames, all equal, and 1,003 more** ([real_pass_fixed.csv](data/results/real_pass_fixed.csv)).
+The RTL itself has not run a real recording yet; that is the next step.
 
 Every number below comes from a CSV in [`data/results/`](data/results/) or a report in
 [`docs/reports/`](docs/reports/), produced by a `make` target. Each CSV has a sidecar `.md` with the commit,
@@ -40,7 +41,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Target signal** | Meteor-M N2-4 LRPT, 72k mode: OQPSK, 72 ksym/s, conv K=7 r½, NRZ-M, CCSDS randomizer, RS(255,223) interleave 4. Parameters read from SatDump 1.2.2's source ([signal-spec.md](docs/signal-spec.md)) |
 | **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → AGC → Costas + Farrow/Gardner → encoded-ASM frame sync → Viterbi → NRZ-M → derandomizer → RS×4, **all in RTL and all on the board**, fed over 100 Mb/s Ethernet and sending CADUs and stats back. The host computes a coarse carrier estimate and loads it into the NCO ([ADR 0002](docs/decisions/0002-oqpsk-timing.md), [ADR 0014](docs/decisions/0014-control-commands.md)) |
 | **Whole receiver on the board** | **15 / 15 replays: 298 CADUs each, every one matching a sent frame** on its 892 data bytes, asked at 1×, 5× and 5.6× real time over Ethernet, synthetic recording (8 dB); no RS correction needed, every datagram placed in order by the ingest's reorder buffer ([board_rx_eth.csv](data/results/board_rx_eth.csv)). 13,682 LUT (21.6%), 100 MHz met, WNS +0.256 ns ([board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv)) |
-| **Real passes decoded** | 1 (2026-11-21, Meteor-M N2-4), by the float golden model: **5,583 frames, all RS codewords good**; SatDump decoded 4,583. The model starts about 2.5 min earlier on the rising signal ([real_pass_model.csv](data/results/real_pass_model.csv), [MANIFEST](data/MANIFEST.md)). By the RTL / board: `[TBD]` |
+| **Real passes decoded** | 1 (2026-11-21, Meteor-M N2-4), by the float golden model: **5,583 frames, all RS codewords good**; SatDump decoded 4,583. The model starts about 2.5 min earlier on the rising signal ([real_pass_model.csv](data/results/real_pass_model.csv), [MANIFEST](data/MANIFEST.md)). Bit-true model (= RTL arithmetic): **5,585 frames**, 4,582 of SatDump's 4,583 ([real_pass_fixed.csv](data/results/real_pass_fixed.csv)). By the RTL / board: `[TBD]` |
 | **CADU match vs. SatDump** | Synthetic recording: SatDump decoded 258 / 295 / 226 of 300 frames in three runs, **every decoded frame matching** ([satdump_crosscheck.csv](data/results/satdump_crosscheck.csv)). Real pass, float model: **4,557 frames in common, every one equal** on its 892 data bytes, none different; the 1,026 model-only and 26 SatDump-only frames are all at the pass's edges ([real_pass_model.csv](data/results/real_pass_model.csv)). Board: `[TBD]` |
 | **DDC on the board** | **16,384 / 16,384 outputs bit-exact** vs. the model, over UART ([ddc_board.csv](data/results/ddc_board.csv)) and again over JTAG/ILA ([ddc_board_ila.csv](data/results/ddc_board_ila.csv)); **fed over Ethernet by `gs-replay`, 38 of 40 replays bit-exact at 1×, 5× and 5.6× real time**; the other 2 arrived with datagrams reordered before the board, as its own counters show ([ddc_board_eth.csv](data/results/ddc_board_eth.csv)); 100 MHz, synthetic input |
 | **DDC throughput** | 9.0 clocks per input sample: **10.8× real time** at 100 MHz, RTL simulation ([ddc_rtl_sim.csv](data/results/ddc_rtl_sim.csv)) |
@@ -59,7 +60,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | Phase | State | Key result |
 |---|---|---|
 | 0 — Signal spec + capture kit | **In progress** | [signal-spec.md](docs/signal-spec.md) from SatDump's source; first decodable pass recorded 2026-11-21 (SatDump: 4,583 CADUs, peak SNR 16.5 dB, [MANIFEST](data/MANIFEST.md)); spec confirmed on it, the open rail/G1 item measured |
-| A — Python golden model | **In progress** | Float and bit-true chains decode synthetic signals; the float model decodes the 2026-11-21 pass, equal to SatDump on all 4,557 common frames ([real_pass_model.csv](data/results/real_pass_model.csv)); bit-true model on it pending |
+| A — Python golden model | **In progress** | Float and bit-true chains decode synthetic signals; the float model decodes the 2026-11-21 pass, equal to SatDump on all 4,557 common frames ([real_pass_model.csv](data/results/real_pass_model.csv)); bit-true model: 4,582 of SatDump's 4,583 frames, all equal ([real_pass_fixed.csv](data/results/real_pass_fixed.csv)) |
 | B — Digital downconverter | **Done** (2026-11-07) | Bit-exact on the board from BRAM (UART and ILA) and over Ethernet from `gs-replay` (38 of 40 replays; the other 2 had datagrams reordered on the host side) |
 | C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. Real recording pending |
 | D — Viterbi + frame sync | **In progress** | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios), and in the chain from DDC output; hardware BER 0.12–0.36 dB from the model ([ber_board.csv](data/results/ber_board.csv)) |

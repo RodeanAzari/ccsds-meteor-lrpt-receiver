@@ -1367,3 +1367,16 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   heuristic happened to call it binary (blob SHA-256 checked equal).
 - Next: the bit-true model on the recording (fixed-point DDC → sync → frame sync), then the RTL in simulation on the
   snippet, then a board replay of the pass through `gs-rx` and `gs-diff`.
+
+## 2026-11-21 (night): bit-true model on the real pass (Phase A)
+
+- `real_pass_study --bit-true` (the RTL's arithmetic end to end, coarse estimate into the NCO, each 30 s chunk from a
+  cold start), commit 09999dc: **5,585 RS-good frames; 4,582 of SatDump's 4,583 found, all equal on the data bytes,
+  0 different; 1,003 model-only; 1 SatDump-only (not placed)** (`real_pass_fixed.csv`).
+- Against the float model, chunk by chunk: identical counts (262–263) from 19:46:59 to 19:56; carrier within 1 Hz
+  over the same span. Bit-true finds fewer on the rising edge (52 vs. 90 at 19:45:35) and more on the fade (141 vs.
+  76 at 19:56:47), so it misses 1 SatDump frame where the float model missed 26. swap never wins here either.
+- Run cost: ~16× slower than real time per process, ~2.2–2.5 GB per 30 s chunk. 10 jobs drove the host to 1.7 GB
+  available and 5 GB of swap next to other projects' OpenROAD and Vivado; stopped and rerun at 4 jobs (~80 min).
+- The study's sidecar was generated before its interpretation existed; the interpretation text was put in place of
+  its `[TBD]` afterwards (same text as `analysis/interpretations/real_pass_fixed.md`), the run's commit unchanged.
