@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 import struct
 import subprocess
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import cocotb
@@ -37,6 +37,7 @@ from model import ddc_fixed, sync_fixed
 from model.cadu_fixed import CaduOut, cadus_from_windows
 from model.coding import ASM_BYTES
 from model.framesync_fixed import decode_windows, frame_sync_fixed, windows
+from model.receiver import RxConfig
 from model.sync_fixed import serial
 from model.viterbi_fixed import quantize
 from scripts.board_rx import set_nco_command
@@ -79,13 +80,21 @@ def status_bytes(c: CaduOut) -> bytes:
     return bytes([flags, c.asm_errors, *(0x80 if x < 0 else x for x in c.corrections), 0, 0])
 
 
-@test(timeout_time=600, timeout_unit="ms")
-async def recording_in_cadus_out(dut) -> None:
-    raw, cfg, truth = raw_input(FRAMES, SEED)
-    raw = raw[: raw.size // (2 * SAMPLES) * 2 * SAMPLES]  # whole datagrams only (gs-replay drops a partial one)
-    hz = sync_fixed.coarse_tune_hz(raw, cfg)
-    assert ddc_fixed.freq_word(hz, cfg.fs) == FREQ_WORD, "stale FREQ_WORD: update it here and in run.py"
-    cfg = replace(cfg, tune_offset_hz=hz)
+@dataclass
+class Replay:
+    n_dgram: int
+    got: list[bytes]  # CADU packets, each checked against the model's CADU
+    good: int  # model CADUs whose ASM is right and whose data bytes are in the truth set
+    cadus: list[CaduOut]
+    stats_pkts: list[bytes]
+    hwm: int
+
+
+async def replay(dut, raw: np.ndarray, cfg, truth: set[bytes], freq_word: int) -> Replay:
+    """Reset the top, SET_NCO freq_word, send raw as replay datagrams at line rate (with a refused second SET_NCO at
+    LATE_AT), then check every CADU packet against the bit-true model chain and the last stats packet's counters."""
+    cfg = replace(cfg, tune_offset_hz=sync_fixed.coarse_tune_hz(raw, cfg))
+    assert ddc_fixed.freq_word(cfg.tune_offset_hz, cfg.fs) == freq_word, "stale FREQ_WORD: update it here and in run.py"
     cadus, res, early = model_cadus(raw, cfg)
     assert len(cadus) >= 2, "the stimulus must give at least two CADUs"
     n_dgram = raw.size // (2 * SAMPLES)
@@ -107,7 +116,7 @@ async def recording_in_cadus_out(dut) -> None:
     assert dut.eth_rstn_o.value == 1, "PHY reset not released"
 
     await send_mii(dut.eth_rx_clk_i, dut.eth_rxd_i, dut.eth_rx_dv_i,
-                   udp_frame(set_nco_command(FREQ_WORD), GROUP_IP, PORT))
+                   udp_frame(set_nco_command(freq_word), GROUP_IP, PORT))
     for k, d in enumerate(datagrams):  # back to back: 12-byte inter-frame gap, the line rate
         if k == LATE_AT:
             await send_mii(dut.eth_rx_clk_i, dut.eth_rxd_i, dut.eth_rx_dv_i,
@@ -149,36 +158,84 @@ async def recording_in_cadus_out(dut) -> None:
     assert len(last.fields) == len(FIELDS) == 29
     want = {"ingest_ok": n_dgram, "eth_ok": n_dgram + 2, "udp_ok": n_dgram + 2, "ddc_out": n_dgram * SAMPLES // 4,
             "cadus_sent": len(cadus), "fs_locked": 1, "fs_dropped": res.dropped, "fs_slips": res.slips,
-            "fs_early": early, "nco_word": FREQ_WORD, "ctrl_ok": 1, "ctrl_bad": 1}
+            "fs_early": early, "nco_word": freq_word, "ctrl_ok": 1, "ctrl_bad": 1}
     for name in FIELDS:
         if name == "rx_fifo_hwm":
             continue
         assert last.fields[name] == want.get(name, 0), f"stats {name} = {last.fields[name]}, want {want.get(name, 0)}"
     led = int(dut.led_o.value)
     assert led & LED_ERR == 0 and led & LED_LOCK, f"LEDs {led:04b}: error lit or frame sync not locked"
-
-    if os.environ.get("CAPTURE_DIR"):
-        capture(Path(os.environ["CAPTURE_DIR"]), got, packets(1))
     hwm = last.fields["rx_fifo_hwm"]
-    dut._log.info("%d datagrams at line rate; %d CADU packets bit-exact with the model, %d of %d a frame sent; %d "
+    dut._log.info("%d datagrams at line rate; %d CADU packets bit-exact with the model, %d of %d in the truth set; %d "
                   "stats packets; eth_rx FIFO high-water %d B; NCO word 0x%08X (coarse estimate %.1f Hz)", n_dgram,
-                  len(got), good, len(cadus), len(stats), hwm, FREQ_WORD, hz)
-    if os.environ.get("WRITE_RESULTS") == "1":
-        from analysis.common import write_result
+                  len(got), good, len(cadus), len(stats), hwm, freq_word, cfg.tune_offset_hz)
+    return Replay(n_dgram, got, good, cadus, packets(1), hwm)
 
-        verilator = subprocess.run(["verilator", "--version"], capture_output=True, text=True).stdout.split()[1]
-        write_result(
-            "rx_top_rtl_decode",
-            ["datagrams", "replay_speed_x", "cadus", "bytes_checked", "mismatches", "cadus_matching_sent",
-             "stats_packets", "eth_ovf_lost", "ingest_lost", "rx_fifo_hwm_bytes", "freq_word"],
-            [[n_dgram, 5.69, len(got), 1048 * len(got), 0, good, len(stats), 0, 0, hwm, f"0x{FREQ_WORD:08X}"]],
+
+def write_rx_top_result(name: str, r: Replay, freq_word: int, input_desc: str, recording: str | None = None) -> None:
+    from analysis.common import write_result
+
+    verilator = subprocess.run(["verilator", "--version"], capture_output=True, text=True).stdout.split()[1]
+    write_result(
+        name,
+        ["datagrams", "replay_speed_x", "cadus", "bytes_checked", "mismatches", "cadus_matching_sent",
+         "stats_packets", "eth_ovf_lost", "ingest_lost", "rx_fifo_hwm_bytes", "freq_word"],
+        [[r.n_dgram, 5.69, len(r.got), 1048 * len(r.got), 0, r.good, len(r.stats_pkts), 0, 0, r.hwm,
+          f"0x{freq_word:08X}"]],
+        input_desc,
+        command="make rx-top-rtl-results",
+        tools=f"Verilator {verilator}, cocotb {cocotb.__version__}",
+        recording=recording,
+    )
+
+
+@test(timeout_time=600, timeout_unit="ms")
+async def recording_in_cadus_out(dut) -> None:
+    raw, cfg, truth = raw_input(FRAMES, SEED)
+    raw = raw[: raw.size // (2 * SAMPLES) * 2 * SAMPLES]  # whole datagrams only (gs-replay drops a partial one)
+    r = await replay(dut, raw, cfg, truth, FREQ_WORD)
+    if os.environ.get("CAPTURE_DIR"):
+        capture(Path(os.environ["CAPTURE_DIR"]), r.got, r.stats_pkts)
+    if os.environ.get("WRITE_RESULTS") == "1":
+        write_rx_top_result(
+            "rx_top_rtl_decode", r, FREQ_WORD,
             f"seed {SEED} in tb/cocotb/test_arty_rx_eth_top_full.py via sync_chain.raw_input() ({FRAMES} CADUs of "
             "OQPSK at 6 dB Eb/N0, 151 kHz + 30 Hz/s, 0.37 symbol late, 20 ppm clock, cu8), as replay datagrams over "
             "MII at the 100 Mb/s line rate; arty_rx_eth_top from reset",
-            command="make rx-top-rtl-results",
-            tools=f"Verilator {verilator}, cocotb {cocotb.__version__}",
         )
-    assert good == len(cadus), f"{len(cadus) - good} CADUs are no frame sent"
+    assert r.good == len(r.cadus), f"{len(r.cadus) - r.good} CADUs are no frame sent"
+
+
+SAMPLES_DIR = Path(__file__).resolve().parents[2] / "data" / "samples"
+REAL_SNIPPET = SAMPLES_DIR / "2026-11-21T195100Z_meteor-m2-4_2.4s.cu8"
+REAL_SATDUMP = SAMPLES_DIR / "2026-11-21T195100Z_satdump.cadu"
+
+
+@test(timeout_time=1500, timeout_unit="ms")
+async def real_pass_snippet_in_satdump_cadus_out(dut) -> None:
+    """The real 2026-11-21 Meteor-M N2-4 snippet (data/samples/) through the board top, from reset.
+
+    Why it matters: every other RTL test runs on our own synthetic signal, so a spec error shared by our modulator
+    and our receiver would pass them all. Here the input is the satellite's, and the reference is SatDump: each CADU
+    packet must equal the bit-true model's, and every one must be one of the 20 frames SatDump decoded there (same
+    892 data bytes; SatDump leaves parity uncorrected, signal-spec.md). The NCO word is the host's coarse estimate
+    of this recording (ADR 0002), as rx-check would send it.
+    """
+    raw = np.fromfile(REAL_SNIPPET, dtype=np.uint8)
+    raw = raw[: raw.size // (2 * SAMPLES) * 2 * SAMPLES]
+    cfg = RxConfig(fs=1_024_000.0, tune_offset_hz=150_000.0)  # data/MANIFEST.md: tuned 137.75 MHz, signal 137.9 MHz
+    word = ddc_fixed.freq_word(sync_fixed.coarse_tune_hz(raw, cfg), cfg.fs)
+    sd = REAL_SATDUMP.read_bytes()
+    truth = {sd[i + 4: i + 4 + DATA_BYTES] for i in range(0, len(sd), 1024)}
+    r = await replay(dut, raw, cfg, truth, word)
+    if os.environ.get("WRITE_RESULTS") == "1":
+        write_rx_top_result(
+            "rx_top_rtl_real_snippet", r, word,
+            f"{REAL_SNIPPET.name} (data/samples/, 2.4 s of the 2026-11-21 pass at 19:51:00 UTC), as replay datagrams "
+            "over MII at the 100 Mb/s line rate; arty_rx_eth_top from reset; truth = SatDump's 20 frames there",
+            recording=REAL_SNIPPET.name,
+        )
+    assert r.good == len(r.cadus) == len(truth), f"{r.good} of {len(r.cadus)} CADUs are SatDump's ({len(truth)})"
 
 
 def capture(out: Path, cadu_pkts: list[bytes], stats_pkts: list[bytes]) -> None:
