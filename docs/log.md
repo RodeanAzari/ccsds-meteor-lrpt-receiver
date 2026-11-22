@@ -1415,3 +1415,9 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   against SatDump's 3,568; the map overlay lands on the coastlines, so the frames carry good timestamps. Composite
   side by side: `scripts/msu_mr_compare.py` → `docs/media/2026-11-21_phase-e_msu-mr-board-vs-satdump.jpg`, the README
   hero image (the DDC ILA plot moves to the DDC section).
+- Space packets of the same run, by hand (no result CSV yet): `PYTHONPATH=. python scripts/packet_diff.py --cadus
+  build/board_gs_rx_real/1_1x/cadus.bin --packets build/board_gs_rx_real/1_1x/packets.bin --satdump
+  ~/recordings/2026-11-21_satdump/meteor_m2-x_lrpt.cadu` → ours 22,295, SatDump 18,208, equal 18,176, differ 5,
+  only ours 4,114, only SatDump 27; explained: 9 SatDump-damaged, 23 missing in ours, 4,114 missing in SatDump;
+  **0 unexplained, PASS**. gs-rx dropped 23 packets at 25 gaps in its own VCID-5 stream. To record properly:
+  `board_gs_rx.py --recording` should run packet_diff and write its columns.
