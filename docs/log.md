@@ -1392,3 +1392,26 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   refactor: PASS, same numbers as `rx_top_rtl_decode.csv` (1,137 datagrams, 3/3 CADUs, 501 stats packets).
 - Not separately mutated (27 min per run): the RTL-vs-model checks are the synthetic test's, the SatDump comparison
   was mutated in `test_real_snippet.py`.
+
+## 2026-11-22: the real pass on the board (Phase E real decode)
+
+- Board free (P2 released it); claimed by P3 and released after the run.
+- `scripts/board_gs_rx.py` gained `--recording` (real input: pass on gs-rx's checks, the NCO echo and gs-diff's
+  data-byte verdict; frames only one side has and SatDump's ASM/parity channel errors counted, not failed) and
+  `--idle` (a fading pass goes quiet for longer than 10 s). The rule is `replay_passed()`, tested; 6 mutants caught.
+- Coarse estimate at candidate cut points: rejected (0.0) at 440 s and 464 s into the part2 recording (signal too
+  weak), −357.1 Hz at 480 s, on the bit-true study's carrier track. Cut 480–1220 s (19:45:51–19:58:11) into
+  `build/real_pass/`, one SET_NCO word 0x25692600 for the whole pass. Bitstream from 2026-11-09; RTL changes since are
+  coverage/formal blocks only, excluded from synthesis.
+- **Result (1× and 5× requested; 5× achieved 3.20×): 5,912 CADUs sent, 5,587 RS-good, 325 RS-failed, 4,173 RS symbols
+  corrected, 76 frame-sync slips, nothing lost (ingest, pkt_seq, ring, host TX). gs-diff vs. SatDump: 4,566 common,
+  0 data bits differ, 2 ASM / 53 parity bytes differ (SatDump keeps channel errors there), 1,021 board-only, 17
+  SatDump-only** (`board_gs_rx_real.csv`). The two runs' cadus.bin are byte-identical (SHA-256 93743d4f…).
+- The 17 SatDump-only frames are all among its last 92 (index 4,491 onward), the LOS fade. The bit-true study, cold
+  every 30 s with a fresh estimate, missed 1 there; why the continuous run misses 16 more is not investigated.
+- The Costas loop carried the whole Doppler sweep (about −0.36 to −6.4 kHz) from the one NCO word: no gap mid-pass.
+- MSU-MR from the board's CADUs: `satdump meteor_m2-x_lrpt cadu build/board_gs_rx_real/1_1x/cadus.bin
+  build/real_pass/msu` (exit 1 as on the baseband run; images written, "Analog telemetry missing" warning). 4,440 lines
+  against SatDump's 3,568; the map overlay lands on the coastlines, so the frames carry good timestamps. Composite
+  side by side: `scripts/msu_mr_compare.py` → `docs/media/2026-11-21_phase-e_msu-mr-board-vs-satdump.jpg`, the README
+  hero image (the DDC ILA plot moves to the DDC section).

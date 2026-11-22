@@ -13,8 +13,8 @@
 
 - [x] Plot: frames per 30 s, float model vs. SatDump, with the carrier offset, 2026-11-21 pass
       (`docs/media/2026-11-21_phase-a_real-pass-model.png`, `make plots`; in the README under Architecture)
-- [ ] Image (Phase E, later): MSU-MR image decoded by this receiver's RTL from the same pass, next to SatDump's
-      (the intended hero image; needs the board replay of the pass)
+- [x] Image (Phase E, 2026-11-22): MSU-MR image from the CADUs this receiver's RTL decoded on the board, next to
+      SatDump's (`docs/media/2026-11-21_phase-e_msu-mr-board-vs-satdump.jpg`, `scripts/msu_mr_compare.py`)
 
 ## Phase F (ground station)
 
