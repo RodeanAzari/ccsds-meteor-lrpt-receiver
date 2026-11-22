@@ -7,7 +7,7 @@ Digilent Arty A7-100T with C++ ground-station tools around it. Recordings are ca
 the board over UDP, and decoded down to CCSDS frames: digital downconversion, timing and carrier recovery, frame
 sync, Viterbi K=7 r½, derandomization and Reed-Solomon RS(255,223)×4.
 
-**Status: Phase B (the DDC) done; C–F in progress; first real pass decoded by the golden model, not yet by the RTL.** The whole receiver runs on the
+**Status: Phase B (the DDC) done; C–F in progress; first real pass decoded by the golden model, and a 2.4 s cut of it by the RTL in simulation.** The whole receiver runs on the
 board at 100 MHz: a recording replayed over Ethernet goes through the DDC, sync chain, frame sync, Viterbi, NRZ-M,
 derandomizer and Reed-Solomon in RTL, and the CADUs come back over Ethernet to the C++ ground station. On a synthetic
 recording, **every CADU the board decoded matches a sent frame (298 / 298, 15 / 15 replays up to 5.6× real time)**,
@@ -19,7 +19,8 @@ turn matches the float model and BER theory. **The first own pass that decodes w
 5,583 frames of that pass, and the 4,557 it shares with SatDump are equal in every data byte**
 ([real_pass_model.csv](data/results/real_pass_model.csv)). **The bit-true model, which the RTL matches bit for bit,
 finds 4,582 of SatDump's 4,583 frames, all equal, and 1,003 more** ([real_pass_fixed.csv](data/results/real_pass_fixed.csv)).
-The RTL itself has not run a real recording yet; that is the next step.
+**The RTL, in simulation, decodes 2.4 s of the real pass into SatDump's 20 frames there**, bit-exact with that model
+([rx_top_rtl_real_snippet.csv](data/results/rx_top_rtl_real_snippet.csv)). The whole pass on the board is next.
 
 Every number below comes from a CSV in [`data/results/`](data/results/) or a report in
 [`docs/reports/`](docs/reports/), produced by a `make` target. Each CSV has a sidecar `.md` with the commit,
@@ -41,7 +42,7 @@ stand-in hero image: the intended one, a Meteor image decoded by this receiver n
 | **Target signal** | Meteor-M N2-4 LRPT, 72k mode: OQPSK, 72 ksym/s, conv K=7 r½, NRZ-M, CCSDS randomizer, RS(255,223) interleave 4. Parameters read from SatDump 1.2.2's source ([signal-spec.md](docs/signal-spec.md)) |
 | **Receive chain** | DDC (NCO + mixer, CIC ÷4, 31-tap droop FIR) → RRC → AGC → Costas + Farrow/Gardner → encoded-ASM frame sync → Viterbi → NRZ-M → derandomizer → RS×4, **all in RTL and all on the board**, fed over 100 Mb/s Ethernet and sending CADUs and stats back. The host computes a coarse carrier estimate and loads it into the NCO ([ADR 0002](docs/decisions/0002-oqpsk-timing.md), [ADR 0014](docs/decisions/0014-control-commands.md)) |
 | **Whole receiver on the board** | **15 / 15 replays: 298 CADUs each, every one matching a sent frame** on its 892 data bytes, asked at 1×, 5× and 5.6× real time over Ethernet, synthetic recording (8 dB); no RS correction needed, every datagram placed in order by the ingest's reorder buffer ([board_rx_eth.csv](data/results/board_rx_eth.csv)). 13,682 LUT (21.6%), 100 MHz met, WNS +0.256 ns ([board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv)) |
-| **Real passes decoded** | 1 (2026-11-21, Meteor-M N2-4), by the float golden model: **5,583 frames, all RS codewords good**; SatDump decoded 4,583. The model starts about 2.5 min earlier on the rising signal ([real_pass_model.csv](data/results/real_pass_model.csv), [MANIFEST](data/MANIFEST.md)). Bit-true model (= RTL arithmetic): **5,585 frames**, 4,582 of SatDump's 4,583 ([real_pass_fixed.csv](data/results/real_pass_fixed.csv)). By the RTL / board: `[TBD]` |
+| **Real passes decoded** | 1 (2026-11-21, Meteor-M N2-4), by the float golden model: **5,583 frames, all RS codewords good**; SatDump decoded 4,583. The model starts about 2.5 min earlier on the rising signal ([real_pass_model.csv](data/results/real_pass_model.csv), [MANIFEST](data/MANIFEST.md)). Bit-true model (= RTL arithmetic): **5,585 frames**, 4,582 of SatDump's 4,583 ([real_pass_fixed.csv](data/results/real_pass_fixed.csv)). RTL in simulation, whole board top from reset: a 2.4 s cut, **20 / 20 CADUs equal to SatDump's** ([rx_top_rtl_real_snippet.csv](data/results/rx_top_rtl_real_snippet.csv)). On the board: `[TBD]` |
 | **CADU match vs. SatDump** | Synthetic recording: SatDump decoded 258 / 295 / 226 of 300 frames in three runs, **every decoded frame matching** ([satdump_crosscheck.csv](data/results/satdump_crosscheck.csv)). Real pass, float model: **4,557 frames in common, every one equal** on its 892 data bytes, none different; the 1,026 model-only and 26 SatDump-only frames are all at the pass's edges ([real_pass_model.csv](data/results/real_pass_model.csv)). Board: `[TBD]` |
 | **DDC on the board** | **16,384 / 16,384 outputs bit-exact** vs. the model, over UART ([ddc_board.csv](data/results/ddc_board.csv)) and again over JTAG/ILA ([ddc_board_ila.csv](data/results/ddc_board_ila.csv)); **fed over Ethernet by `gs-replay`, 38 of 40 replays bit-exact at 1×, 5× and 5.6× real time**; the other 2 arrived with datagrams reordered before the board, as its own counters show ([ddc_board_eth.csv](data/results/ddc_board_eth.csv)); 100 MHz, synthetic input |
 | **DDC throughput** | 9.0 clocks per input sample: **10.8× real time** at 100 MHz, RTL simulation ([ddc_rtl_sim.csv](data/results/ddc_rtl_sim.csv)) |

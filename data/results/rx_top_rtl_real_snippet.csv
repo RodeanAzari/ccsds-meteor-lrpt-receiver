@@ -1,0 +1,2 @@
+datagrams,replay_speed_x,cadus,bytes_checked,mismatches,cadus_matching_sent,stats_packets,eth_ovf_lost,ingest_lost,rx_fifo_hwm_bytes,freq_word
+4800,5.69,20,20960,0,20,2110,0,0,1,0x24D80C00

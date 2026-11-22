@@ -1380,3 +1380,15 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   available and 5 GB of swap next to other projects' OpenROAD and Vivado; stopped and rerun at 4 jobs (~80 min).
 - The study's sidecar was generated before its interpretation existed; the interpretation text was put in place of
   its `[TBD]` afterwards (same text as `analysis/interpretations/real_pass_fixed.md`), the run's commit unchanged.
+
+## 2026-11-21 (night, cont.): the RTL decodes the real snippet (Phase E)
+
+- New `real_pass_snippet_in_satdump_cadus_out` in `test_arty_rx_eth_top_full.py` (sim-full): the committed 2.4 s
+  snippet as 4,800 replay datagrams at line rate into `arty_rx_eth_top` from reset, SET_NCO 0x24D80C00 (coarse
+  estimate 147,375.7 Hz). **20 CADU packets, all bit-exact with the bit-true model and all 20 of SatDump's frames;
+  0 RS corrections, 0 ASM errors; no loss anywhere; eth_rx FIFO high-water 1 B** (`rx_top_rtl_real_snippet.csv`).
+  26 min 51 s in Verilator.
+- The replay/check body moved into `replay()`, shared with `recording_in_cadus_out`; that test re-run after the
+  refactor: PASS, same numbers as `rx_top_rtl_decode.csv` (1,137 datagrams, 3/3 CADUs, 501 stats packets).
+- Not separately mutated (27 min per run): the RTL-vs-model checks are the synthetic test's, the SatDump comparison
+  was mutated in `test_real_snippet.py`.
