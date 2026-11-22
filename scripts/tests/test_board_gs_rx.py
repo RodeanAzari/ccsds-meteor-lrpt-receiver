@@ -14,7 +14,7 @@ import pytest
 
 from model.coding import encode_cadus
 from model.space_packets import demux
-from scripts.board_gs_rx import packet_check
+from scripts.board_gs_rx import packet_check, replay_passed
 from scripts.make_synthetic_iq import packet_cadus
 
 N = 24
@@ -77,3 +77,34 @@ def test_fails_when_satdump_disagrees(tmp_path: Path, truth_cadus: list[bytes]) 
     satdump.write_bytes(bytes(blob))
     row, ok = packet_check(out, satdump, truth)
     assert not ok and row[3] == 1 and row[-1] == "FAIL"
+
+
+# replay_passed: a real pass has frames only one decoder has (they acquire and drop out at different points) and
+# channel errors in SatDump's ASM and parity bytes, so those must not fail a real replay; but a data-byte difference
+# on a common frame, a CADU gs-rx missed, or an NCO word the board didn't take always must.
+CLEAN = {"cadu_seq_missing": "0", "malformed": "0", "ring_full": "0"}
+REAL_DIFF = {"result": "PASS", "only_ours": "1003", "only_satdump": "1", "data_bits_differ": "0",
+             "asm_frames_differ": "12", "parity_bytes_differ": "40"}
+
+
+def test_real_replay_passes_with_frames_only_one_decoder_has() -> None:
+    assert replay_passed(CLEAN, REAL_DIFF, nco_ok=True, real=True)
+
+
+def test_synthetic_replay_fails_on_what_a_real_one_may_have() -> None:
+    assert not replay_passed(CLEAN, REAL_DIFF, nco_ok=True, real=False)
+    assert replay_passed(CLEAN, {**REAL_DIFF, "only_satdump": "0", "asm_frames_differ": "0",
+                                 "parity_bytes_differ": "0"}, nco_ok=True, real=False)
+    for k in ("only_satdump", "asm_frames_differ", "parity_bytes_differ"):
+        assert not replay_passed(CLEAN, {**REAL_DIFF, "only_satdump": "0", "asm_frames_differ": "0",
+                                         "parity_bytes_differ": "0", k: "1"}, nco_ok=True, real=False)
+
+
+@pytest.mark.parametrize("bad", [
+    ({**CLEAN, "cadu_seq_missing": "2"}, REAL_DIFF, True),
+    ({**CLEAN, "ring_full": "1"}, REAL_DIFF, True),
+    (CLEAN, {**REAL_DIFF, "result": "FAIL", "data_bits_differ": "3"}, True),
+    (CLEAN, REAL_DIFF, False),
+])
+def test_real_replay_fails_on_loss_data_difference_or_nco(bad: tuple[dict[str, str], dict[str, str], bool]) -> None:
+    assert not replay_passed(bad[0], bad[1], nco_ok=bad[2], real=True)
