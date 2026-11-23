@@ -18,7 +18,9 @@ simulation VCD); Phase E real-decode stats (gs-diff on the real pass as a termin
 Not met as written, decided by the user 2026-11-23:
 - Phase 0/A "a public M2-x 72k recording decoded": **waived**; none is downloadable (docs/log.md 2026-11-14), the own
   2026-11-21 pass stands in.
-- Phase D "ILA capture of path metrics": **do it** (ILA build of `arty_rx_eth_top` with probes on `fec_acs_array`).
+- Phase D "ILA capture of path metrics": **done 2026-11-23**: 1,023 steps equal to the model
+  (`viterbi_board_ila.csv`), heatmap `docs/media/2026-11-23_phase-d_viterbi-ila-path-metrics.png`. Optional (you):
+  screenshot of the capture in Vivado's waveform view, `build/board/ila_acs.ila` (display_hw_ila_data).
 - Phase E "hardware BER, uncoded": **waived**; no tap before the Viterbi decoder (README Limitations), model curve only.
 
 ## Phase 0 (needs the capture kit)

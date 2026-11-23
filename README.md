@@ -68,7 +68,7 @@ The striped rows at the top are the end of the pass, below 10° elevation, and a
 | A — Python golden model | **In progress** | Float and bit-true chains decode synthetic signals; the float model decodes the 2026-11-21 pass, equal to SatDump on all 4,557 common frames ([real_pass_model.csv](data/results/real_pass_model.csv)); bit-true model: 4,582 of SatDump's 4,583 frames, all equal ([real_pass_fixed.csv](data/results/real_pass_fixed.csv)) |
 | B — Digital downconverter | **Done** (2026-11-07) | Bit-exact on the board from BRAM (UART and ILA) and over Ethernet from `gs-replay` (38 of 40 replays; the other 2 had datagrams reordered on the host side) |
 | C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. On the board it holds the real pass's Doppler (−0.36 to −6.4 kHz) from one NCO setting ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
-| D — Viterbi + frame sync | **In progress** | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios), and in the chain from DDC output; hardware BER 0.12–0.36 dB from the model ([ber_board.csv](data/results/ber_board.csv)) |
+| D — Viterbi + frame sync | **In progress** | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios), and in the chain from DDC output; hardware BER 0.12–0.36 dB from the model ([ber_board.csv](data/results/ber_board.csv)); ACS path metrics captured on the board by ILA, 1,023 steps equal to the model ([viterbi_board_ila.csv](data/results/viterbi_board_ila.csv)) |
 | E — Reed-Solomon + real decode | **In progress** | Stats packets back over Ethernet; RS decoder released as [fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core) `rs-core-v1.0`; NRZ-M, ASM check, derandomizer and RS in RTL after the Viterbi, bit-exact in simulation; **the whole receiver on the board decodes a replayed synthetic recording, 298 / 298 CADUs in 15 / 15 replays up to 5.6× real time**, and **the real 2026-11-21 pass: 5,587 CADUs, all 4,566 common with SatDump identical** ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
 | F — C++ ground station | **In progress** | `gs-replay`, `gs-rx` (RS gate, space packets), `gs-diff`, `gs-view`, fuzzed parsers; board → gs-rx bit-identical to SatDump on all 258 common frames ([board_gs_rx.csv](data/results/board_gs_rx.csv)); space packets from the board equal to the model's and SatDump's ([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)); on the real pass, 18,176 packets equal to SatDump's, 0 unexplained ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
 
@@ -503,6 +503,19 @@ back at every point ([ber_board.csv](data/results/ber_board.csv)).
 
 ![Hardware BER against Eb/N0: board before and after RS, model and uncoded theory](docs/media/2026-11-08_phase-e_ber-board.png)
 
+**Inside the running decoder** (`make board BOARD_TOP=arty_rx_eth_top ILA=1`, `make ila-capture-acs`): an ILA on the
+ACS array stores all 64 path metrics, the step's two soft symbols and the decisions, once per trellis step, while the
+real 2.4 s snippet replays at 1×. Each captured step is checked against the bit-true model's ACS step from the one
+before: **1,023 consecutive steps, every metric and decision equal** ([viterbi_board_ila.csv](data/results/viterbi_board_ila.csv)).
+The check fails on the same data with the symbols swapped, one step dropped or one metric bit flipped.
+
+![Heatmap of the 64 Viterbi path metrics over 200 trellis steps, captured on the board](docs/media/2026-11-23_phase-d_viterbi-ila-path-metrics.png)
+
+*The first 200 steps of that capture: each state's path metric above the best one (dark = survivor). Step 0 is the
+decoder's first step after reset, when all metrics are equal; they spread out within about 20 steps and then stay
+within 30 of the best. The 9-bit registers wrap modulo 512 the whole time; the plot unwraps them the way the RTL's
+compare does. `make plots`, from [viterbi_board_ila_pm.csv](data/results/viterbi_board_ila_pm.csv).*
+
 Not yet: BER on a real recording's impairments.
 
 ## Reed-Solomon
@@ -684,6 +697,7 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. Inputs are synthetic except whe
 | Board → `gs-rx` space packets vs. truth and SatDump | Packets equal the model's demux of the delivered frames in 3 / 3 replays (268 / 270 at 1×, 5×); 228 equal to SatDump, 0 different, 0 unexplained | Synthetic recording with VCID-5 packets (seed 2027, 8 dB); at 5.6× the host dropped 2 datagrams | [board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv) |
 | Receiver board top timing | WNS +0.256 ns, WHS +0.025 ns; 13,682 LUT, 8 RAMB36 + 7 RAMB18, 29 DSP | `arty_rx_eth_top`, 100 MHz, placed and routed | [board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv) |
 | Real pass on the board → `gs-rx` → `gs-diff` vs. SatDump | 5,587 RS-good CADUs (325 RS-failed), nothing lost; 4,566 common with SatDump's 4,583, 0 data bits different; 1,021 board-only, 17 SatDump-only (its last 92 frames, LOS fade; a cold start there finds 14 of them, docs/log.md); 1× and 5× replays byte-identical. Space packets: 18,176 equal to SatDump's, 0 unexplained | Meteor-M N2-4, 2026-11-21, 75.7° max; 740 s cut (19:45:51–19:58:11), one SET_NCO word (−357 Hz) for the whole pass, board reprogrammed per replay | [board_gs_rx_real.csv](data/results/board_gs_rx_real.csv), [MANIFEST](data/MANIFEST.md) |
+| Viterbi ACS on the board (ILA) | 1,023 consecutive steps: all 64 path metrics and decisions equal the bit-true model's step | Real 2.4 s snippet at 1×, ILA build WNS +0.421 ns ([board_arty_rx_eth_top_ila.csv](data/results/board_arty_rx_eth_top_ila.csv)) | [viterbi_board_ila.csv](data/results/viterbi_board_ila.csv) |
 | Hardware BER, Viterbi + NRZ-M (pre-RS) | 1.79×10⁻⁴ at 3.5 dB, 4.85×10⁻⁶ at 4.5 dB; 0.12–0.36 dB from the model, 2–4.5 dB | Arty, synthetic AWGN replay, ≥ 100 errors per point | [ber_board.csv](data/results/ber_board.csv) |
 | Hardware BER, Viterbi + RS (data bytes) | 9.64×10⁻⁵ at 2.5 dB; 0 errors in 42.5 M bits at each of 3–5 dB (< 7.0×10⁻⁸) | Same; 20 recordings per point from 3 dB | [ber_board.csv](data/results/ber_board.csv) |
 | Hardware BER, uncoded | Not measured: no tap before the Viterbi decoder | — | — |

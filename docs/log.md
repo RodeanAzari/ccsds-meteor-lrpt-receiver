@@ -1429,3 +1429,26 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   missing. So the continuous run's carried state costs them, as the cold-start bit-true study suggested. Not
   isolated which state. A fix would need the host to re-steer mid-pass, but SET_NCO after the first sample is
   refused by design (ADR 0014): a design question, not done.
+
+## 2026-11-23: §9 review; Viterbi path metrics on the board by ILA (Phase D)
+
+- §9 review of phases 0, A, C, D, E in docs/portfolio-todo.md. User decisions: public-recording item waived (none
+  downloadable; own pass stands in), uncoded hardware BER waived (no tap before the Viterbi decoder), ILA capture of
+  path metrics: do it. The 17 LOS-fade frames: left as a README limitation.
+- `model.viterbi_fixed.acs_step()` factored out of `acs()` (116 model tests pass) so a step can start from any
+  captured metrics. `scripts/ila_viterbi.py` checks each captured step against it.
+- ILA build of `arty_rx_eth_top`, three tries:
+  1. `s_tdata_i` has no pin on `u_acs` after synthesis (branch metrics pushed across the boundary). The symbols are
+     rx_chain's `win_tdata`, named per bit in `u_rx` or `u_rx/u_framesync/u_win` (two discovery synth runs).
+  2. Timing failed, WNS −0.612 ns: both failing paths inside the ILA, the trigger comparator on the 576-bit probe
+     (72 CARRY4). Probes 0–2 set to `PROBE_TYPE DATA`; `PROBE_MU_CNT` is not a debug-port property in 2025.2.
+  3. WNS +0.421 ns, WHS +0.019 ns; +1,643 LUT, +3,804 FF, +18 RAMB36 + 1 RAMB18 over the functional build.
+- Capture (`make ila-capture-acs IFACE=192.168.10.1`): gs-replay needed the repo root as cwd and Vivado's
+  `LD_LIBRARY_PATH` removed (its libstdc++ lacks GLIBCXX_3.4.31). Vivado splits each probe into hw_probes by net name:
+  262 CSV columns; the parser rebuilds the four probes from the .ltx (`leftIndex`/`rightIndex`, MSB-first nets).
+- **Result: 1,024 steps, the first one after reset (all metrics 0); 1,023 checked, 0 metric and 0 decision
+  mismatches** (`viterbi_board_ila.csv`). Metrics wrap through 0–511; spread up to 38. On the real capture: symbols
+  swapped → 802 steps fail; one step dropped → fails at 499; one metric bit flipped at row 700 → fails at 699;
+  decisions misaligned → all 1,023 fail. Checker mutants: 5 + 4 caught.
+- The capture's settings file lacks the per-probe lines: the Tcl stopped on the data-only probes' missing compare
+  values after the CSV and .ila were written. Fixed in the Tcl, not yet re-run on the board.
