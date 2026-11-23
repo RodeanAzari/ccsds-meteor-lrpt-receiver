@@ -12,8 +12,8 @@ Viterbi and Viterbi+RS hardware BER, timing closed + per-block utilization, hero
 Needs you (physical captures, listed in the phase sections below): Phase 0 whole-setup photo; Phase E Vivado device
 view, rx-check terminal, Arty LED photo; Phase F gs-view asciinema, demo video.
 
-Claude can generate: Phase C constellation GIF from the real recording; Phase D waveform of ACS/traceback (from a
-simulation VCD); Phase E real-decode stats (gs-diff on the real pass as a terminal capture).
+Claude can generate: Phase C constellation GIF from the real recording (done 2026-11-23); Phase D waveform of
+ACS/traceback (from a simulation VCD); Phase E real-decode stats (gs-diff on the real pass as a terminal capture).
 
 Not met as written, decided by the user 2026-11-23:
 - Phase 0/A "a public M2-x 72k recording decoded": **waived**; none is downloadable (docs/log.md 2026-11-14), the own
@@ -85,7 +85,8 @@ real recording once there is one.
       `make plots`; bit-true chain, synthetic, 15 dB)
 - [x] Plot: lock time vs. carrier error (`docs/media/2026-11-05_phase-c_lock-time.png`, `make plots`)
 - [x] Plot: Doppler tracking at 30 Hz/s (`docs/media/2026-11-05_phase-c_doppler-tracking.png`, `make plots`)
-- [ ] The same GIF from the real recording
+- [x] The same GIF from the real recording (`docs/media/2026-11-23_phase-c_constellation-lock-real.gif`,
+      `make plots`; bit-true chain on the committed 2.4 s snippet of the 2026-11-21 pass)
 
 ## Phase B (DDC on the board)
 

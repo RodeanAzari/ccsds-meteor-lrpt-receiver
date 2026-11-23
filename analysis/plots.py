@@ -335,6 +335,52 @@ def constellation_gif() -> None:
     plt.close(fig)
 
 
+def constellation_gif_real() -> None:
+    """The same view on the real 2026-11-21 pass: the committed snippet (data/samples/, in data/MANIFEST.md) through
+    the bit-true chain from reset, tuned by the host's coarse estimate over its first 2 s as the board is
+    (scripts/board_rx.freq_word). The carrier is already close, so four clusters show from the start; what changes is
+    the AGC bringing them to size over the first ~100 ms."""
+    from dataclasses import replace
+
+    from matplotlib.animation import FuncAnimation, PillowWriter
+
+    from model.ddc_fixed import ddc_fixed_rails
+    from model.rrc_fixed import rrc_fixed
+    from model.sync_fixed import ONE, agc, coarse_tune_hz, loop_gains, timing
+    from model.sync_fixed import costas as costas_fixed
+
+    raw = np.fromfile(ROOT / "data" / "samples" / "2026-11-21T195100Z_meteor-m2-4_2.4s.cu8", dtype=np.uint8)
+    base = RxConfig(tune_offset_hz=150_000.0)
+    cfg = replace(base, tune_offset_hz=coarse_tune_hz(raw[: 2 * int(2 * base.fs)], base))
+    i, q = rrc_fixed(*ddc_fixed_rails(raw, cfg), cfg)
+    i, q, _ = agc(i, q)
+    gains = loop_gains(cfg)
+    re, im = timing(*costas_fixed(i, q, gains)[:2], gains)
+    pts_i, pts_q = re[0::2] / ONE, im[1::2] / ONE
+    n = min(pts_i.size, pts_q.size)
+    sym_rate = 72_000.0
+    window, step, frames = 300, int(0.002 * sym_rate), 150  # 4.2 ms of symbols, a frame every 2 ms, to 302 ms
+    fig, ax = plt.subplots(figsize=(4.8, 4.8), dpi=80)
+    (dots,) = ax.plot([], [], ".", markersize=3, color=BLUE, alpha=0.5)
+    label = ax.text(-2.3, 2.05, "", color=INK)
+    ax.set_aspect("equal")
+    ax.set_xlim(-2.5, 2.5)
+    ax.set_ylim(-2.5, 2.5)
+    ax.set_xlabel("I (rail rms = 1)")
+    ax.set_ylabel("Q (rail rms = 1)")
+    ax.set_title("Real pass 2026-11-21, from reset, bit-true chain", color=INK, loc="left", fontsize=10)
+    fig.tight_layout()
+
+    def draw(k: int) -> None:
+        end = min(n, window + k * step)
+        dots.set_data(pts_i[end - window : end], pts_q[end - window : end])
+        label.set_text(f"t = {end / sym_rate * 1000:5.0f} ms")
+
+    anim = FuncAnimation(fig, draw, frames=frames)
+    anim.save(MEDIA / "2026-11-23_phase-c_constellation-lock-real.gif", writer=PillowWriter(fps=15))
+    plt.close(fig)
+
+
 def board_ber_plot() -> None:
     """Hardware BER (scripts/ber_board.py) against the model and theory. Points with fewer than 100 errors are
     95% upper bounds, drawn as downward triangles."""
@@ -429,6 +475,7 @@ def main() -> None:
     lock_time_plot()
     doppler_plot()
     constellation_gif()
+    constellation_gif_real()
     board_ber_plot()
     real_pass_plot()
     viterbi_ila_plot()

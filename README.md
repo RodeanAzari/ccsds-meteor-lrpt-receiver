@@ -414,6 +414,13 @@ the other rail half a symbol off, which scales its error by cos 2θ, so it avera
 *Carrier lock from reset on the bit-true chain (identical to the RTL's output), 150 Hz off the carrier at 15 dB:
 the constellation spins as a ring, then settles into four clusters. `make plots`.*
 
+![Real pass from reset: four noisy clusters grow to size as the AGC settles](docs/media/2026-11-23_phase-c_constellation-lock-real.gif)
+
+*The same view on the real 2026-11-21 pass: the committed 2.4 s snippet through the bit-true chain from reset, tuned
+by the host's coarse estimate as the board is. The carrier starts close, so four clusters show from the first
+milliseconds; the AGC brings them to size over about 100 ms. The clusters are wider than the synthetic 15 dB ones:
+this is the real signal's noise. `make plots`.*
+
 | Lock time vs. carrier error | Doppler tracking at 30 Hz/s |
 |---|---|
 | [![Lock time vs. carrier error](docs/media/2026-11-05_phase-c_lock-time.png)](docs/media/2026-11-05_phase-c_lock-time.png) | [![Doppler tracking](docs/media/2026-11-05_phase-c_doppler-tracking.png)](docs/media/2026-11-05_phase-c_doppler-tracking.png) |
