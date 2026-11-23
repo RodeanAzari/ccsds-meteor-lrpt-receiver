@@ -8,6 +8,8 @@ starting at the trigger, or storing a cycle that was not a step) must be refused
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pytest
 
@@ -34,18 +36,35 @@ def capture(swap: bool = False, dec_shift: int = 1) -> tuple[list[int], list[int
     return words, syms, dec_words
 
 
+# Vivado splits a probe into hw_probes by net name, one CSV column each (2026-11-23 capture: probe0 in 4 pieces per
+# state). SPLIT cuts each probe into such pieces: (probe, lo, hi) in .ltx pin order.
+WIDTHS = {"probe0": PM_BITS * N_STATES, "probe1": 2 * SOFT_BITS, "probe2": N_STATES, "probe3": 1}
+SPLIT = [("probe0", lo, min(lo + 6, 575)) for lo in range(0, 576, 7)] + [("probe1", 0, 1), ("probe1", 2, 7),
+                                                                      ("probe2", 0, 63), ("probe3", 0, 0)]
+
+
+def ltx(pieces: list[tuple[str, int, int]]) -> str:
+    pins = [{"name": n, "leftIndex": lo, "rightIndex": hi, "nets": [{"name": f"net{k}", "isBus": True}]}
+            for k, (n, lo, hi) in enumerate(pieces)]
+    return json.dumps({"ltx_root": {"ltx_data": [{"debug_cores": [{"name": "dbg_hub"}, {"name": "u_ila",
+                                                                                       "pins": pins}]}]}})
+
+
 def csv(words: list[int], syms: list[int], decs: list[int], enable: list[int] | None = None,
-        trigger_row: int = 0) -> str:
+        trigger_row: int = 0, pieces: list[tuple[str, int, int]] = SPLIT) -> str:
     enable = enable or [1] * len(words)
-    lines = ["Sample in Buffer,Sample in Window,TRIGGER,pm_q[575:0],s_tdata[7:0],m_tdata[63:0],ce",
-             "Radix - UNSIGNED,UNSIGNED,UNSIGNED,HEX,HEX,HEX,HEX"]
-    lines += [f"{k},{k - trigger_row},{int(k == trigger_row)},{w:x},{s:x},{d:x},{e:x}"
-              for k, (w, s, d, e) in enumerate(zip(words, syms, decs, enable, strict=True))]
+    lines = ["Sample in Buffer,Sample in Window,TRIGGER," + ",".join(f"net{k}[{hi - lo}:0]"
+                                                                      for k, (_, lo, hi) in enumerate(pieces)),
+             "Radix - UNSIGNED,UNSIGNED,UNSIGNED" + ",HEX" * len(pieces)]
+    for k, row in enumerate(zip(words, syms, decs, enable, strict=True)):
+        value = dict(zip(WIDTHS, row, strict=True))
+        cols = [f"{(value[n] >> lo) & ((1 << (hi - lo + 1)) - 1):x}" for n, lo, hi in pieces]
+        lines.append(f"{k},{k - trigger_row},{int(k == trigger_row)}," + ",".join(cols))
     return "\n".join(lines)
 
 
-def run(text: str) -> tuple[int, int, int]:
-    return check_steps(*parse_acs_ila(text))
+def run(text: str, pieces: list[tuple[str, int, int]] = SPLIT) -> tuple[int, int, int]:
+    return check_steps(*parse_acs_ila(text, ltx(pieces)))
 
 
 def test_a_correct_acs_capture_passes() -> None:
@@ -74,9 +93,24 @@ def test_acs_and_capture_faults_fail(fault: str) -> None:
 def test_capture_conditions_are_enforced() -> None:
     words, syms, decs = capture()
     with pytest.raises(ValueError, match="not an ACS step"):
-        parse_acs_ila(csv(words, syms, decs, enable=[1] * 10 + [0] + [1] * (N - 11)))
+        parse_acs_ila(csv(words, syms, decs, enable=[1] * 10 + [0] + [1] * (N - 11)), ltx(SPLIT))
     with pytest.raises(ValueError, match="trigger"):
-        parse_acs_ila(csv(words, syms, decs, trigger_row=5))
+        parse_acs_ila(csv(words, syms, decs, trigger_row=5), ltx(SPLIT))
+
+
+def test_split_probes_are_reassembled_and_a_wrong_map_is_refused() -> None:
+    """The .ltx map puts the pieces back; a missing piece, an overlap or a column that is not the .ltx's net there
+    must be refused, not read as some other bits."""
+    words, syms, decs = capture()
+    whole = [("probe0", 0, 575), ("probe1", 0, 7), ("probe2", 0, 63), ("probe3", 0, 0)]
+    assert run(csv(words, syms, decs, pieces=whole), whole) == run(csv(words, syms, decs)) == (0, 0, -1)
+    text = csv(words, syms, decs)
+    with pytest.raises(ValueError, match="not every one"):
+        parse_acs_ila(text, ltx([*SPLIT[:3], ("probe0", 21, 21), *SPLIT[4:]]))
+    with pytest.raises(ValueError, match="twice"):
+        parse_acs_ila(text, ltx([*SPLIT[:3], ("probe0", 20, 26), *SPLIT[4:]]))
+    with pytest.raises(ValueError, match=r"the \.ltx has"):
+        parse_acs_ila(text.replace(",net3[", ",netX[", 1), ltx(SPLIT))
 
 
 def test_relative_metrics_unwrap_across_the_modulo_boundary() -> None:

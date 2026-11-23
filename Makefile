@@ -4,7 +4,7 @@ RTL := $(shell find rtl -name '*.sv' -not -path 'rtl/eth/*' -not -path 'rtl/rs/*
 # (vendor-primitive stand-ins) resolve instances only.
 RTL_DIRS := $(sort $(dir $(RTL))) rtl/eth/rtl/ rtl/rs/rtl/ tb/models/
 
-.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results fec-rtl-results rx-top-rtl-results synth-ooc board prog board-check eth-check rx-check ila-capture ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study sync-lock-study framesync-study plots synthetic-iq gs-replay-results gs-lint ci fuzz-ci clean \
+.PHONY: setup model-test check-spec lint lint-py sim ddc-rtl-results sync-rtl-results fec-rtl-results rx-top-rtl-results synth-ooc board prog board-check eth-check rx-check ila-capture ila-capture-acs ber sync-study ddc-study rrc-study sync-fixed-study soft-width-study traceback-study sync-lock-study framesync-study plots synthetic-iq gs-replay-results gs-lint ci fuzz-ci clean \
         sim-slow sim-full cov formal gs gs-test fuzz synth impl reports
 
 setup:
@@ -155,6 +155,17 @@ ila-capture:
 		$(CURDIR)/build/board/ila_ddc.csv $(SERIAL) $(CURDIR)/$(PY) > ila_capture.log 2>&1 \
 		|| { tail -30 ila_capture.log; exit 1; }
 	PYTHONPATH=. $(PY) scripts/ddc_board.py ila-check build/board/ila_ddc.csv
+
+# After `make board BOARD_TOP=arty_rx_eth_top ILA=1` (and the board claim): program, arm, replay ACS_REC once over
+# IFACE, capture the Viterbi path metrics, check every step against the model (Phase D media).
+ACS_REC ?= data/samples/2026-11-21T195100Z_meteor-m2-4_2.4s.cu8
+ila-capture-acs:
+	cd build/board && ../../scripts/vivado.sh -mode batch -source ../../syn/ila_capture_acs.tcl -tclargs \
+		$(CURDIR)/build/board/arty_rx_eth_top_ila.bit $(CURDIR)/build/board/arty_rx_eth_top_ila.ltx \
+		$(CURDIR)/build/board/ila_acs.csv $(IFACE) $(CURDIR)/$(ACS_REC) $(CURDIR)/$(PY) > ila_capture_acs.log 2>&1 \
+		|| { tail -30 ila_capture_acs.log; exit 1; }
+	PYTHONPATH=. $(PY) scripts/ila_viterbi.py check build/board/ila_acs.csv \
+		build/board/arty_rx_eth_top_ila.ltx $(ACS_REC)
 
 plots:
 	$(PY) -m analysis.plots

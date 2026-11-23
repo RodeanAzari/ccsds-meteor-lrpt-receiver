@@ -393,6 +393,29 @@ def real_pass_plot() -> None:
     plt.close(fig)
 
 
+def viterbi_ila_plot() -> None:
+    """The board's Viterbi path metrics from the ILA (scripts/ila_viterbi.py): each state's metric above the best
+    one, step by step. The survivors' metrics stay near zero; the others climb until a step makes them survivors."""
+    if not (RESULTS / "viterbi_board_ila_pm.csv").exists():
+        return
+    rows = _rows("viterbi_board_ila_pm")
+    rel = np.array([[int(r[f"s{s}"]) for s in range(64)] for r in rows]).T
+    fig, ax = plt.subplots(figsize=(10, 4.8))
+    im = ax.imshow(rel, aspect="auto", origin="lower", cmap="Blues_r", interpolation="nearest",
+                   extent=(-0.5, rel.shape[1] - 0.5, -0.5, 63.5))
+    ax.grid(False)
+    ax.set_xlabel("ACS step on the board (one per decoded bit)")
+    ax.set_ylabel("Trellis state")
+    ax.set_yticks([0, 16, 32, 48, 63])
+    bar = fig.colorbar(im, ax=ax, pad=0.01)
+    bar.set_label("Path metric above the best state")
+    ax.set_title("Viterbi path metrics, captured on the Arty by the ILA during a replay of the 2026-11-21 pass",
+                 color=INK, loc="left", fontsize=11)
+    fig.tight_layout()
+    fig.savefig(MEDIA / "2026-11-23_phase-d_viterbi-ila-path-metrics.png", dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     _style()
     MEDIA.mkdir(parents=True, exist_ok=True)
@@ -408,6 +431,7 @@ def main() -> None:
     constellation_gif()
     board_ber_plot()
     real_pass_plot()
+    viterbi_ila_plot()
 
 
 if __name__ == "__main__":

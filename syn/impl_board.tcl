@@ -5,7 +5,8 @@
 #   make board BOARD_TOP=arty_ddc_eth_top   (Ethernet-fed; no ROM. Adds fpga-eth-core's rtl/ at its tag, the MII
 #                        constraints constr/arty_eth.xdc and eth-core's async_fifo.xdc scoped to async_fifo)
 #   make board BOARD_TOP=arty_rx_eth_top   (the whole receiver; the host sets the NCO word per replay, ADR 0014)
-#   make board ILA=1    (same, plus an ILA on the DDC output, inserted here after synthesis; the RTL is unchanged.
+#   make board ILA=1    (same, plus an ILA inserted here after synthesis; the RTL is unchanged. On the DDC tops,
+#                        the DDC output; on arty_rx_eth_top, the Viterbi ACS path metrics (scripts/ila_viterbi.py).
 #                        Outputs <top>_ila.bit / .ltx and reports under docs/reports/board/<top>_ila/)
 #
 # Reports go to docs/reports/board/<top>/; the bitstream to build/board/<top>.bit.
@@ -56,9 +57,63 @@ if {[info exists ::env(BOARD_GENERICS)]} {
 }
 synth_design -top $top -part $part -flatten_hierarchy rebuilt {*}$generics
 
-# Debug build only (CLAUDE.md §3.8): ILA on the DDC output handshake. Storage qualification keeps only beats
-# where the DDC output handshakes, so 16,384 entries hold every output of the 65,536-sample snippet.
-if {$ila} {
+# Debug build only (CLAUDE.md §3.8). Probes are found by post-synthesis name; a rename fails the build.
+proc ila_probes {probes} {   ;# probes: list of net lists, one per ILA port, bit 0 first
+    set i 0
+    foreach nets $probes {
+        if {$i > 0} { create_debug_port u_ila probe }
+        set_property port_width [llength $nets] [get_debug_ports u_ila/probe$i]
+        connect_debug_port u_ila/probe$i $nets
+        incr i
+    }
+}
+proc one_net {what objs} {
+    if {[llength $objs] != 1} { error "ILA: $what: expected one net, found [llength $objs] ($objs)" }
+    return $objs
+}
+if {$ila && $top eq "arty_rx_eth_top"} {
+    # Phase D media: one entry per Viterbi ACS step (scripts/ila_viterbi.py). Storage is qualified on the clock enable
+    # of fec_acs_array's path-metric registers, which is its input handshake (s_tvalid_i && s_tready_o).
+    set acs u_rx/u_viterbi/u_acs
+    create_debug_core u_ila ila
+    set_property C_DATA_DEPTH 1024 [get_debug_cores u_ila]
+    set_property C_EN_STRG_QUAL true [get_debug_cores u_ila]
+    set_property ALL_PROBE_SAME_MU true [get_debug_cores u_ila]
+    set_property ALL_PROBE_SAME_MU_CNT 2 [get_debug_cores u_ila]
+    set_property C_INPUT_PIPE_STAGES 1 [get_debug_cores u_ila]
+    set_property port_width 1 [get_debug_ports u_ila/clk]
+    connect_debug_port u_ila/clk [one_net clk [get_nets clk]]
+    set pm {}
+    for {set st 0} {$st < 64} {incr st} {
+        for {set b 0} {$b < 9} {incr b} {
+            lappend pm [one_net "pm_q\[$st\]\[$b\]" [get_nets -of_objects \
+                [get_pins -quiet "$acs/pm_q_reg\[$st\]\[$b\]/Q"]]]
+        }
+    }
+    # The symbols: rx_chain's win_tdata (frame sync window -> Viterbi). Synthesis pushes the branch metrics into
+    # u_acs's boundary, so the bus has no pin there; and it names each bit of the one net in the scope that keeps
+    # it (u_rx or u_rx/u_framesync/u_win), so take whichever exists.
+    set sym {}
+    for {set b 0} {$b < 8} {incr b} {
+        set n [get_nets -quiet "u_rx/win_tdata\[$b\]"]
+        if {$n eq ""} { set n [get_nets -quiet "u_rx/u_framesync/u_win/win_tdata\[$b\]"] }
+        lappend sym [one_net "win_tdata\[$b\]" $n]
+    }
+    set dec {}
+    for {set b 0} {$b < 64} {incr b} { lappend dec [one_net "m_tdata_o\[$b\]" [get_nets -quiet "$acs/m_tdata_o\[$b\]"]] }
+    set ce [one_net "pm_q CE" [get_nets -of_objects [get_pins -quiet "$acs/pm_q_reg\[0\]\[0\]/CE"]]]
+    foreach st {1 33 63} {  ;# the enable must be the same net (or replicas of one) everywhere: check a few
+        set other [get_nets -of_objects [get_pins -quiet "$acs/pm_q_reg\[$st\]\[8\]/CE"]]
+        if {$other ne $ce} { puts "ILA: pm_q_reg\[$st\] CE is $other, not $ce (replicated enable?)" }
+    }
+    ila_probes [list $pm $sym $dec [list $ce]]
+    # Only the step enable triggers and qualifies storage. A comparator on the 576-bit probe is a 72-deep carry
+    # chain that misses 100 MHz (WNS -0.612 ns, 2026-11-23), so the other probes are data only.
+    foreach i {0 1 2} { set_property PROBE_TYPE DATA [get_debug_ports u_ila/probe$i] }
+    set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila/probe3]
+} elseif {$ila} {
+    # Phase B: ILA on the DDC output handshake. Storage qualification keeps only beats where the DDC output
+    # handshakes, so 16,384 entries hold every output of the 65,536-sample snippet.
     set clk [get_nets -of_objects [get_pins -of_objects [get_cells -hier -filter {REF_NAME == BUFG}] \
         -filter {DIRECTION == OUT}]]
     create_debug_core u_ila ila
@@ -69,21 +124,18 @@ if {$ila} {
     set_property C_INPUT_PIPE_STAGES 1 [get_debug_cores u_ila]
     set_property port_width 1 [get_debug_ports u_ila/clk]
     connect_debug_port u_ila/clk $clk
-    # Probes, by post-synthesis net name (checked; a rename fails the build). capture_dump's s_tready_o is
-    # exactly !full_o, and full_o / rom_done drive LD6 / LD5, so the handshake is bb_tvalid && !full.
-    set probes {bb_tdata 32 bb_tvalid 1 led_o_OBUF[2] 1 led_o_OBUF[1] 1}
-    set i 0
-    foreach {net width} $probes {
-        if {$i > 0} { create_debug_port u_ila probe }
+    # capture_dump's s_tready_o is exactly !full_o, and full_o / rom_done drive LD6 / LD5, so the handshake is
+    # bb_tvalid && !full.
+    set probes {}
+    foreach {net width} {bb_tdata 32 bb_tvalid 1 led_o_OBUF[2] 1 led_o_OBUF[1] 1} {
         set nets {}
         for {set b 0} {$b < $width} {incr b} {   ;# probe bit b = bus bit b, LSB first
             lappend nets [get_nets -quiet [expr {$width > 1 ? "${net}\[$b\]" : $net}]]
         }
         if {[llength [join $nets]] != $width} { error "ILA: net $net not found after synthesis" }
-        set_property port_width $width [get_debug_ports u_ila/probe$i]
-        connect_debug_port u_ila/probe$i [join $nets]
-        incr i
+        lappend probes [join $nets]
     }
+    ila_probes $probes
 }
 opt_design
 place_design

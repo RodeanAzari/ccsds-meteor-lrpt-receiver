@@ -1,7 +1,7 @@
 """Viterbi path metrics captured on the board by the ILA, checked step by step against the bit-true model.
 
     PYTHONPATH=. python scripts/ila_viterbi.py replay <iface> <recording.cu8> [--tune HZ]   # syn/ila_capture_acs.tcl
-    PYTHONPATH=. python scripts/ila_viterbi.py check <ila.csv> <recording.cu8>
+    PYTHONPATH=. python scripts/ila_viterbi.py check <ila.csv> <probes.ltx> <recording.cu8>
 
 The ILA build of arty_rx_eth_top (`make board BOARD_TOP=arty_rx_eth_top ILA=1`, syn/impl_board.tcl) stores one entry
 per ACS step: storage is qualified on the clock enable of fec_acs_array's path-metric registers, which is the input
@@ -10,6 +10,8 @@ handshake. Each entry holds, sampled in the handshake cycle (probe order):
     probe1  s_tdata, the step's two 4-bit soft symbols {b, a} (a = G1 in bits 3:0)
     probe2  m_tdata, the decisions registered by the previous step (64 bits, bit s = state s)
     probe3  the step enable (must be 1 in every stored entry)
+Vivado splits each probe into hw_probes by net name and writes one CSV column per hw_probe, in the .ltx's pin order;
+the .ltx gives each one's probe and bit range, from which the four probes are put back together.
 The metrics never reset between frames, so no reference run can line up with them; instead each step is checked on
 its own: model.viterbi_fixed.acs_step() from entry k's metrics and symbols must give entry k+1's metrics and
 decisions exactly. A wrong branch metric, a swapped symbol, a wrong predecessor, a wrong modulo compare or a lost or
@@ -22,6 +24,7 @@ PLOT_STEPS steps' metrics relative to the best state (viterbi_board_ila_pm.csv).
 
 from __future__ import annotations
 
+import json
 import socket
 import subprocess
 import sys
@@ -39,25 +42,53 @@ PLOT_STEPS = 200
 Ints = npt.NDArray[np.int64]
 
 
-def parse_acs_ila(text: str) -> tuple[Ints, Ints, Ints, npt.NDArray[np.bool_]]:
-    """Vivado ILA CSV -> (pm (n, 64), a (n,), b (n,), decisions (n, 64)), buffer order. Raises unless the window
-    starts at the trigger and every stored entry is a step (enable 1), i.e. the capture conditions really applied."""
+PROBE_WIDTHS = {"probe0": PM_BITS * N_STATES, "probe1": 2 * SOFT_BITS, "probe2": N_STATES, "probe3": 1}
+
+
+def probe_words(text: str, ltx: str) -> tuple[list[list[str]], dict[str, list[int]]]:
+    """Vivado ILA CSV + .ltx -> (rows, each probe's value per row). Every probe bit must be covered exactly once,
+    and each column's net name must be the one the .ltx gives for that position."""
     lines = text.strip().splitlines()
     if len(lines) < 3 or not lines[1].startswith("Radix"):
         raise ValueError("not a Vivado ILA CSV")
+    header = lines[0].split(",")
     rows = [line.split(",") for line in lines[2:]]
-    if len(rows[0]) != 7:
-        raise ValueError(f"expected 3 columns + 4 probes, got {len(rows[0])} columns")
+    cores = json.loads(ltx)["ltx_root"]["ltx_data"][0]["debug_cores"]
+    pins = next(c for c in cores if c["name"] == "u_ila")["pins"]
+    if len(header) != 3 + len(pins):
+        raise ValueError(f"{len(header) - 3} probe columns, the .ltx has {len(pins)} hw_probes")
+    words: dict[str, list[int]] = {name: [0] * len(rows) for name in PROBE_WIDTHS}
+    covered: dict[str, int] = dict.fromkeys(PROBE_WIDTHS, 0)
+    for k, pin in enumerate(pins):
+        lo, hi = sorted((pin["leftIndex"], pin["rightIndex"]))
+        net = pin["nets"][0]
+        base = net["name"] if net.get("isBus") else net["name"].rsplit("[", 1)[0]  # column: base + "[hi:lo]"
+        if header[3 + k].rsplit("[", 1)[0] != base:
+            raise ValueError(f"column {3 + k} is {header[3 + k]!r}, the .ltx has {net['name']!r} there")
+        field = ((1 << (hi - lo + 1)) - 1) << lo
+        if covered[pin["name"]] & field:
+            raise ValueError(f"{pin['name']} bits {lo}..{hi} covered twice")
+        covered[pin["name"]] |= field
+        for r, row in enumerate(rows):
+            words[pin["name"]][r] |= int(row[3 + k], 16) << lo
+    for name, width in PROBE_WIDTHS.items():
+        if covered[name] != (1 << width) - 1:
+            raise ValueError(f"{name}: not every one of its {width} bits is in the capture")
+    return rows, words
+
+
+def parse_acs_ila(text: str, ltx: str) -> tuple[Ints, Ints, Ints, npt.NDArray[np.bool_]]:
+    """Vivado ILA CSV -> (pm (n, 64), a (n,), b (n,), decisions (n, 64)), buffer order. Raises unless the window
+    starts at the trigger and every stored entry is a step (enable 1), i.e. the capture conditions really applied."""
+    rows, w = probe_words(text, ltx)
     if int(rows[0][2]) != 1 or int(rows[0][1]) != 0:
         raise ValueError("ILA window does not start at the trigger")
-    if any(int(r[6], 16) != 1 for r in rows):
+    if any(v != 1 for v in w["probe3"]):
         raise ValueError("ILA stored an entry that was not an ACS step")
-    pm_words = [int(r[3], 16) for r in rows]
     mask = (1 << PM_BITS) - 1
-    pm = np.array([[(w >> (PM_BITS * s)) & mask for s in range(N_STATES)] for w in pm_words], dtype=np.int64)
-    sym = np.array([int(r[4], 16) for r in rows], dtype=np.int64)
-    dec_words = [int(r[5], 16) for r in rows]
-    dec = np.array([[(w >> s) & 1 for s in range(N_STATES)] for w in dec_words], dtype=bool)
+    pm = np.array([[(v >> (PM_BITS * s)) & mask for s in range(N_STATES)] for v in w["probe0"]], dtype=np.int64)
+    sym = np.array(w["probe1"], dtype=np.int64)
+    dec = np.array([[(v >> s) & 1 for s in range(N_STATES)] for v in w["probe2"]], dtype=bool)
     return pm, sym & 0xF, sym >> SOFT_BITS, dec
 
 
@@ -78,16 +109,16 @@ def relative_metrics(pm: Ints) -> Ints:
     return out
 
 
-def check(csv_path: Path, recording: Path) -> int:
+def check(csv_path: Path, ltx: Path, recording: Path) -> int:
     from analysis.common import write_result
 
-    pm, a, b, dec = parse_acs_ila(csv_path.read_text())
+    pm, a, b, dec = parse_acs_ila(csv_path.read_text(), ltx.read_text())
     n = len(pm)
     bad_pm, bad_dec, first = check_steps(pm, a, b, dec)
     rel = relative_metrics(pm)
     print(f"{n} ACS steps captured, {n - 1} checked: {bad_pm} metric mismatches, {bad_dec} decision mismatches"
           f" (first {first}); spread up to {int(rel.max())}", flush=True)
-    cmd = f"PYTHONPATH=. python scripts/ila_viterbi.py check {csv_path} {recording}"
+    cmd = f"PYTHONPATH=. python scripts/ila_viterbi.py check {csv_path} {ltx} {recording}"
     source = (f"{recording.name} replayed once at 1x by gs-replay to the ILA build of arty_rx_eth_top on the Arty "
               f"A7-100T (syn/ila_capture_acs.tcl), NCO word by SET_NCO from the coarse estimate; the ILA triggers on "
               f"the first ACS step after arming and stores one entry per step")
@@ -123,8 +154,8 @@ def replay(iface: str, recording: Path, tune_hz: float) -> int:
 
 
 def main(argv: list[str]) -> int:
-    if argv[:1] == ["check"] and len(argv) == 3:
-        return check(Path(argv[1]), Path(argv[2]))
+    if argv[:1] == ["check"] and len(argv) == 4:
+        return check(Path(argv[1]), Path(argv[2]), Path(argv[3]))
     if argv[:1] == ["replay"] and len(argv) in (3, 5) and (len(argv) == 3 or argv[3] == "--tune"):
         return replay(argv[1], Path(argv[2]), float(argv[4]) if len(argv) == 5 else 150_000.0)
     print(__doc__, file=sys.stderr)
