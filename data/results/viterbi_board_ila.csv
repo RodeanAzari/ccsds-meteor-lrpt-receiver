@@ -1,0 +1,2 @@
+steps_captured,steps_checked,metric_mismatches,decision_mismatches,first_mismatch,max_spread,pm_bits,soft_bits,clk_mhz
+1024,1023,0,0,-1,38,9,4,100

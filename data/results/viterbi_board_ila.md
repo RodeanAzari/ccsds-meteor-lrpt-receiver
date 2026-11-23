@@ -1,0 +1,16 @@
+# viterbi_board_ila
+
+- **Commit:** `8346bb2baa4ffe589561684989a769c937deab0c`
+- **Command:** `PYTHONPATH=. python scripts/ila_viterbi.py check build/board/ila_acs.csv build/board/arty_rx_eth_top_ila.ltx data/samples/2026-11-21T195100Z_meteor-m2-4_2.4s.cu8`
+- **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1
+- **Input:** real recording `data/samples/2026-11-21T195100Z_meteor-m2-4_2.4s.cu8` (data/MANIFEST.md).
+
+The Viterbi decoder's add-compare-select array, running on the Arty inside the whole receiver, computes exactly what the bit-true model computes: 1,023 consecutive trellis steps captured by the ILA, every one of the 64 path metrics and 64 decisions equal to `model.viterbi_fixed.acs_step()` applied to the step before.
+
+**Capture.** The committed 2.4 s real snippet (data/samples/, 2026-11-21 pass) replayed once at 1.00× into the ILA build of `arty_rx_eth_top` (board_arty_rx_eth_top_ila.csv), NCO word 0x24D80C00 from the coarse estimate. The ILA triggered on the first ACS step after programming, the first step once frame sync had locked: all 64 metrics are 0 in the first entry, as after reset. One entry per step (storage qualified on the path-metric registers' enable), 1,024 entries.
+
+**Check.** Each step is checked on its own: from entry k's metrics and symbols, the model's ACS step must give entry k+1's metrics and the decisions registered with it, bit for bit. 0 metric mismatches, 0 decision mismatches in 1,023 steps. The metrics wrap through their whole 9-bit range (0–511), as designed (modulo metrics, ADR 0006); the largest spread between the best and worst state is 38, within the bound the width is sized for. The soft symbols sit in two clusters (levels 4–6 and 8–10 of 0–15), a clean signal.
+
+**The check can fail.** On this capture: swapping the two symbols fails 802 steps, dropping one step fails at that step, one flipped metric bit fails at its step, and decisions read one step out of line fail all 1,023 (docs/log.md 2026-11-23). The checker's own tests plant the same faults in model-made captures (scripts/tests/test_ila_viterbi.py).
+
+**Limits.** 1,023 steps, about one eighth of one frame, from a cold start; the rest of the pass is covered by the decode results (board_gs_rx_real.csv), not by this capture. The Vivado probe settings file of this run lacks the per-probe lines (the script stopped on the data-only probes' missing compare values before writing them; fixed since, not yet run on the board): trigger and capture on the enable, as `syn/ila_capture_acs.tcl` sets them.
