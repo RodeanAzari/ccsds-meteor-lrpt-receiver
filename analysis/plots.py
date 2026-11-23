@@ -462,6 +462,43 @@ def viterbi_ila_plot() -> None:
     plt.close(fig)
 
 
+def viterbi_waveform_plot() -> None:
+    """fec_viterbi in simulation, clock by clock around its first traceback walk (test_fec_viterbi.py): the
+    handshakes as digital traces, the traceback's pointers and its walk through the trellis states below."""
+    rows = _rows("viterbi_rtl_waveform")
+    clk = np.array([int(r["clock"]) for r in rows])
+
+    def sig(name: str) -> np.ndarray:
+        return np.array([int(r[name]) for r in rows])
+
+    busy = sig("tb_busy") == 1
+    fig, (dig, ptr, st) = plt.subplots(3, 1, figsize=(10, 6.4), sharex=True, height_ratios=[2.2, 1.3, 1.3])
+    traces = [("ACS input ready (s_tready)", sig("s_tready")), ("ACS row waiting (dec_tvalid)", sig("dec_tvalid")),
+              ("Traceback takes a row (dec_tready)", sig("dec_tready")), ("Traceback walking (busy)", sig("tb_busy")),
+              ("Decoded bit out (m_tvalid)", sig("m_tvalid"))]
+    for k, (name, v) in enumerate(traces):
+        y = (len(traces) - 1 - k) * 2.0
+        dig.step(clk, y + v, where="post", color=BLUE, linewidth=1.4)
+        dig.text(clk[0] - 3, y + 0.5, name, ha="right", va="center", color=INK, fontsize=9)
+    dig.set_yticks([])
+    dig.grid(False)
+    dig.spines["left"].set_visible(False)
+    dig.set_title("Viterbi decoder RTL around its first traceback walk (simulation, depth 96)", color=INK, loc="left",
+                  fontsize=11)
+    ptr.step(clk, sig("wr_ptr"), where="post", color=ORANGE, linewidth=1.4, label="Row written (wr_ptr)")
+    ptr.step(clk, np.where(busy, sig("rd_ptr"), np.nan), where="post", color=BLUE, linewidth=1.4,
+             label="Row read on the walk (rd_ptr)")
+    ptr.set_ylabel("Row")
+    ptr.legend(loc="lower left", fontsize=9)
+    st.step(clk, np.where(busy, sig("state"), np.nan), where="post", color=BLUE, linewidth=1.2)
+    st.set_ylabel("Trellis state")
+    st.set_yticks([0, 16, 32, 48, 63])
+    st.set_xlabel("Clock (100 MHz) from the first walk")
+    fig.tight_layout()
+    fig.savefig(MEDIA / "2026-11-23_phase-d_viterbi-waveform.png", dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     _style()
     MEDIA.mkdir(parents=True, exist_ok=True)
@@ -479,6 +516,7 @@ def main() -> None:
     board_ber_plot()
     real_pass_plot()
     viterbi_ila_plot()
+    viterbi_waveform_plot()
 
 
 if __name__ == "__main__":
