@@ -1,5 +1,29 @@
 # Portfolio captures outstanding
 
+## Buildplan §9 review, 2026-11-23 (phases 0, A, C, D, E)
+
+Met, with evidence in the README: Phase 0 spec, own pass decoded by SatDump, antenna photo, waterfall, image; Phase A
+model = SatDump on the own pass, BER vs. theory, bit-true + fixed-point.md, constellation; Phase C RTL, lock
+time/range, Doppler tracking, **lock on the real recording (on the board)**, GIF and plots (synthetic); Phase D
+incremental Viterbi, ASM correlator + FSM, hardware BER vs. model, 3-/4-bit and traceback sweeps, BER plot; Phase E
+RS/ASM/PN/chain, RS(544,514) instance (fpga-rs-core, KP4), **real pass on the FPGA = SatDump bit for bit**,
+Viterbi and Viterbi+RS hardware BER, timing closed + per-block utilization, hero image.
+
+Needs you (physical captures, listed in the phase sections below): Phase 0 whole-setup photo; Phase E Vivado device
+view, rx-check terminal, Arty LED photo; Phase F gs-view asciinema, demo video.
+
+Claude can generate: Phase C constellation GIF from the real recording; Phase D waveform of ACS/traceback (from a
+simulation VCD); Phase E real-decode stats (gs-diff on the real pass as a terminal capture).
+
+Not met as written, your decision:
+- Phase 0/A "a public M2-x 72k recording decoded": none downloadable exists (docs/log.md 2026-11-14); the own pass
+  stands in for it. Waive?
+- Phase D "ILA capture of path metrics": needs an ILA build of `arty_rx_eth_top` with probes on `fec_acs_array`
+  (Vivado + board, ~1 h). Do it, or waive?
+- Phase E "hardware BER, uncoded": the RTL has no tap before the Viterbi decoder (README Limitations). Add a tap
+  (RTL change, resynthesis), or waive?
+
+
 ## Phase 0 (needs the capture kit)
 
 - [x] Photo: V-dipole antenna setup, showing orientation and clear sky (2026-11-21 pass, the first decoded,
