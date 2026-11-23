@@ -1452,3 +1452,14 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   decisions misaligned → all 1,023 fail. Checker mutants: 5 + 4 caught.
 - The capture's settings file lacks the per-probe lines: the Tcl stopped on the data-only probes' missing compare
   values after the CSV and .ila were written. Fixed in the Tcl, not yet re-run on the board.
+- **Constellation GIF from the real pass** (`make plots`, `constellation_gif_real()`): the committed 2.4 s snippet
+  through the bit-true chain from reset, NCO from the coarse estimate (147,375.7 Hz) as on the board. Four clusters
+  from ~4 ms (the estimate is already close); the AGC brings them to size by ~100 ms (mean |I| 0.21 at 5 ms, 0.99 at
+  100 ms, std ~0.38 after: the real signal's noise). 1.0 MB.
+- **ACS/traceback waveform** (`test_fec_viterbi.acs_traceback_waveform`, `viterbi_rtl_waveform.csv`): sampled in
+  cocotb every clock rather than through a VCD (the internals are readable over VPI; no VCD parser needed). Fill: 98
+  steps at one per clock; walk: busy 97 clocks, bit at clock 97, row and step at 98, next walk at 99, so 99 clocks
+  per bit (depth + 3). Asserted for every steady-state walk: one step, one row, one bit. Planted bug (ACS `s_tready`
+  tied high) fails the test.
+- Process slip: a commit went in with `make lint-py` failing (RUF007), hidden by piping lint through `tail`; amended
+  before anything used it. Don't pipe a gate's output when its exit status matters.
