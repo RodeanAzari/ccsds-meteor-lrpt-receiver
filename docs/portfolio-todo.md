@@ -15,14 +15,11 @@ view, rx-check terminal, Arty LED photo; Phase F gs-view asciinema, demo video.
 Claude can generate: Phase C constellation GIF from the real recording; Phase D waveform of ACS/traceback (from a
 simulation VCD); Phase E real-decode stats (gs-diff on the real pass as a terminal capture).
 
-Not met as written, your decision:
-- Phase 0/A "a public M2-x 72k recording decoded": none downloadable exists (docs/log.md 2026-11-14); the own pass
-  stands in for it. Waive?
-- Phase D "ILA capture of path metrics": needs an ILA build of `arty_rx_eth_top` with probes on `fec_acs_array`
-  (Vivado + board, ~1 h). Do it, or waive?
-- Phase E "hardware BER, uncoded": the RTL has no tap before the Viterbi decoder (README Limitations). Add a tap
-  (RTL change, resynthesis), or waive?
-
+Not met as written, decided by the user 2026-11-23:
+- Phase 0/A "a public M2-x 72k recording decoded": **waived**; none is downloadable (docs/log.md 2026-11-14), the own
+  2026-11-21 pass stands in.
+- Phase D "ILA capture of path metrics": **do it** (ILA build of `arty_rx_eth_top` with probes on `fec_acs_array`).
+- Phase E "hardware BER, uncoded": **waived**; no tap before the Viterbi decoder (README Limitations), model curve only.
 
 ## Phase 0 (needs the capture kit)
 
