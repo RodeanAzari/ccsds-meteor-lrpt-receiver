@@ -490,6 +490,14 @@ before the next:
   time** at 100 MHz. 1,621 LUT (2.6%), 1 RAMB36, WNS +1.895 ns
   ([viterbi_rtl_sim.csv](data/results/viterbi_rtl_sim.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv)).
 
+![Waveform of the Viterbi decoder in simulation: handshakes, traceback pointers and the state walk](docs/media/2026-11-23_phase-d_viterbi-waveform.png)
+
+*The decoder clock by clock in simulation. Before clock 0 the ACS array takes one step per clock and the traceback
+stores each decision row. From clock 0 every new row starts a walk back through the last 96 (`rd_ptr` falling, the
+state tracing the survivor path from state 0), while the array waits with its next row ready. Each walk ends in one
+decoded bit, 99 clocks per bit; the test asserts one step, one row and one bit per walk. `make plots`, from
+[viterbi_rtl_waveform.csv](data/results/viterbi_rtl_waveform.csv) (`make fec-rtl-results`).*
+
 **In the chain** (`rtl/top/rx_chain.sv`: `sync_top` → `fec_soft_quant` → `fec_framesync` → `fec_viterbi` →
 `fec_frame_extract` → `fec_cadu`), the decoder runs the windows back to back without a reset, so each starts from the
 metrics the last one left; the 128-symbol run-in absorbs that (`framesync_fixed.decode_windows()`). From a cold start

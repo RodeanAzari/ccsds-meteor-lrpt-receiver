@@ -13,7 +13,8 @@ Needs you (physical captures, listed in the phase sections below): Phase 0 whole
 view, rx-check terminal, Arty LED photo; Phase F gs-view asciinema, demo video.
 
 Claude can generate: Phase C constellation GIF from the real recording (done 2026-11-23); Phase D waveform of
-ACS/traceback (from a simulation VCD); Phase E real-decode stats (gs-diff on the real pass as a terminal capture).
+ACS/traceback (done 2026-11-23: sampled in cocotb, `docs/media/2026-11-23_phase-d_viterbi-waveform.png`); Phase E
+real-decode stats (gs-diff on the real pass as a terminal capture).
 
 Not met as written, decided by the user 2026-11-23:
 - Phase 0/A "a public M2-x 72k recording decoded": **waived**; none is downloadable (docs/log.md 2026-11-14), the own
