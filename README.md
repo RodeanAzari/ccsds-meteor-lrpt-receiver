@@ -692,6 +692,12 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. Inputs are synthetic except whe
 
 - **One real pass.** The real-signal results are all from one recording (2026-11-21, 75.7° max); everything else
   is on synthetic signals. The spec, from SatDump's source, is confirmed on that pass, rail order included.
+- **The board loses a few frames at the end of a long pass.** On the 2026-11-21 pass, run continuously from one
+  reset and one carrier setting, the board misses 17 of SatDump's frames, all in the last fade before loss of
+  signal; restarted cold there with a fresh carrier estimate it finds 14 of them (docs/log.md, 2026-11-22). Which
+  carried state costs them is not isolated. Re-steering the carrier mid-pass would need SET_NCO to be accepted after
+  the first sample, which the design refuses ([ADR 0014](docs/decisions/0014-control-commands.md)). Left as is:
+  0.3% of the pass, at its weakest edge.
 - **Recorded, not live RF.** By design, the board never sees RF. An RTL-SDR records on the host and the file is
   replayed.
 - **Bit-true doesn't mean robust.** The model hasn't seen phase noise, interference, fading or a real RTL-SDR's
