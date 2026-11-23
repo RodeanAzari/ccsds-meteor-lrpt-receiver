@@ -9,6 +9,7 @@ will measure is then the model's curve (buildplan §9 Phase D).
 
 from __future__ import annotations
 
+import itertools
 import os
 import subprocess
 
@@ -67,3 +68,67 @@ async def throughput_leaves_real_time_margin(dut) -> None:
             tools=f"Verilator {verilator}, cocotb {cocotb.__version__}",
         )
     assert clocks < CLK_HZ / BIT_RATE / 4, "less than 4x real-time headroom at a 100 MHz core clock"
+
+
+WAVE_BEFORE, WAVE_CLOCKS = 24, 360  # the waveform's window: from 24 clocks before the first walk
+
+
+@test()
+async def acs_traceback_waveform(dut) -> None:
+    """The ACS/traceback handshake clock by clock (Phase D media, make fec-rtl-results writes it).
+
+    Until depth rows are stored the array takes a step every clock. From then each stored row starts a walk back of
+    depth rows; the array takes one more step into its output register and waits, and each walk ends in one decoded
+    bit. So in steady state one step, one row and one bit per walk: a step taken twice or a row lost between the
+    two blocks would break that count (and shift every later bit, which run() checks against the model).
+    """
+    from cocotb.triggers import ReadOnly, RisingEdge
+
+    names = ["s_tvalid", "s_tready", "a", "b", "dec_tvalid", "dec_tready", "tb_busy", "wr_ptr", "rd_ptr", "state",
+             "m_tvalid", "m_tdata"]
+    rec: list[list[int]] = []
+    acs, tb = dut.u_acs, dut.u_tb
+
+    async def sample() -> None:
+        while True:
+            await RisingEdge(dut.clk_i)
+            await ReadOnly()
+            if int(dut.rst_i.value):
+                continue
+            s = int(dut.s_tdata_i.value)
+            rec.append([int(dut.s_tvalid_i.value), int(dut.s_tready_o.value), s & 0xF, s >> SOFT_BITS,
+                        int(acs.m_tvalid_o.value), int(tb.s_tready_o.value), int(tb.busy_q.value),
+                        int(tb.wr_ptr_q.value), int(tb.rd_ptr_q.value), int(tb.state_q.value),
+                        int(dut.m_tvalid_o.value), int(dut.m_tdata_o.value)])
+
+    cocotb.start_soon(sample())
+    await run(dut, 200, 4.0, 63, "fec_viterbi_wave", 1.0, 1.0)
+    w = np.array(rec)
+    col = {n: k for k, n in enumerate(names)}
+    step = (w[:, col["s_tvalid"]] & w[:, col["s_tready"]]).astype(bool)
+    row = (w[:, col["dec_tvalid"]] & w[:, col["dec_tready"]]).astype(bool)
+    out = (w[:, col["m_tvalid"]] == 1) & np.r_[True, w[:-1, col["m_tvalid"]] == 0]  # m_tready is 1: new bits
+    busy = w[:, col["tb_busy"]].astype(bool)
+    first = int(np.flatnonzero(busy)[0])
+    starts = np.flatnonzero(busy & ~np.r_[False, busy[:-1]])
+    assert step[:first].all() and np.count_nonzero(step[:first]) >= TRACEBACK_DEPTH, "array not one step per clock"
+    walks = list(itertools.pairwise(starts))[1:-1]  # whole walks in steady state
+    assert len(walks) > 50
+    for a, b in walks:
+        assert (step[a:b].sum(), row[a:b].sum(), out[a:b].sum()) == (1, 1, 1), f"walk at clock {a}"
+    dut._log.info("fill: %d steps at one per clock; then per walk of %d clocks one step, one row, one bit",
+                  first, int(starts[2] - starts[1]))
+    if os.environ.get("WRITE_RESULTS") == "1":
+        from analysis.common import write_result
+
+        verilator = subprocess.run(["verilator", "--version"], capture_output=True, text=True).stdout.split()[1]
+        lo = first - WAVE_BEFORE
+        write_result(
+            "viterbi_rtl_waveform",
+            ["clock", *names],
+            [[k - first, *map(int, w[k])] for k in range(lo, lo + WAVE_CLOCKS)],
+            "seed 63 in tb/cocotb/test_fec_viterbi.py via fec_vectors.py (200 random bits, K=7 r=1/2, 4.0 dB, "
+            "4-bit quantized), no backpressure; traceback depth 96; clock 0 = the first traceback walk",
+            command="make fec-rtl-results",
+            tools=f"Verilator {verilator}, cocotb {cocotb.__version__}",
+        )
