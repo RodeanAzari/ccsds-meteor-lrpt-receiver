@@ -80,6 +80,21 @@ def acs_select(m0: Ints, m1: Ints, pm_bits: int) -> npt.NDArray[np.bool_]:
     return out
 
 
+def acs_step(pm: Ints, a: Ints, b: Ints, soft_bits: int, pm_bits: int) -> tuple[npt.NDArray[np.bool_], Ints]:
+    """One trellis step from any path metrics pm (blocks, 64), modulo 2^pm_bits, for symbols a (G1), b (G2) of shape
+    (blocks, 1). Returns (decisions (blocks, 64), the next path metrics), as fec_acs_array registers them."""
+    mask = (1 << pm_bits) - 1
+    p0, p1 = _PRED[:, 0], _PRED[:, 1]
+    # Distance to an expected 1 is top - u, to an expected 0 is u.
+    bm0 = branch_metric(a, b, _SIGN_G1[:, 0] > 0, _SIGN_G2[:, 0] > 0, soft_bits)
+    bm1 = branch_metric(a, b, _SIGN_G1[:, 1] > 0, _SIGN_G2[:, 1] > 0, soft_bits)
+    m0 = (pm[:, p0] + bm0) & mask
+    m1 = (pm[:, p1] + bm1) & mask
+    choose1 = acs_select(m0, m1, pm_bits)
+    out: Ints = np.where(choose1, m1, m0)
+    return choose1, out
+
+
 def acs(u: Ints, soft_bits: int, pm_bits: int) -> tuple[npt.NDArray[np.bool_], Ints, int]:
     """Run the ACS over a batch. Returns (decisions (n, blocks, 64), best state after each step (n, blocks), spread)."""
     mask = (1 << pm_bits) - 1
@@ -91,20 +106,16 @@ def acs(u: Ints, soft_bits: int, pm_bits: int) -> tuple[npt.NDArray[np.bool_], I
     decisions = np.zeros((n, blocks, 64), dtype=bool)
     best = np.zeros((n, blocks), dtype=np.int64)
     p0, p1 = _PRED[:, 0], _PRED[:, 1]
-    # Distance to an expected 1 is top - u, to an expected 0 is u.
     one10, one11 = _SIGN_G1[:, 0] > 0, _SIGN_G1[:, 1] > 0
     one20, one21 = _SIGN_G2[:, 0] > 0, _SIGN_G2[:, 1] > 0
     spread = 0
     for t in range(n):
         a = u[:, 2 * t, np.newaxis]
         b = u[:, 2 * t + 1, np.newaxis]
+        choose1, pm = acs_step(pm, a, b, soft_bits, pm_bits)
+        decisions[t] = choose1
         bm0 = branch_metric(a, b, one10, one20, soft_bits)
         bm1 = branch_metric(a, b, one11, one21, soft_bits)
-        m0 = (pm[:, p0] + bm0) & mask
-        m1 = (pm[:, p1] + bm1) & mask
-        choose1 = acs_select(m0, m1, pm_bits)
-        decisions[t] = choose1
-        pm = np.where(choose1, m1, m0)
         e0, e1 = exact[:, p0] + bm0, exact[:, p1] + bm1
         exact = np.where(choose1, e1, e0)
         exact -= exact.min(axis=1, keepdims=True)
