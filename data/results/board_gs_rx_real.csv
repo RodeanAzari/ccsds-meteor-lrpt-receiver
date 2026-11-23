@@ -1,3 +1,3 @@
-replay_speed,achieved_speed,host_tx_dropped,datagrams,ring_full,cadu_packets,cadus_good,cadus_rs_failed,cadu_seq_missing,malformed,rs_symbols_corrected,stats_packets,board_ingest_lost,board_cadus_sent,board_fs_slips,board_mac_restarts,nco_confirmed,satdump_frames,common,only_ours,only_satdump,data_bits_differ,asm_frames_differ,parity_bytes_differ,result
-5,3.20,0,8616,0,5912,5587,325,0,0,4173,2704,0,5912,76,0,1,4583,4566,1021,17,0,2,53,PASS
-1,1.00,0,13378,0,5912,5587,325,0,0,4173,7466,0,5912,76,0,1,4583,4566,1021,17,0,2,53,PASS
+replay_speed,achieved_speed,host_tx_dropped,datagrams,ring_full,cadu_packets,cadus_good,cadus_rs_failed,cadu_seq_missing,malformed,rs_symbols_corrected,stats_packets,board_ingest_lost,board_cadus_sent,board_fs_slips,board_mac_restarts,nco_confirmed,satdump_frames,common,only_ours,only_satdump,data_bits_differ,asm_frames_differ,parity_bytes_differ,result,packets,pd_satdump,pd_equal,pd_differ,pd_only_ours,pd_only_satdump,pd_explained,pd_unexplained,pd_result
+5,5.00,0,7898,0,5912,5587,325,0,0,4173,1986,0,5912,76,0,1,4583,4566,1021,17,0,2,53,PASS,22295,18208,18176,5,4114,27,missing_in_ours:23;missing_in_satdump:4114;satdump_damaged:9,0,PASS
+1,1.00,0,13378,0,5912,5587,325,0,0,4173,7466,0,5912,76,0,1,4583,4566,1021,17,0,2,53,PASS,22295,18208,18176,5,4114,27,missing_in_ours:23;missing_in_satdump:4114;satdump_damaged:9,0,PASS

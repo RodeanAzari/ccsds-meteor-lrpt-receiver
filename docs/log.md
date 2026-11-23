@@ -1421,3 +1421,11 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   only ours 4,114, only SatDump 27; explained: 9 SatDump-damaged, 23 missing in ours, 4,114 missing in SatDump;
   **0 unexplained, PASS**. gs-rx dropped 23 packets at 25 gaps in its own VCID-5 stream. To record properly:
   `board_gs_rx.py --recording` should run packet_diff and write its columns.
+- Re-run (8c70f2d, `board_gs_rx.py --recording` now with packet_diff columns): 5× achieved 5.00× this time; both rows'
+  cadus.bin byte-identical to the first run. Packets: 18,176 equal, 0 unexplained, PASS (now in `board_gs_rx_real.csv`).
+- **Why 17 SatDump frames are missing at LOS (diagnostic, not a result CSV):** cold start at 19:56:19 (`dd bs=2048
+  skip=1108000 count=112000`, fresh estimate −6,358.4 Hz, word 0x23E91000), replayed at 1×: 622 CADUs, 376 RS-good;
+  it has **14 of the 17** frames the continuous run missed, and 89 of SatDump's last 92 (continuous: 75); 3 still
+  missing. So the continuous run's carried state costs them, as the cold-start bit-true study suggested. Not
+  isolated which state. A fix would need the host to re-steer mid-pass, but SET_NCO after the first sample is
+  refused by design (ADR 0014): a design question, not done.
