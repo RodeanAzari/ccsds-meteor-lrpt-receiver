@@ -29,7 +29,9 @@ Not met as written, decided by the user 2026-11-23:
 - [x] Photo: V-dipole antenna setup, showing orientation and clear sky (2026-11-21 pass, the first decoded,
       `docs/media/2026-11-21_phase-0_antenna-setup.webp`, in the README under Architecture; 2026-11-14 photo kept)
 - [ ] Photo (you): the whole setup in one frame: V-dipole, SAWbird+ and RTL-SDR, laptop, and the Arty on its
-      Ethernet cable
+      Ethernet cable **Goes at the very top of the README** (user, 2026-11-23), above the
+      MSU-MR hero image. Best taken during a 1× board replay of the real pass (Claude runs it: about 12 min with LD5
+      lit and LD6 toggling, `gs-view` live on the laptop screen), so the same staging can also serve the demo video.
 - [x] Screenshot: SatDump waterfall during your own pass (2026-11-21 recording replayed in satdump-ui at ~47%: Viterbi and deframer SYNCED, SNR 11.4 dB; stale status bar cropped off. `docs/media/2026-11-21_phase-0_satdump-waterfall.png`)
 - [x] Image: SatDump's decoded image from that pass (2026-11-21, 4,583 CADUs): MSA natural colour with map, rotated north-up, `docs/media/2026-11-21_phase-0_satdump-image.webp`; lock GIF (first 15 s of a screen recording of the replay, original off-repo) `docs/media/2026-11-21_phase-0_satdump-lock.gif`; both in the README under Architecture
 
