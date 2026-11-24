@@ -187,7 +187,8 @@ gs-test: gs
 	cmake -S gs -B build/gs-tsan -DCMAKE_BUILD_TYPE=RelWithDebInfo -DGS_TSAN=ON
 	cmake --build build/gs-tsan --target gs_tests -j
 	TSAN_OPTIONS=halt_on_error=1 build/gs-tsan/gs_tests --gtest_filter='SpscRing.*'
-	GS_REPLAY=build/gs-Debug/gs-replay GS_RX=build/gs-Debug/gs-rx GS_DIFF=build/gs-Debug/gs-diff GS_VIEW=build/gs-Debug/gs-view $(PY) -m pytest -q gs/tests
+	GS_REPLAY=build/gs-Debug/gs-replay GS_RX=build/gs-Debug/gs-rx GS_DIFF=build/gs-Debug/gs-diff GS_VIEW=build/gs-Debug/gs-view \
+		GS_IMAGE=build/gs-Debug/gs-image $(PY) -m pytest -q gs/tests
 
 # C++ static analysis (CLAUDE.md §5.3): format check, clang-tidy (gs/.clang-tidy, warnings are errors), cppcheck.
 # cppcheck skips gs/tests: clang-tidy covers them, and cppcheck misreads GoogleTest's macros.
@@ -225,7 +226,8 @@ formal:
 	@grep -E 'DONE' build/formal/fec_fs_fsm.log
 
 # libFuzzer (gs/fuzz, CLAUDE.md §5.3), ASan + UBSan, FUZZ_S seconds per target: the board -> host packet parsers
-# (seeds: RTL-captured packets in gs/tests/data) and the space packet demux (seeds: gs/tests/data/demux vectors).
+# (seeds: RTL-captured packets in gs/tests/data), the space packet demux (seeds: gs/tests/data/demux vectors) and
+# gs-image's MSU-MR decoder (seeds: gs/tests/data/msumr, the image vectors).
 # The corpora they grow stay in build/fuzz (always the first directory: libFuzzer writes into it). A crash leaves
 # crash-* in build/fuzz and fails the target. Fix it, then commit the crash input to that target's seed directory:
 # every run replays the seeds first, so it stays a regression test. `make ci` runs 30 s per target (fuzz-ci:
@@ -236,12 +238,14 @@ fuzz-ci:
 
 fuzz:
 	cmake -S gs -B build/gs-fuzz -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug -DGS_FUZZ=ON
-	cmake --build build/gs-fuzz --target board_packets_fuzz space_packets_fuzz -j
-	mkdir -p build/fuzz/board build/fuzz/demux
+	cmake --build build/gs-fuzz --target board_packets_fuzz space_packets_fuzz msumr_fuzz -j
+	mkdir -p build/fuzz/board build/fuzz/demux build/fuzz/msumr
 	cd build/fuzz && ../gs-fuzz/board_packets_fuzz board ../../gs/tests/data -max_total_time=$(FUZZ_S) \
 		-max_len=2048 -print_final_stats=1
 	cd build/fuzz && ../gs-fuzz/space_packets_fuzz demux ../../gs/tests/data/demux -max_total_time=$(FUZZ_S) \
 		-max_len=65536 -print_final_stats=1
+	cd build/fuzz && ../gs-fuzz/msumr_fuzz msumr ../../gs/tests/data/msumr -max_total_time=$(FUZZ_S) \
+		-max_len=16384 -print_final_stats=1
 
 # Buildplan §6 names: the whole receiver out of context (synth) and on the board, placed and routed (impl).
 synth:

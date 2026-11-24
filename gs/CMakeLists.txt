@@ -19,7 +19,10 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 find_package(Threads REQUIRED)
 
-add_library(gs_core src/iq_replay.cpp src/board_packets.cpp src/cadu_diff.cpp src/view.cpp)
+add_library(gs_core src/iq_replay.cpp src/board_packets.cpp src/cadu_diff.cpp src/view.cpp src/msumr.cpp)
+# MSU-MR quantization tables are float32 step by step, as SatDump computes them: no fused multiply-add (a guard:
+# fusing changes no entry today).
+set_source_files_properties(src/msumr.cpp PROPERTIES COMPILE_OPTIONS -ffp-contract=off)
 target_include_directories(gs_core PUBLIC include)
 
 add_executable(gs-replay src/gs_replay_main.cpp)
@@ -33,6 +36,10 @@ target_link_libraries(gs-diff PRIVATE gs_core)
 
 add_executable(gs-view src/gs_view_main.cpp)
 target_link_libraries(gs-view PRIVATE gs_core)
+
+find_package(ZLIB REQUIRED)  # gs-image's PNG output (zlib1g-dev, docs/toolchain.md)
+add_executable(gs-image src/gs_image_main.cpp)
+target_link_libraries(gs-image PRIVATE gs_core ZLIB::ZLIB)
 
 # GoogleTest pinned by tag and hash (docs/toolchain.md).
 include(FetchContent)
@@ -52,7 +59,7 @@ endforeach()
 enable_testing()
 add_executable(gs_tests tests/iq_replay_test.cpp tests/board_packets_test.cpp tests/space_packets_test.cpp
                         tests/spsc_ring_test.cpp tests/cadu_diff_test.cpp
-                        tests/status_test.cpp tests/view_test.cpp)
+                        tests/status_test.cpp tests/view_test.cpp tests/msumr_test.cpp)
 target_link_libraries(gs_tests PRIVATE gs_core GTest::gtest_main Threads::Threads)
 # Packets the RTL sent in simulation (tb/cocotb/test_arty_rx_eth_top_full.py, CAPTURE_DIR): read by board_packets_test.
 target_compile_definitions(gs_tests PRIVATE GS_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
@@ -70,4 +77,10 @@ if(GS_FUZZ)
   target_include_directories(space_packets_fuzz PRIVATE include)
   target_compile_options(space_packets_fuzz PRIVATE -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all)
   target_link_options(space_packets_fuzz PRIVATE -fsanitize=fuzzer,address,undefined)
+  add_executable(msumr_fuzz fuzz/msumr_fuzz.cpp src/msumr.cpp)
+  target_include_directories(msumr_fuzz PRIVATE include)
+  # -O1: the decoder is arithmetic-heavy; at -O0 under the sanitizers it ran about 30 inputs a second.
+  target_compile_options(msumr_fuzz PRIVATE -O1 -ffp-contract=off -fsanitize=fuzzer,address,undefined
+                         -fno-sanitize-recover=all)
+  target_link_options(msumr_fuzz PRIVATE -fsanitize=fuzzer,address,undefined)
 endif()
