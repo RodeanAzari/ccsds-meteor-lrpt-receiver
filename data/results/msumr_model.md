@@ -1,7 +1,7 @@
 # msumr_model
 
-- **Commit:** `5e98b5138b7f763f770476a4ef2d222021098a6b`
-- **Command:** `python -m msumr_study --cadus build/board_gs_rx_real/1_1x/cadus.bin --packets build/board_gs_rx_real/1_1x/packets.bin --satdump-images build/real_pass/msu/MSU-MR --pass-cadu /home/rodea/recordings/2026-11-21_satdump/meteor_m2-x_lrpt.cadu --pass-images /home/rodea/recordings/2026-11-21_satdump/MSU-MR --recording 2026-11-21T1943Z_meteor-m2-4_part2.cu8` (module in `analysis/`)
+- **Commit:** `7654f98f30ab98d577c9f86db295200f2f3eeb3d (with uncommitted changes)`
+- **Command:** `python -m msumr_study --cadus ../build/board_gs_rx_real/1_1x/cadus.bin --packets ../build/board_gs_rx_real/1_1x/packets.bin --satdump-images ../build/real_pass/msu/MSU-MR --pass-cadu /home/rodea/recordings/2026-11-21_satdump/meteor_m2-x_lrpt.cadu --pass-images /home/rodea/recordings/2026-11-21_satdump/MSU-MR --gs-image ../build/gs-Release/gs-image --recording 2026-11-21T1943Z_meteor-m2-4_part2.cu8` (module in `analysis/`)
 - **Tools:** Python 3.14.4, NumPy 2.5.4, SciPy 1.18.1
 - **Input:** real recording `2026-11-21T1943Z_meteor-m2-4_part2.cu8` (data/MANIFEST.md).
 

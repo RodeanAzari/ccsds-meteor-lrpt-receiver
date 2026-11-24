@@ -1,0 +1,4 @@
+channel,rows,cols,pixels_differ_model,pixels_differ_satdump,segments_differ_satdump,segments_explained,segments_unexplained,gs_image_s
+1,4440,1568,0,3904,5,5,0,1.38
+2,4440,1568,0,5668,8,8,0,1.38
+4,4440,1568,0,768,1,1,0,1.38
