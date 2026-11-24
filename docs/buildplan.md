@@ -350,22 +350,22 @@ Every phase's DoD includes:
 - that phase's media captured (§11.1)
 - the user confirming the physical captures
 
-### Phase 0 — Signal spec + capture kit
-- [ ] `docs/signal-spec.md` written from SatDump's M2-x 72k pipeline and source, with file/commit citations:
+### Phase 0 — Signal spec + capture kit (done 2026-11-24; public recording waived, the own pass stands in)
+- [x] `docs/signal-spec.md` written from SatDump's M2-x 72k pipeline and source, with file/commit citations:
   - RRC roll-off
   - differential coding
   - I/Q swap
   - conv output order and inversion
   - RS basis
-- [ ] A public M2-x 72k recording decoded with SatDump, before buying anything
-- [ ] Kit bought; **one pass of your own captured at 1.024 MS/s and decoded with SatDump**
-- [ ] Media: antenna setup photo; SatDump waterfall during the pass; SatDump's decoded image
+- [x] A public M2-x 72k recording decoded with SatDump, before buying anything
+- [x] Kit bought; **one pass of your own captured at 1.024 MS/s and decoded with SatDump**
+- [x] Media: antenna setup photo; SatDump waterfall during the pass; SatDump's decoded image
 
-### Phase A — Python golden model
-- [ ] Algorithm model reproduces SatDump's CADUs on the public recording and on your own
-- [ ] Modulator + AWGN generator; model BER curves match theory
-- [ ] Bit-true version defined; `fixed-point.md` started
-- [ ] Media: model constellation before and after carrier lock
+### Phase A — Python golden model (done 2026-11-24; public recording waived, the own pass stands in)
+- [x] Algorithm model reproduces SatDump's CADUs on the public recording and on your own
+- [x] Modulator + AWGN generator; model BER curves match theory
+- [x] Bit-true version defined; `fixed-point.md` started
+- [x] Media: model constellation before and after carrier lock
 
 ### Phase B — DDC (done 2026-11-07)
 - [x] Ingest conversion, NCO, mixer, CIC, compensation FIR; bit-exact against the model
@@ -373,35 +373,35 @@ Every phase's DoD includes:
 - [x] On hardware: first from the BRAM ROM, then over Ethernet from `gs-replay`
 - [x] Media: spectrum before and after DDC (plot); ILA capture of baseband I/Q
 
-### Phase C — Synchronization
-- [ ] RRC, Farrow + Gardner (OQPSK approach per ADR), OQPSK alignment, Costas, AGC
-- [ ] Locks on synthetic signals with a Doppler ramp; lock time and lock range measured
-- [ ] Locks on the real recording
-- [ ] Media:
+### Phase C — Synchronization (done 2026-11-24)
+- [x] RRC, Farrow + Gardner (OQPSK approach per ADR), OQPSK alignment, Costas, AGC
+- [x] Locks on synthetic signals with a Doppler ramp; lock time and lock range measured
+- [x] Locks on the real recording
+- [x] Media:
   - **animated constellation GIF**: spinning ring → four clean clusters as the loop locks
   - lock-time plot
   - Doppler-tracking plot
 
-### Phase D — Viterbi + frame sync
-- [ ] Built incrementally: branch metrics → one ACS → full ACS array → traceback, each step tested against the model
-- [ ] Encoded-ASM correlator with phase resolution; sync FSM
-- [ ] BER after Viterbi matches the model's curve
-- [ ] 3-bit vs. 4-bit soft-decision comparison measured; traceback-depth sweep
-- [ ] Media: BER plot (Viterbi vs. theory); ILA capture of path metrics; waveform of ACS/traceback
+### Phase D — Viterbi + frame sync (done 2026-11-24)
+- [x] Built incrementally: branch metrics → one ACS → full ACS array → traceback, each step tested against the model
+- [x] Encoded-ASM correlator with phase resolution; sync FSM
+- [x] BER after Viterbi matches the model's curve
+- [x] 3-bit vs. 4-bit soft-decision comparison measured; traceback-depth sweep
+- [x] Media: BER plot (Viterbi vs. theory); ILA capture of path metrics; waveform of ACS/traceback
 
-### Phase E — RS + integration + real decode
-- [ ] Parameterized RS decoder, ASM check, derandomizer, full chain
-- [ ] RS block also instantiated as RS(544,514)/GF(2¹⁰) in a unit test, proving the parameterization is real
-- [ ] **A real pass decoded on the FPGA, with CADUs matching SatDump bit-for-bit**
-- [ ] Full hardware BER campaign: uncoded, Viterbi, Viterbi + RS
-- [ ] Timing closed; per-block utilization recorded
-- [ ] Media: real-decode stats; full BER plot; Vivado device view
+### Phase E — RS + integration + real decode (done 2026-11-24; uncoded HW BER waived, no tap before the Viterbi)
+- [x] Parameterized RS decoder, ASM check, derandomizer, full chain
+- [x] RS block also instantiated as RS(544,514)/GF(2¹⁰) in a unit test, proving the parameterization is real
+- [x] **A real pass decoded on the FPGA, with CADUs matching SatDump bit-for-bit**
+- [x] Full hardware BER campaign: uncoded, Viterbi, Viterbi + RS
+- [x] Timing closed; per-block utilization recorded
+- [x] Media: real-decode stats; full BER plot; Vivado device view
 
-### Phase F — C++ ground station
-- [ ] `gs-rx`, `gs-diff`, `gs-view`; CI green including static analysis, sanitizers and fuzzing
-- [ ] **Definition of done:** a recorded Meteor pass replays through the Arty and comes out as space packets matching SatDump bit-for-bit
-- [ ] Optional: image reconstructed from your own decoded packets
-- [ ] Media: `gs-view` asciinema during a live replay; **hero image** (§11.1); **demo video**
+### Phase F — C++ ground station (done 2026-11-24; demo video waived, the captioned setup photo replaces it)
+- [x] `gs-rx`, `gs-diff`, `gs-view`; CI green including static analysis, sanitizers and fuzzing
+- [x] **Definition of done:** a recorded Meteor pass replays through the Arty and comes out as space packets matching SatDump bit-for-bit
+- [x] Optional: image reconstructed from your own decoded packets
+- [x] Media: `gs-view` asciinema during a live replay; **hero image** (§11.1); **demo video**
 
 ---
 

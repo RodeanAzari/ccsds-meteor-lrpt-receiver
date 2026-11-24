@@ -31,7 +31,7 @@ Digilent Arty A7-100T with C++ ground-station tools around it. Recordings are ca
 the board over UDP, and decoded down to CCSDS frames: digital downconversion, timing and carrier recovery, frame
 sync, Viterbi K=7 r½, derandomization and Reed-Solomon RS(255,223)×4.
 
-**Status: Phase B (the DDC) done; C–F in progress; the first real pass decoded on the board, bit-identical to SatDump.** The whole receiver runs on the
+**Status: every phase done (2026-11-24); a real pass decoded on the board, bit-identical to SatDump.** The whole receiver runs on the
 board at 100 MHz: a recording replayed over Ethernet goes through the DDC, sync chain, frame sync, Viterbi, NRZ-M,
 derandomizer and Reed-Solomon in RTL, and the CADUs come back over Ethernet to the C++ ground station. On a synthetic
 recording, **every CADU the board decoded matches a sent frame (298 / 298, 15 / 15 replays up to 5.6× real time)**,
@@ -92,20 +92,20 @@ no map, north up. `scripts/msu_mr_own.py`.*
 
 | Phase | State | Key result |
 |---|---|---|
-| 0 — Signal spec + capture kit | **In progress** | [signal-spec.md](docs/signal-spec.md) from SatDump's source; first decodable pass recorded 2026-11-21 (SatDump: 4,583 CADUs, peak SNR 16.5 dB, [MANIFEST](data/MANIFEST.md)); spec confirmed on it, the open rail/G1 item measured |
-| A — Python golden model | **In progress** | Float and bit-true chains decode synthetic signals; the float model decodes the 2026-11-21 pass, equal to SatDump on all 4,557 common frames ([real_pass_model.csv](data/results/real_pass_model.csv)); bit-true model: 4,582 of SatDump's 4,583 frames, all equal ([real_pass_fixed.csv](data/results/real_pass_fixed.csv)) |
+| 0 — Signal spec + capture kit | **Done** (2026-11-24) | [signal-spec.md](docs/signal-spec.md) from SatDump's source; first decodable pass recorded 2026-11-21 (SatDump: 4,583 CADUs, peak SNR 16.5 dB, [MANIFEST](data/MANIFEST.md)); spec confirmed on it, the open rail/G1 item measured |
+| A — Python golden model | **Done** (2026-11-24) | Float and bit-true chains decode synthetic signals; the float model decodes the 2026-11-21 pass, equal to SatDump on all 4,557 common frames ([real_pass_model.csv](data/results/real_pass_model.csv)); bit-true model: 4,582 of SatDump's 4,583 frames, all equal ([real_pass_fixed.csv](data/results/real_pass_fixed.csv)) |
 | B — Digital downconverter | **Done** (2026-11-07) | Bit-exact on the board from BRAM (UART and ILA) and over Ethernet from `gs-replay` (38 of 40 replays; the other 2 had datagrams reordered on the host side) |
-| C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. On the board it holds the real pass's Doppler (−0.36 to −6.4 kHz) from one NCO setting ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
-| D — Viterbi + frame sync | **In progress** | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios), and in the chain from DDC output; hardware BER 0.12–0.36 dB from the model ([ber_board.csv](data/results/ber_board.csv)); ACS path metrics captured on the board by ILA, 1,023 steps equal to the model ([viterbi_board_ila.csv](data/results/viterbi_board_ila.csv)) |
-| E — Reed-Solomon + real decode | **In progress** | Stats packets back over Ethernet; RS decoder released as [fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core) `rs-core-v1.0`; NRZ-M, ASM check, derandomizer and RS in RTL after the Viterbi, bit-exact in simulation; **the whole receiver on the board decodes a replayed synthetic recording, 298 / 298 CADUs in 15 / 15 replays up to 5.6× real time**, and **the real 2026-11-21 pass: 5,587 CADUs, all 4,566 common with SatDump identical** ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
-| F — C++ ground station | **In progress** | `gs-replay`, `gs-rx` (RS gate, space packets), `gs-diff`, `gs-view`, `gs-image` (MSU-MR images equal to the model, [gs_image_real.csv](data/results/gs_image_real.csv)), fuzzed parsers; board → gs-rx bit-identical to SatDump on all 258 common frames ([board_gs_rx.csv](data/results/board_gs_rx.csv)); space packets from the board equal to the model's and SatDump's ([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)); on the real pass, 18,176 packets equal to SatDump's, 0 unexplained ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
+| C — Synchronization | **Done** (2026-11-24) | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. On the board it holds the real pass's Doppler (−0.36 to −6.4 kHz) from one NCO setting ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
+| D — Viterbi + frame sync | **Done** (2026-11-24) | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios), and in the chain from DDC output; hardware BER 0.12–0.36 dB from the model ([ber_board.csv](data/results/ber_board.csv)); ACS path metrics captured on the board by ILA, 1,023 steps equal to the model ([viterbi_board_ila.csv](data/results/viterbi_board_ila.csv)) |
+| E — Reed-Solomon + real decode | **Done** (2026-11-24) | Stats packets back over Ethernet; RS decoder released as [fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core) `rs-core-v1.0`; NRZ-M, ASM check, derandomizer and RS in RTL after the Viterbi, bit-exact in simulation; **the whole receiver on the board decodes a replayed synthetic recording, 298 / 298 CADUs in 15 / 15 replays up to 5.6× real time**, and **the real 2026-11-21 pass: 5,587 CADUs, all 4,566 common with SatDump identical** ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
+| F — C++ ground station | **Done** (2026-11-24) | `gs-replay`, `gs-rx` (RS gate, space packets), `gs-diff`, `gs-view`, `gs-image` (MSU-MR images equal to the model, [gs_image_real.csv](data/results/gs_image_real.csv)), fuzzed parsers; board → gs-rx bit-identical to SatDump on all 258 common frames ([board_gs_rx.csv](data/results/board_gs_rx.csv)); space packets from the board equal to the model's and SatDump's ([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)); on the real pass, 18,176 packets equal to SatDump's, 0 unexplained ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
 
 Architecture, ADR summary and clock-domain crossings: [docs/design.md](docs/design.md). Lab notebook with every
 measurement and bug: [docs/log.md](docs/log.md).
 
 **Dependencies on other projects:** both gates on the shared Ethernet core are met (`eth-core-v0.1` for streaming
-to the board, `eth-core-v0.2` for sending frames back). One request is open with its owner: hold the MAC in reset
-until the PHY link is up (see Limitations); a stopgap in this repo covers it meanwhile.
+to the board, `eth-core-v0.2` for sending frames back). The one request to its owner (hold the MAC in reset until
+the PHY link is up) was closed as not needed on 2026-11-24: a stopgap in this repo covers it (see Limitations).
 
 ### Shared components
 
@@ -835,8 +835,8 @@ Part `xc7a100tcsg324-1`, Vivado 2025.2, 100 MHz. Inputs are synthetic except whe
   [board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)). A lost datagram is a 512-sample gap; RS gates
   out the frames it damages. Replay real passes on a quiet host, or at 1×.
 - **eth_rx's RX FIFO can come up corrupted at PHY link-up** (1 in 20 reprograms on 2026-11-07, all after slow
-  link-ups). Reported to fpga-eth-core's owner (request 0005); until it holds the MAC in reset until link-up,
-  the top detects the impossible FIFO level and restarts the MAC. That stopgap is tested in simulation; it
+  link-ups). Reported to fpga-eth-core's owner (request 0005), who fixed it in `eth-core-v0.4`; this repo stays
+  on `eth-core-v0.2`, whose top detects the impossible FIFO level and restarts the MAC. That stopgap is tested in simulation; it
   fired once on hardware (2026-11-11: 14 restarts before the replay began, then every CADU decoded;
   [board_rx_eth.csv](data/results/board_rx_eth.csv)).
 - **Opening the serial port reset the ROM design on 2026-11-04 but not the Ethernet design on 2026-11-07; why is
@@ -906,8 +906,11 @@ produced them. `make sim-full` and `make cov` are local only. `make formal` runs
 ## Roadmap
 
 1. **A real recording:** captured and decoded by SatDump on 2026-11-21; spec and models confirmed on it.
-2. **The real pass on the board:** decoded, bit-identical to SatDump, image made from it (2026-11-22). Next: its
-   space packets through the ground station against SatDump's (Phase F), the phase checklists, and the demo video.
+2. **The real pass on the board:** decoded, bit-identical to SatDump, image made from it (2026-11-22).
+3. **The ground station end to end:** the board's space packets equal to SatDump's, and the MSU-MR image made by
+   `gs-image` with no SatDump step (2026-11-23). Every phase checklist closed on 2026-11-24.
+4. **Possible next steps (not planned):** a soft-symbol debug tap for a live constellation in `gs-view`, and
+   re-steering the carrier mid-pass to recover the frames lost in the fade at the end of a pass.
 
 ## License
 

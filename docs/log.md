@@ -1509,3 +1509,31 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - clang-tidy: one scoped `NOLINTBEGIN` for `pro-bounds-constant-array-index` in msumr.cpp (a codec indexes tables by
   computed positions; ASan/UBSan and the fuzzer check them).
 - README: the first image with no SatDump step (board → gs-rx → gs-image), "221" false colour.
+
+## 2026-11-24: setup photo, Vivado device view, gs-view recording; every phase closed
+
+- Whole-setup photo outdoors (user), at the top of the README with a caption per part and the Ethernet link;
+  the board-vs-SatDump image moved under it. Demo video waived by the user (the captioned photo replaces it).
+- `scripts/demo_replay.py`: one command for a demo replay (program, SET_NCO, gs-replay, gs-rx, gs-image), no result
+  CSV. 5× test with SatDump's GUI decoding the same file at once: 5,572 good CADUs vs. 5,587 measured; gs-replay
+  reported 100,145 late and gs-rx 109 lost datagrams: the host was loaded by satdump-ui. Not a result.
+- satdump-ui would not lock on the file source: its log showed `freq_shift : 0`. The −150 kHz shift is the pipeline
+  parameter "Frequency Shift" under the pipeline in the Recorder's processing section, not a file-source setting.
+- Vivado device view: `syn/impl_board.tcl` now writes `<top>_routed.dcp`. The rebuild of `arty_rx_eth_top` gave the
+  same timing (WNS +0.256 ns, WHS +0.025 ns); the reports differed only in dates, not re-committed.
+- gs-view asciinema at 1× of the real-pass cut (`docs/media/2026-11-24_phase-f_gs-view.cast`, 10× GIF by agg 1.5.0,
+  2.5 MB): the run reproduced `board_gs_rx_real.csv`'s 1× row exactly (5,912 CADUs, 5,587 good, 325 RS-failed,
+  4,173 symbols corrected, 22,295 packets, 0 lost, 0 MAC restarts, 76 slips).
+- Bug (host): two recordings captured nothing. Symptom: gs-rx saw 0 datagrams; tx_packets frozen; dmesg
+  "NETDEV WATCHDOG: transmit queue 0 timed out". Root cause: usbipd had silently dropped the ASIX adapter (Windows
+  `Shared`, not `Attached`) and WSL kept a dead `enx...` netdev; the re-attach made a new `eth4`, and
+  `ip link set <dead> down` hung in D state holding the rtnl lock, so every `ip` call hung (wait_for_iface too).
+  Fix: `usbipd detach --all` released it within minutes; re-attach both devices, set the address, check tx_packets
+  moves before a replay. In progress.md.
+- Request 0005 (eth_rx FIFO at link-up) closed by P3 as not needed (user): the stopgap holds; P3 stays on
+  eth-core-v0.2. P2's open questions answered in the request.
+- §9 closed: phases 0, A, C, D, E, F done (B since 2026-11-07); waivers: public recording (0/A), uncoded HW BER (E),
+  demo video (F), Arty LED photo and rx-check screenshot (not on a checklist). README status table, roadmap and
+  buildplan §9 updated.
+- Next: milestone tags (v0.2-sync-lock, v0.3-viterbi, v0.5-first-real-decode, v1.0) after the user's OK; GitHub
+  Actions off Node.js 20.
