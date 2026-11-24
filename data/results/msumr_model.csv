@@ -1,0 +1,10 @@
+case,channel,rows,cols,satdump_rows,pixels_differ,segments_differ,segments_explained,segments_unexplained
+model_satdump_demux,1,4440,1568,4440,0,0,0,0
+model_satdump_demux,2,4440,1568,4440,0,0,0,0
+model_satdump_demux,4,4440,1568,4440,0,0,0,0
+model_satdump_pass,1,3568,1568,3568,0,0,0,0
+model_satdump_pass,2,3568,1568,3568,0,0,0,0
+model_satdump_pass,4,3568,1568,3568,0,0,0,0
+own_packets,1,4440,1568,4440,3904,5,5,0
+own_packets,2,4440,1568,4440,5668,8,8,0
+own_packets,4,4440,1568,4440,768,1,1,0
