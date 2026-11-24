@@ -600,6 +600,13 @@ CADUs with SatDump's frame by frame and bit by bit; `scripts/packet_diff.py` doe
 draws gs-rx's live status snapshot ([ADR 0016](docs/decisions/0016-gs-view-status-snapshot.md)). Both packet
 parsers are fuzzed with libFuzzer in CI.
 
+![gs-view during a 1x board replay of the real pass, played back at 10x: board sync, ingest, CADU, FEC and packet counters climbing](docs/media/2026-11-24_phase-f_gs-view.gif)
+
+*`gs-view` during a 1× replay of the 2026-11-21 pass through the board (2026-11-24, `scripts/demo_replay.py`),
+played back at 10×. It ends where the measured run did: 5,912 CADUs, 5,587 good, 22,295 packets, nothing lost
+([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv), the 1× row). Full-speed recording:
+[2026-11-24_phase-f_gs-view.cast](docs/media/2026-11-24_phase-f_gs-view.cast) (`asciinema play`).*
+
 **On the board** (`scripts/board_gs_rx.py`): the synthetic recording was replayed at 1×, 5× and 5.6× (5.39×
 achieved), and gs-rx received **298 / 298 CADUs** each time, none missing, malformed or overflowed. gs-diff against
 SatDump's decode of the same recording: **all 258 frames SatDump decoded are bit-identical**, including ASM and
@@ -729,7 +736,7 @@ counter equal apart from the elapsed time.
 | Whole receiver, CADUs vs. truth | `make board BOARD_TOP=arty_rx_eth_top && make rx-check IFACE=<host IP on the cable> SPEED=1,5,5.6` | 298 / 298 CADUs per replay, 15 / 15 replays |
 | Board → ground station vs. SatDump | `PYTHONPATH=. python scripts/board_gs_rx.py REC.cu8 SATDUMP.cadu --iface <IP> --speed 1,5,5.6 [--truth T.cadu T.packets]` | All frames SatDump decoded bit-identical; packets equal to the model's |
 | Replay a recording over UDP | `build/gs-Release/gs-replay FILE.cu8 [--speed X]` | Into the board (rows above) |
-| Demo video | — | `[TBD]` (Phase F) |
+| Real pass through the board, live view | `PYTHONPATH=. python scripts/demo_replay.py CUT.cu8 --iface <IP>` and `build/gs-Release/gs-view build/demo` | Frames, packets and MSU-MR images; no result CSV (the GIF above) |
 
 Claim the shared board first: `python3 ~/fpga-coord/coord.py board claim P3 "<reason>"`.
 

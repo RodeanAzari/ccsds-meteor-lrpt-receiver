@@ -9,8 +9,7 @@ incremental Viterbi, ASM correlator + FSM, hardware BER vs. model, 3-/4-bit and 
 RS/ASM/PN/chain, RS(544,514) instance (fpga-rs-core, KP4), **real pass on the FPGA = SatDump bit for bit**,
 Viterbi and Viterbi+RS hardware BER, timing closed + per-block utilization, hero image.
 
-Needs you (physical captures, listed in the phase sections below): Phase E Vivado device
-view, rx-check terminal, Arty LED photo; Phase F gs-view asciinema.
+Needs you: nothing; every capture is done or waived (2026-11-24).
 
 Claude can generate: Phase C constellation GIF from the real recording (done 2026-11-23); Phase D waveform of
 ACS/traceback (done 2026-11-23: sampled in cocotb, `docs/media/2026-11-23_phase-d_viterbi-waveform.png`); Phase E
@@ -31,16 +30,8 @@ Not met as written, decided by the user 2026-11-23:
 - [x] Photo (you): the whole setup in one frame: V-dipole, SAWbird+ and RTL-SDR, laptop, and the Arty on its
       Ethernet cable, at the very top of the README with a caption on every part and the Ethernet link
       (`docs/media/2026-11-24_phase-e_full-setup.webp`, taken 2026-11-24).
-- [ ] Terminal recording (you; `sudo apt install asciinema`, not on this host yet): `gs-view` live during a board
-      replay at 1×. Claim the board, `rm -rf build/board_gs_rx`, then in two terminals:
-      1. `asciinema rec docs/media/YYYY-MM-DD_phase-f_gs-view.cast -c "build/gs-Release/gs-view build/board_gs_rx/0_1x"`
-         (it waits for the status file)
-      2. the committed command from `data/results/board_gs_rx.md` (`PYTHONPATH=. .venv/bin/python
-         scripts/board_gs_rx.py ... --speed 1,5,5.6`): its first replay is the 1× one gs-view watches; it rewrites
-         `board_gs_rx.csv` with a fresh run of the same command (commit it or `git checkout` it)
-      Expect sync LOCKED, CADUs climbing to 298, FER 0.000 %, then [final] 10 s after the last CADU, and gs-view
-      exits. The .cast is text; a GIF made from it (agg) must stay ≤ 8 MB.
-
+- [x] Terminal recording: `gs-view` live during a 1× board replay of the real pass (2026-11-24,
+      `docs/media/2026-11-24_phase-f_gs-view.cast` and a 10× GIF in the README Ground station section).
 - [x] ~~**Demo video (you, 60–120 s; buildplan §11 demo video), the whole setup in action.**~~ Waived by the
       user 2026-11-24: the captioned setup photo at the top of the README replaces it. Requested 2026-11-13.
       In frame together: the V-dipole, SAWbird+ and RTL-SDR V3, and the Arty with its Ethernet cable, all attached
@@ -59,11 +50,11 @@ Not met as written, decided by the user 2026-11-23:
 First decode on hardware, 2026-11-08: the synthetic recording replayed through `arty_rx_eth_top`, CADUs back over
 Ethernet (`board_rx_eth.csv`). Claim the board first.
 
-- [ ] Screenshot (you): terminal running `make rx-check IFACE=169.254.235.36 SPEED=1` showing "link up", the
-      gs-replay line and the "CADU packets ... match the truth" summary
-- [ ] Photo (you): the Arty during a replay, LD5 (frame sync locked) lit and LD6 toggling per CADU (LD7 latches on any
-      ingest gap, so it lights when the host reorders datagrams; `rx-check` prints `ingest_gap`)
-- [ ] Screenshot: Vivado device view of `arty_rx_eth_top` (buildplan §9 Phase E media), from
+- [x] ~~Screenshot (you): terminal running `make rx-check IFACE=169.254.235.36 SPEED=1` showing "link up", the
+      gs-replay line and the "CADU packets ... match the truth" summary~~ Waived by the user 2026-11-24 (not on a §9 checklist).
+- [x] ~~Photo (you): the Arty during a replay, LD5 (frame sync locked) lit and LD6 toggling per CADU (LD7 latches on any
+      ingest gap, so it lights when the host reorders datagrams; `rx-check` prints `ingest_gap`)~~ Waived by the user 2026-11-24: the README already has an Arty photo.
+- [x] Screenshot (2026-11-24, README In Vivado): Vivado device view of `arty_rx_eth_top` (buildplan §9 Phase E media), from
       `build/board/arty_rx_eth_top` after `make board BOARD_TOP=arty_rx_eth_top`
 - [x] Real-decode stats from a real pass: `board_gs_rx.py` output and gs-rx's final counters (board stats
       included) from the 2026-11-22 1× replay, in the README under "On the board"; raw files in
