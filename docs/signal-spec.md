@@ -174,3 +174,75 @@ byte 2 bits 5–0, byte 3 (14 bits); packet length = bytes 4–5. **Data bytes a
 The first two only matter after a lost or dropped CADU: on an unbroken VCID-5 stream they never trigger. `gs-rx`
 drops and counts what they would damage (ADR 0015); `model/space_packets.py` has both behaviours (`satdump_demux`,
 `demux`).
+
+## MSU-MR image packets (optional image step)
+
+Read from SatDump at commit `b79af48` (`1.2.2+gb79af48`, the installed build that produced every SatDump output in
+`data/MANIFEST.md`), `plugins/meteor_support/meteor/instruments/msumr/` (paths below relative to it):
+`lrpt/{segment,huffman,idct,tables}`, `lrpt_msumr_reader.cpp` and `module_meteor_msumr_lrpt.cpp`. Against the
+`1.2.2` tag the rest of this file was read from, the decoder files and the demultiplexer are unchanged apart from
+refactoring; **the reader was rewritten** (segment placement and image extent), so the tag's reader does not give
+the installed build's images. SatDump is GPL-3 and this repository is MIT, so the receiver's decoder is written from
+this description and the JPEG standard (ITU-T T.81), not ported, and checked against SatDump's output images.
+
+**Channels.** APIDs 64–69 are MSU-MR channels 1–6 (`lrpt_msumr_reader.cpp:37-48`); every other APID is ignored.
+The pipeline runs with `m2x_mode` true (`pipelines/Meteor-M.json:203`); it changes only timestamps, not pixels.
+Each packet is one **segment**: 14 MCUs of 8×8 pixels, a strip 112 pixels wide and 8 rows high.
+
+**Segment header** (packet data bytes after the 6-byte primary header, `lrpt/segment.cpp:24-49`):
+
+| Bytes | Field | Notes |
+|---|---|---|
+| 0–7 | day (2), ms of day (4), µs (2) | timestamp, not used for pixels |
+| 8 | MCUN | number of the segment's first MCU in its scan |
+| 9 | QT | must be 0 |
+| 10 | DC / AC table ids | SatDump reads both as the **low** nibble (`segment.cpp:41`: `data[10] & 0xF0 >> 4` is `data[10] & 0x0F` by C precedence); must be 0 |
+| 11–12 | QFM | must be `0xFFF0` |
+| 13 | QF | quality factor |
+| 14– | entropy-coded data | |
+
+A segment counts only if the data is longer than 14 bytes, QT = 0, the low nibble of byte 10 is 0, QFM = `0xFFF0`, and
+its first MCU decodes (`segment.cpp:15-19, 24-26, 94-96, 117-119`). Otherwise it is dropped as if never received.
+
+**Entropy decoding** (`segment.cpp:62-167`, `lrpt/huffman.cpp`): bits MSB first. Per MCU, a DC difference coded with
+the T.81 Table K.3 luminance DC code (categories 0–11) and added to a running DC that starts at 0 for each segment;
+then AC (run, size) symbols with the T.81 Table K.5 luminance AC code: EOB (0,0) ends the block, ZRL (15,0) is 16
+zeros. Magnitude bits as in T.81 (a leading 0 bit means negative: value − (2^size − 1)). Behaviours to match:
+
+- A symbol adds its zeros and value only while the block index after it stays **below 64** (`segment.cpp:127`); a
+  symbol that would reach index 64 ends the block instead, so coefficient 63 is never set. A block also ends after
+  63 coefficients counted, without an EOB.
+- No code matching, or too few bits left for a code's magnitude bits: if that happens in the first MCU the segment
+  is invalid; in a later MCU decoding stops there, the MCUs already decoded keep their pixels and the rest stay 0
+  (`segment.cpp:93-100, 116-123`).
+
+**Dequantization and IDCT.** Coefficient k in zigzag order goes to natural position zigzag(k) (T.81 Figure A.6) and
+is multiplied by the T.81 Table K.1 luminance table scaled by QF, computed in **32-bit float**: f = 5000 / QF if
+20 < QF < 50, else 200 − 2·QF; q[x] = int(f / 100 · K1[x] + 0.5), at least 1 (`huffman.cpp:13-29`). The inverse DCT
+is the fixed-point algorithm of Go's `image/jpeg` (`idct.cpp`, Wang 1984; constants 2048·√2·cos(kπ/16) and 181): rows
+with a shortcut for all-zero AC (DC << 3), then columns, arithmetic shifts. Pixel = result + 128, clipped to 0–255.
+
+**Placing segments** (`lrpt_msumr_reader.cpp:33-93`), per channel, in 32-bit unsigned arithmetic:
+
+- 43 packets per 8-row scan (14 segments × 3 channels + 1 telemetry), so a segment's place comes from its 14-bit
+  sequence count. `rollover` += 16,384 when the count goes from above 13,926 to below 2,458.
+- The channel's first valid segment sets `offset` = (seq + (MCUN/14 > seq ? 16,384 : 0) − MCUN/14 + rollover) mod 43.
+  Until then `offset` is 2^32 − 1, which also marks a channel with no data.
+- id = (seq + rollover − offset) / 43 · 14 + MCUN/14. The segment is **dropped** if the channel's id span with it,
+  max(last, id) − min(first, id), would exceed 20,000; otherwise first, last and the previous sequence count are
+  updated and the segment is stored, replacing any earlier one with the same id.
+
+**Image extent** (`getChannel`, `lrpt_msumr_reader.cpp:96-201`): all channels share one extent.
+
+- L = the channel with the smallest offset below 43, the lowest-numbered on a tie (6 if none). SatDump's "lowest
+  transmitted channel" is always channel 0: its loop sets it on the first pass whether or not channel 0 has data.
+- Over the channels with data: F = smallest first id, E = largest last id; also the smallest first and largest last
+  id of the channels numbered below L (Fb, Eb) and of those at or above it (Fa, Ea), each 2^32 − 1 / 0 when empty.
+- If L ≠ 0, with ⌊x⌋ = x − x mod 14: a = ⌊Fb⌋ ≥ ⌊Fa⌋, b = ⌊Eb⌋ < ⌊Ea⌋. A channel below L takes F −= 14 if a and
+  E −= 14 if b; a channel at or above L takes F += 14 if not a and E += 14 if not b.
+- E += 14 (the last scan is included). For a channel with no segment F = 0 and E = 0. Both are rounded down to a
+  multiple of 14; the image is the scans from F up to, not including, E.
+
+1,568 × 8 pixels per scan, segments left to right by id; a missing or invalid segment is 0. A channel with no
+segment gives no image. `module_meteor_msumr_lrpt.cpp:272-276` saves each as `MSU-MR-<n>.png` (8-bit grey), with no
+fill (`fill_missing` defaults to false, `pipelines/Meteor-M.json:167-171`).
