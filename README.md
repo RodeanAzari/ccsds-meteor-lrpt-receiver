@@ -744,8 +744,12 @@ Claim the shared board first: `python3 ~/fpga-coord/coord.py board claim P3 "<re
 | **Whole receiver** | WNS +0.256 ns, WHS +0.025 ns | 13,682 LUT, 13,984 FF, 29 DSP, 8 RAMB36, 7 RAMB18 | [docs/reports/board/arty_rx_eth_top/](docs/reports/board/arty_rx_eth_top/) |
 | Whole receiver, CADUs before RS (BER build) | WNS +0.074 ns, WHS +0.027 ns | 13,681 LUT, 13,931 FF, 29 DSP, 8 RAMB36, 7 RAMB18 | [docs/reports/board/arty_rx_eth_top_prers/](docs/reports/board/arty_rx_eth_top_prers/) |
 
-Device view, worst-path and schematic screenshots: `[TBD]`, listed for capture in
-[portfolio-todo.md](docs/portfolio-todo.md).
+![Vivado device view of the routed whole receiver on the XC7A100T: the logic fills the middle of the die, the bottom clock regions are empty](docs/media/2026-11-24_phase-e_vivado-device.png)
+
+*The whole receiver (`arty_rx_eth_top`) placed and routed on the XC7A100T, Vivado 2025.2 device view of
+`build/board/arty_rx_eth_top_routed.dcp` (`make board BOARD_TOP=arty_rx_eth_top`; rebuilt 2026-11-24, same timing
+as the committed reports). It uses 21.6% of the LUTs, packed into the middle of the die; the bottom clock regions
+X0Y0 and X1Y0 are unused.*
 
 ## Results
 
