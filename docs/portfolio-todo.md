@@ -9,8 +9,8 @@ incremental Viterbi, ASM correlator + FSM, hardware BER vs. model, 3-/4-bit and 
 RS/ASM/PN/chain, RS(544,514) instance (fpga-rs-core, KP4), **real pass on the FPGA = SatDump bit for bit**,
 Viterbi and Viterbi+RS hardware BER, timing closed + per-block utilization, hero image.
 
-Needs you (physical captures, listed in the phase sections below): Phase 0 whole-setup photo; Phase E Vivado device
-view, rx-check terminal, Arty LED photo; Phase F gs-view asciinema, demo video.
+Needs you (physical captures, listed in the phase sections below): Phase E Vivado device
+view, rx-check terminal, Arty LED photo; Phase F gs-view asciinema.
 
 Claude can generate: Phase C constellation GIF from the real recording (done 2026-11-23); Phase D waveform of
 ACS/traceback (done 2026-11-23: sampled in cocotb, `docs/media/2026-11-23_phase-d_viterbi-waveform.png`); Phase E
@@ -28,22 +28,9 @@ Not met as written, decided by the user 2026-11-23:
 
 - [x] Photo: V-dipole antenna setup, showing orientation and clear sky (2026-11-21 pass, the first decoded,
       `docs/media/2026-11-21_phase-0_antenna-setup.webp`, in the README under Architecture; 2026-11-14 photo kept)
-- [ ] Photo (you): the whole setup in one frame: V-dipole, SAWbird+ and RTL-SDR, laptop, and the Arty on its
-      Ethernet cable **Goes at the very top of the README** (user, 2026-11-23), above the
-      MSU-MR hero image. Best taken during a 1× board replay of the real pass (Claude runs it: about 12 min with LD5
-      lit and LD6 toggling, `gs-view` live on the laptop screen), so the same staging can also serve the demo video.
-- [x] Screenshot: SatDump waterfall during your own pass (2026-11-21 recording replayed in satdump-ui at ~47%: Viterbi and deframer SYNCED, SNR 11.4 dB; stale status bar cropped off. `docs/media/2026-11-21_phase-0_satdump-waterfall.png`)
-- [x] Image: SatDump's decoded image from that pass (2026-11-21, 4,583 CADUs): MSA natural colour with map, rotated north-up, `docs/media/2026-11-21_phase-0_satdump-image.webp`; lock GIF (first 15 s of a screen recording of the replay, original off-repo) `docs/media/2026-11-21_phase-0_satdump-lock.gif`; both in the README under Architecture
-
-## Phase A (golden model on a real pass)
-
-- [x] Plot: frames per 30 s, float model vs. SatDump, with the carrier offset, 2026-11-21 pass
-      (`docs/media/2026-11-21_phase-a_real-pass-model.png`, `make plots`; in the README under Architecture)
-- [x] Image (Phase E, 2026-11-22): MSU-MR image from the CADUs this receiver's RTL decoded on the board, next to
-      SatDump's (`docs/media/2026-11-21_phase-e_msu-mr-board-vs-satdump.jpg`, `scripts/msu_mr_compare.py`)
-
-## Phase F (ground station)
-
+- [x] Photo (you): the whole setup in one frame: V-dipole, SAWbird+ and RTL-SDR, laptop, and the Arty on its
+      Ethernet cable, at the very top of the README with a caption on every part and the Ethernet link
+      (`docs/media/2026-11-24_phase-e_full-setup.webp`, taken 2026-11-24).
 - [ ] Terminal recording (you; `sudo apt install asciinema`, not on this host yet): `gs-view` live during a board
       replay at 1×. Claim the board, `rm -rf build/board_gs_rx`, then in two terminals:
       1. `asciinema rec docs/media/YYYY-MM-DD_phase-f_gs-view.cast -c "build/gs-Release/gs-view build/board_gs_rx/0_1x"`
@@ -54,7 +41,8 @@ Not met as written, decided by the user 2026-11-23:
       Expect sync LOCKED, CADUs climbing to 298, FER 0.000 %, then [final] 10 s after the last CADU, and gs-view
       exits. The .cast is text; a GIF made from it (agg) must stay ≤ 8 MB.
 
-- [ ] **Demo video (you, 60–120 s; buildplan §11 demo video), the whole setup in action.** Requested 2026-11-13.
+- [x] ~~**Demo video (you, 60–120 s; buildplan §11 demo video), the whole setup in action.**~~ Waived by the
+      user 2026-11-24: the captioned setup photo at the top of the README replaces it. Requested 2026-11-13.
       In frame together: the V-dipole, SAWbird+ and RTL-SDR V3, and the Arty with its Ethernet cable, all attached
       to the laptop. On screen: the antenna picking up the pass (SatDump waterfall, or a live terminal or
       dashboard view), the board and Ethernet processing it (`gs-view`: sync, CADU count, FER, the board's

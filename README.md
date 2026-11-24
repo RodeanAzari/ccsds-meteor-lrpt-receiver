@@ -2,6 +2,30 @@
 
 [![CI](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml/badge.svg)](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml)
 
+[![The whole setup outdoors in the snow: the V-dipole on a wooden pole, the SAWbird+ on the pole, the RTL-SDR, the Arty A7 board, the Ethernet cable and the laptop](docs/media/2026-11-24_phase-e_full-setup.webp)](docs/media/2026-11-24_phase-e_full-setup.webp)
+
+*The whole setup. A V-dipole antenna (the two rods on the wooden pole) picks up Meteor-M N2-4 as it passes
+overhead. On the pole below it, a SAWbird+ NOAA (the black box) filters out everything but the satellite's band and
+amplifies it; a cable runs from it down to the RTL-SDR at the laptop, which turns the signal into raw samples
+and passes them to the laptop over USB. The laptop recorded the 2026-11-21 pass this way ([MANIFEST](data/MANIFEST.md)), and here it replays that recording to
+two decoders at once: SatDump, the open-source reference, on the laptop, and the receiver on the Arty A7 FPGA board
+(on the blue mat). The white Ethernet cable is the board's only data link: it runs from a USB Ethernet adapter on
+the laptop to the Arty's 10/100 Ethernet port, carries the recording to the board as UDP packets (fast enough for up to 5.69×
+real time on the 100 Mb/s link, [ADR 0009](docs/decisions/0009-iq-transport-format.md)), and carries the board's decoded frames and status packets back. The FPGA decodes the samples all the way to
+error-corrected frames; the C++ ground station on the laptop splits them into the satellite's data packets and
+builds the image (`gs-image`, further down). Below: the image from the FPGA's frames next to SatDump's own; every
+frame both decoded is identical.*
+
+[![Meteor-M N2-4 MSU-MR image of eastern North America from this receiver's CADUs, next to SatDump's image from the same recording](docs/media/2026-11-21_phase-e_msu-mr-board-vs-satdump.jpg)](docs/media/2026-11-21_phase-e_msu-mr-board-vs-satdump.jpg)
+
+*Meteor-M N2-4, 2026-11-21, 19:45–19:58 UTC. Left: the CADUs this receiver's RTL decoded on the Arty A7 from the
+replayed recording, made into an image by SatDump 1.2.2 (`satdump meteor_m2-x_lrpt cadu`). Right: SatDump's own
+decode of the same IQ recording. MSA composite with SatDump's map overlay, north up. The board decodes about 2.5 min
+earlier on the rising signal, so its image runs on south to Florida and the Gulf coast (4,440 lines against 3,568);
+where both have a frame, it is identical in every data byte ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)).
+The striped rows at the top are the end of the pass, below 10° elevation, and at the bottom the start.
+`scripts/msu_mr_compare.py`.*
+
 A receiver for the **Meteor-M N2-4 LRPT downlink (72k mode, OQPSK, 72 ksym/s)**, built as an FPGA datapath on a
 Digilent Arty A7-100T with C++ ground-station tools around it. Recordings are captured with an RTL-SDR, replayed to
 the board over UDP, and decoded down to CCSDS frames: digital downconversion, timing and carrier recovery, frame
@@ -29,15 +53,6 @@ Every number below comes from a CSV in [`data/results/`](data/results/) or a rep
 [`docs/reports/`](docs/reports/), produced by a `make` target. Each CSV has a sidecar `.md` with the commit,
 command, tool versions, input and an interpretation. `[TBD]` means not measured yet.
 
-[![Meteor-M N2-4 MSU-MR image of eastern North America from this receiver's CADUs, next to SatDump's image from the same recording](docs/media/2026-11-21_phase-e_msu-mr-board-vs-satdump.jpg)](docs/media/2026-11-21_phase-e_msu-mr-board-vs-satdump.jpg)
-
-*Meteor-M N2-4, 2026-11-21, 19:45–19:58 UTC. Left: the CADUs this receiver's RTL decoded on the Arty A7 from the
-replayed recording, made into an image by SatDump 1.2.2 (`satdump meteor_m2-x_lrpt cadu`). Right: SatDump's own
-decode of the same IQ recording. MSA composite with SatDump's map overlay, north up. The board decodes about 2.5 min
-earlier on the rising signal, so its image runs on south to Florida and the Gulf coast (4,440 lines against 3,568);
-where both have a frame, it is identical in every data byte ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)).
-The striped rows at the top are the end of the pass, below 10° elevation, and at the bottom the start.
-`scripts/msu_mr_compare.py`.*
 
 [<img src="docs/media/2026-11-23_phase-f_msu-mr-gs-image.jpg" width="300" align="right" alt="Meteor-M N2-4 MSU-MR false-colour image of the Great Lakes and eastern North America, decoded with no SatDump step: board, gs-rx, gs-image">](docs/media/2026-11-23_phase-f_msu-mr-gs-image.jpg)
 
