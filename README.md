@@ -39,6 +39,19 @@ where both have a frame, it is identical in every data byte ([board_gs_rx_real.c
 The striped rows at the top are the end of the pass, below 10° elevation, and at the bottom the start.
 `scripts/msu_mr_compare.py`.*
 
+[<img src="docs/media/2026-11-23_phase-f_msu-mr-gs-image.jpg" width="300" align="right" alt="Meteor-M N2-4 MSU-MR false-colour image of the Great Lakes and eastern North America, decoded with no SatDump step: board, gs-rx, gs-image">](docs/media/2026-11-23_phase-f_msu-mr-gs-image.jpg)
+
+**The same pass with no SatDump at all.** The board's CADUs → `gs-rx` (space packets) → `gs-image`, this
+project's own MSU-MR decoder in C++ (written from the spec and the JPEG standard). Its images equal the golden
+model's pixel for pixel, 3 channels × 1,568 × 4,440, and the model equals SatDump's images when both get the same
+packets. Against SatDump's images of the same CADUs, 14 of 23,310 segments differ, every one a packet gs-rx drops
+at a CADU gap rather than pass on damaged ([gs_image_real.csv](data/results/gs_image_real.csv),
+[msumr_model.csv](data/results/msumr_model.csv)).
+
+*Right: "221" false colour (red and green from channel 2, near infrared; blue from channel 1, visible), as decoded,
+no map, north up. `scripts/msu_mr_own.py`.*
+<br clear="right">
+
 ## At a glance
 
 | | |
@@ -58,7 +71,7 @@ The striped rows at the top are the end of the pass, below 10° elevation, and a
 | **Bugs caught** | 32 written up as symptom → root cause → fix ([below](#bugs-found)); planted bugs at every layer, each caught except one equivalent mutant ([list](#bugs-found), counts per campaign in [docs/log.md](docs/log.md)) |
 | **Fmax** | DDC out of context **100 MHz met, WNS +0.661 ns**; board build WNS +1.521 ns; RRC +2.453 ns, AGC +2.344 ns, Costas +2.360 ns, timing +1.604 ns, **whole sync chain +1.431 ns**, Viterbi decoder +1.895 ns, frame sync +0.653 ns, **sync chain → RS +0.629 ns** out of context; **whole receiver on the board +0.256 ns** placed and routed ([board_arty_rx_eth_top.csv](data/results/board_arty_rx_eth_top.csv), [synth_ddc_top.csv](data/results/synth_ddc_top.csv), [board_arty_ddc_rom_top.csv](data/results/board_arty_ddc_rom_top.csv), [synth_sync_rrc.csv](data/results/synth_sync_rrc.csv), [synth_sync_agc.csv](data/results/synth_sync_agc.csv), [synth_sync_costas.csv](data/results/synth_sync_costas.csv), [synth_sync_timing.csv](data/results/synth_sync_timing.csv), [synth_sync_top.csv](data/results/synth_sync_top.csv), [synth_fec_viterbi.csv](data/results/synth_fec_viterbi.csv), [synth_fec_framesync.csv](data/results/synth_fec_framesync.csv), [synth_rx_chain.csv](data/results/synth_rx_chain.csv)) |
 | **Utilization** | DDC: 1,036 LUT, 1,659 FF, 6 DSP48E1, 1 RAMB18, **1.6% of the LUTs**. RRC: 616 LUT, 1,874 FF, 2 DSP48E1. AGC: 163 LUT, 68 FF, 4 DSP48E1. Costas: 469 LUT, 153 FF, 7 DSP48E1, 1 RAMB18. Timing: 752 LUT, 564 FF, 9 DSP48E1. **Sync chain: 1,998 LUT (3.2%), 2,659 FF, 22 DSP48E1, 1 RAMB18.** Viterbi: 1,621 LUT (2.6%), 694 FF, 1 RAMB36, no DSP. Frame sync: 3,112 LUT (4.9%), 3,066 FF, 4 RAMB36, 1 DSP48E1. In the board build: RS decoder 4,232 LUT, 3 RAMB18; **whole receiver 13,682 LUT (21.6%), 8 RAMB36 + 7 RAMB18, 29 DSP48E1**. Every multiplier in a DSP |
-| **Ground station + CI** | C++20 `gs-replay`, `gs-rx` (RS gate, space-packet demux), `gs-diff`, `gs-view`. On the board's output: space packets equal to the golden model's in 3 / 3 replays, 228 equal to SatDump's, 0 unexplained ([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)). `make ci`, run by [GitHub Actions on every push](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml): ruff, mypy, Verilator lint, 179 pytest, 96 cocotb tests (31 builds), 60 GoogleTest (Release and ASan/UBSan) + 2 under TSan, 13 loopback, libFuzzer 30 s × 2 targets, clang-format, clang-tidy, cppcheck |
+| **Ground station + CI** | C++20 `gs-replay`, `gs-rx` (RS gate, space-packet demux), `gs-diff`, `gs-view`, `gs-image` (MSU-MR images, equal to the model on the real pass: [gs_image_real.csv](data/results/gs_image_real.csv)). On the board's output: space packets equal to the golden model's in 3 / 3 replays, 228 equal to SatDump's, 0 unexplained ([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)). `make ci`, run by [GitHub Actions on every push](https://github.com/RodeanAzari/ccsds-meteor-lrpt-receiver/actions/workflows/ci.yml): ruff, mypy, Verilator lint, 179 pytest, 96 cocotb tests (31 builds), 77 GoogleTest (Release and ASan/UBSan) + 2 under TSan, 13 loopback, libFuzzer 30 s × 3 targets, clang-format, clang-tidy, cppcheck |
 
 ## Status
 
@@ -70,7 +83,7 @@ The striped rows at the top are the end of the pass, below 10° elevation, and a
 | C — Synchronization | **In progress** | Sync chain RTL bit-exact in simulation; its output decodes. Lock range ±15 kHz, lock in 16–35 ms. On the board it holds the real pass's Doppler (−0.36 to −6.4 kHz) from one NCO setting ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
 | D — Viterbi + frame sync | **In progress** | Viterbi decoder and frame sync RTL bit-exact with the model (frame sync window for window in 13 scenarios), and in the chain from DDC output; hardware BER 0.12–0.36 dB from the model ([ber_board.csv](data/results/ber_board.csv)); ACS path metrics captured on the board by ILA, 1,023 steps equal to the model ([viterbi_board_ila.csv](data/results/viterbi_board_ila.csv)) |
 | E — Reed-Solomon + real decode | **In progress** | Stats packets back over Ethernet; RS decoder released as [fpga-rs-core](https://github.com/RodeanAzari/fpga-rs-core) `rs-core-v1.0`; NRZ-M, ASM check, derandomizer and RS in RTL after the Viterbi, bit-exact in simulation; **the whole receiver on the board decodes a replayed synthetic recording, 298 / 298 CADUs in 15 / 15 replays up to 5.6× real time**, and **the real 2026-11-21 pass: 5,587 CADUs, all 4,566 common with SatDump identical** ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
-| F — C++ ground station | **In progress** | `gs-replay`, `gs-rx` (RS gate, space packets), `gs-diff`, `gs-view`, fuzzed parsers; board → gs-rx bit-identical to SatDump on all 258 common frames ([board_gs_rx.csv](data/results/board_gs_rx.csv)); space packets from the board equal to the model's and SatDump's ([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)); on the real pass, 18,176 packets equal to SatDump's, 0 unexplained ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
+| F — C++ ground station | **In progress** | `gs-replay`, `gs-rx` (RS gate, space packets), `gs-diff`, `gs-view`, `gs-image` (MSU-MR images equal to the model, [gs_image_real.csv](data/results/gs_image_real.csv)), fuzzed parsers; board → gs-rx bit-identical to SatDump on all 258 common frames ([board_gs_rx.csv](data/results/board_gs_rx.csv)); space packets from the board equal to the model's and SatDump's ([board_gs_rx_packets.csv](data/results/board_gs_rx_packets.csv)); on the real pass, 18,176 packets equal to SatDump's, 0 unexplained ([board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)) |
 
 Architecture, ADR summary and clock-domain crossings: [docs/design.md](docs/design.md). Lab notebook with every
 measurement and bug: [docs/log.md](docs/log.md).
@@ -584,6 +597,16 @@ frames the board delivered** (268 of 270 at 1× and 5×; the other two touch fra
 the 12 CADUs this cost were gated out and no damaged packet was emitted. The packets are random, not image data:
 an image needs a real pass.
 
+`gs-image` turns gs-rx's `packets.bin` into one greyscale PNG per MSU-MR channel. It decodes each segment (JPEG
+baseline Huffman coding, the quality-factor-scaled table, a fixed-point IDCT) and places it by sequence count as the
+installed SatDump build does, quirks included (`docs/signal-spec.md` "MSU-MR image packets"). It is written from
+that spec and the JPEG standard: SatDump is GPL-3 and this repository MIT. The Python golden model
+(`model/msumr.py`) came first and equals SatDump's images exactly when both get the same packets
+([msumr_model.csv](data/results/msumr_model.csv)). GoogleTest checks the C++ against the JPEG standard and against
+the model on eight scenarios cut from the real pass and then wrapped, damaged, swapped or stretched. 14 of 18 planted
+bugs are caught, and the other 4 provably change no output. The segment parser is fuzzed. **On the whole real pass,
+gs-image's images equal the model's, 0 pixels different** ([gs_image_real.csv](data/results/gs_image_real.csv)).
+
 ## On the board
 
 The Phase B bring-up design: BRAM ROM (65,536-sample cu8 snippet) → DDC → capture BRAM → UART at 115,200 baud. It
@@ -847,7 +870,7 @@ produced them. `make sim-full` and `make cov` are local only. `make formal` runs
 | `rtl/eth/`, `rtl/rs/` | Submodules: fpga-eth-core, fpga-rs-core (never edited here) |
 | `model/` | Float receiver, transmit chain and channel, RS codec, bit-true DDC / RRC / sync / frame sync / Viterbi / CADU, space packets |
 | `tb/cocotb/`, `tb/formal/` | cocotb testbenches; SymbiYosys proofs |
-| `gs/` | C++ ground station (`gs-replay`, `gs-rx`, `gs-diff`, `gs-view`), GoogleTest, loopback tests, fuzz targets |
+| `gs/` | C++ ground station (`gs-replay`, `gs-rx`, `gs-diff`, `gs-view`, `gs-image`), GoogleTest, loopback tests, fuzz targets |
 | `analysis/` | Campaigns, plots, result interpretations |
 | `scripts/` | Board checks, table generation, SatDump cross-check, Vivado wrapper |
 | `syn/`, `constr/` | Vivado Tcl (OOC, board, ILA capture), XDC |

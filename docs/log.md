@@ -1484,3 +1484,28 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
 - A test bug on the way: flat test segments used odd pixel values, but a DC-only block at QF 50 can only give
   128 + 2d. The model was right.
 - Next: the C++ tool in `gs/` (packets → PNG per channel), equal to the model, GoogleTest + fuzzed segment parser.
+
+## 2026-11-23 (night): gs-image, the MSU-MR decoder in C++ (Phase F optional step)
+
+- `gs/msumr.hpp` + `gs-image PACKETS OUTDIR`: one 8-bit greyscale PNG per channel (zlib, already a CI package).
+  Written from `docs/signal-spec.md` and T.81, like the model.
+- **Result (`gs_image_real.csv`):** on gs-rx's packets.bin of the real pass, 0 pixels different from the model on all
+  three channels (1,568 × 4,440); against SatDump the same 14 segments as the model's `own_packets`, all gs-rx drops.
+  1.38 s for the run, mostly PNG compression at zlib level 9. It was pixel-exact on the first build.
+- Vectors (`scripts/gen_msumr_vectors.py`, `gs/tests/data/msumr`, 1.3 MB): a 215-packet slice of the pass and seven
+  scenarios derived from it or synthetic. A Python test fails if they go stale. The span scenario's images (9,624
+  rows a channel) are too big to commit, so every scenario also has a summary (extent, segment count) and the
+  C++ test checks that.
+- Mutants: 14/18 caught. Four are equivalent: zeros vs ones past the end of the data (a code longer than the bits left
+  fails either way), ZRL reading magnitude bits (size 0), the IDCT row shortcut, and fused multiply-add in the QF
+  scaling (none of the 256 × 64 entries change). Three were missed at first and fixed by adding scenarios:
+  late_start (the offset wraps), tie (two channels share the lowest offset), and a stronger double-precision mutant.
+- **Found while building the vectors:** if a channel's first count is below its offset (a recording that starts just
+  after the 14-bit count wraps, part-way into a scan), seq − offset wraps and the id is about 1.4 × 10⁹. The first
+  late_start attempt hung the Python model allocating that image. Written into the spec; gs-image refuses more than
+  11,440 rows. Not seen on a real pass.
+- Fuzz: `msumr_fuzz` ran about 30 inputs/s at -O0 under ASan/UBSan; built at -O1 it runs about 500/s (about 21,000
+  runs in CI's 30 s). No crash.
+- clang-tidy: one scoped `NOLINTBEGIN` for `pro-bounds-constant-array-index` in msumr.cpp (a codec indexes tables by
+  computed positions; ASan/UBSan and the fuzzer check them).
+- README: the first image with no SatDump step (board → gs-rx → gs-image), "221" false colour.
