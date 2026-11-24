@@ -140,6 +140,7 @@ if {$ila && $top eq "arty_rx_eth_top"} {
 opt_design
 place_design
 route_design
+write_checkpoint -force [file join $bdir ${name}_routed.dcp]  ;# for the Vivado device view (buildplan §9 Phase E media)
 
 report_timing_summary -max_paths 10 -file [file join $out timing_summary.rpt]
 report_utilization -file [file join $out utilization.rpt]
