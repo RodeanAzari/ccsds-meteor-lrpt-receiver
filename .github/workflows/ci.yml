@@ -27,7 +27,7 @@ jobs:
             clang clang-tidy clang-format cppcheck libclang-rt-dev \
             autoconf bison flex help2man libfl-dev perl zlib1g-dev zstd
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: true  # rtl/eth: fpga-eth-core at its release tag
 
@@ -37,7 +37,7 @@ jobs:
 
       - name: Cache Verilator
         id: cache-verilator
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/verilator-install
           key: verilator-ubuntu-26.04-${{ env.VERILATOR_VERSION }}
@@ -74,7 +74,7 @@ jobs:
       # A fuzzer crash: keep the input that triggered it (Makefile `fuzz`: fix, then commit it as a seed).
       - name: Upload fuzzer crash inputs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-crashes
           path: build/fuzz/crash-*

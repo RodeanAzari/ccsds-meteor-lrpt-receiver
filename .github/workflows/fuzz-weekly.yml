@@ -21,7 +21,7 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             ca-certificates git make g++ cmake clang libclang-rt-dev
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Report tool versions
         run: |
@@ -33,7 +33,7 @@ jobs:
 
       - name: Upload fuzzer crash inputs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-crashes
           path: build/fuzz/crash-*
