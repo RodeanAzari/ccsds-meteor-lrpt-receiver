@@ -1463,3 +1463,24 @@ Board held by P2, so off-board work: the NCO word moves from a build parameter t
   tied high) fails the test.
 - Process slip: a commit went in with `make lint-py` failing (RUF007), hidden by piping lint through `tail`; amended
   before anything used it. Don't pipe a gate's output when its exit status matters.
+
+## 2026-11-23 (later): MSU-MR image model (Phase F optional step)
+
+- Spec first: SatDump's MSU-MR decoder read (cloned to the scratchpad, not the repo) and written up in
+  `docs/signal-spec.md` "MSU-MR image packets". SatDump is GPL-3 and this repo MIT, so `model/msumr.py` is written
+  from the spec and ITU-T T.81 (Huffman tables K.3/K.5, quantization K.1, zigzag A.6), not ported.
+- **Bug, caught by the comparison:** the model written from the `1.2.2` tag's reader gave images 8 rows (channels 1, 2)
+  and 40 rows (channel 4) shorter than SatDump's, with 0 pixels different where both had rows. Root cause: the
+  installed SatDump is `1.2.2+gb79af48`, whose reader was rewritten after the tag (one extent shared by all channels,
+  the last scan included, a new offset rule, a span limit instead of an id limit). The decoder and demuxer files are
+  unchanged apart from refactoring, so the earlier spec sections stand. Spec and model now follow b79af48.
+- **Result (`msumr_model.csv`):** SatDump's packets through the model give SatDump's images exactly, on the board's
+  CADUs (1,568 × 4,440 × 3 channels) and on SatDump's own CADUs of the pass (1,568 × 3,568 × 3): 0 pixels different.
+  The receiver's own packets (gs-rx `packets.bin`) differ in 14 of 23,310 segments, each one a packet gs-rx dropped at
+  a CADU gap (ADR 0015) that SatDump decoded anyway; 0 unexplained.
+- Tests: 18 in `model/tests/test_msumr.py`, including an independent T.81 encoder for round trips. Mutants 11/12
+  caught; the IDCT row shortcut is equivalent (a DC-only row gives DC·8 either way). The float32 QF scaling only
+  matters at QF 36 (entry 44) and 48 (entry 14): found by search, now a test.
+- A test bug on the way: flat test segments used odd pixel values, but a DC-only block at QF 50 can only give
+  128 + 2d. The model was right.
+- Next: the C++ tool in `gs/` (packets → PNG per channel), equal to the model, GoogleTest + fuzzed segment parser.
