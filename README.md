@@ -639,6 +639,48 @@ speed 5: host_tx_dropped=0 datagrams=482 ring_full=0 cadu_packets=298 cadus_good
 packets: packets=268 truth_packets=270 expected_packets=268 packets_exact=1 pd_satdump=228 pd_equal=228 pd_differ=0 pd_only_ours=40 pd_only_satdump=0 pd_explained=missing_in_satdump:40 pd_unexplained=0 pd_result=PASS
 ```
 
+**A real pass.** The 740 s cut of the 2026-11-21 Meteor-M N2-4 recording, replayed at 1× real time (2026-11-22,
+[board_gs_rx_real.csv](data/results/board_gs_rx_real.csv)). The script's output, as printed:
+
+```
+$ PYTHONPATH=. python scripts/board_gs_rx.py build/real_pass/2026-11-21T194551Z_cut.cu8 <satdump>/meteor_m2-x_lrpt.cadu --iface 192.168.10.1 --speed 5,1 --tune 150000 --idle 60 ...
+coarse estimate 149642.9 Hz: NCO word 0x25692600
+...
+link up 3.1 s after programming
+gs-replay exit 0: gs-replay: build/real_pass/2026-11-21T194551Z_cut.cu8 -> 239.1.1.1:26400  packets=1480000 samples=757760000 elapsed=740.000 s  rate=1024001 S/s (1.00x real time, 16.51 Mb/s payload)  target=1.000x  late=2072
+speed 1: host_tx_dropped=0 datagrams=13378 ring_full=0 cadu_packets=5912 cadus_good=5587 cadus_rs_failed=325 cadu_seq_missing=0 malformed=0 rs_symbols_corrected=4173 stats_packets=7466 nco_ok=True; gs-diff satdump_frames=4583 common=4566 only_ours=1021 only_satdump=17 data_bits_differ=0 asm_frames_differ=2 parity_bytes_differ=53 result=PASS
+packets: packets=22295 pd_satdump=18208 pd_equal=18176 pd_differ=5 pd_only_ours=4114 pd_only_satdump=27 pd_explained=missing_in_ours:23;missing_in_satdump:4114;satdump_damaged:9 pd_unexplained=0 pd_result=PASS
+wrote data/results/board_gs_rx_real.csv
+```
+
+`gs-rx`'s final counters for that replay, including the board's last stats packet (excerpt):
+
+```
+cadu_packets=5912
+cadus_good=5587
+cadus_rs_failed=325
+cadu_seq_missing=0
+rs_symbols_corrected=4173
+board.ingest_ok=1480000
+board.ingest_lost=0
+board.eth_crc_err=0
+board.eth_ovf_lost=0
+board.ddc_out=189440000
+board.mac_restarts=0
+board.cadus_sent=5912
+board.fs_locked=0
+board.fs_slips=76
+board.nco_word=627648000
+```
+
+Every one of the 1,480,000 datagrams reached the DDC (`ingest_ok`, none lost, no CRC errors), and every CADU the
+board sent arrived (`cadus_sent` = `cadu_packets`, no sequence gaps). `fs_locked` is a level from the last stats
+packet, sent after the replay ended: the frame sync was not locked at the end of the cut, where the signal fades at
+loss of signal. `fs_slips` counts hypothesis or position
+switches while locked over the whole pass (`docs/protocol.md`). The full output and all the counters:
+[docs/reports/board/real_pass_2026-11-21/](docs/reports/board/real_pass_2026-11-21/). A second run gave every
+counter equal apart from the elapsed time.
+
 ## Demos
 
 | Demo | Command | On-board result |

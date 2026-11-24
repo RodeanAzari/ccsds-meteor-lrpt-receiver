@@ -14,7 +14,7 @@ view, rx-check terminal, Arty LED photo; Phase F gs-view asciinema, demo video.
 
 Claude can generate: Phase C constellation GIF from the real recording (done 2026-11-23); Phase D waveform of
 ACS/traceback (done 2026-11-23: sampled in cocotb, `docs/media/2026-11-23_phase-d_viterbi-waveform.png`); Phase E
-real-decode stats (gs-diff on the real pass as a terminal capture).
+real-decode stats (done 2026-11-23: the real-pass run's terminal output in the README).
 
 Not met as written, decided by the user 2026-11-23:
 - Phase 0/A "a public M2-x 72k recording decoded": **waived**; none is downloadable (docs/log.md 2026-11-14), the own
@@ -75,7 +75,9 @@ Ethernet (`board_rx_eth.csv`). Claim the board first.
       ingest gap, so it lights when the host reorders datagrams; `rx-check` prints `ingest_gap`)
 - [ ] Screenshot: Vivado device view of `arty_rx_eth_top` (buildplan §9 Phase E media), from
       `build/board/arty_rx_eth_top` after `make board BOARD_TOP=arty_rx_eth_top`
-- [ ] Real-decode stats from a real pass (Phase 0 recording first)
+- [x] Real-decode stats from a real pass: `board_gs_rx.py` output and gs-rx's final counters (board stats
+      included) from the 2026-11-22 1× replay, in the README under "On the board"; raw files in
+      `docs/reports/board/real_pass_2026-11-21/`
 
 ## Phase C (synchronization)
 
