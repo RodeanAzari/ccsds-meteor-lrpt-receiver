@@ -231,6 +231,12 @@ with a shortcut for all-zero AC (DC << 3), then columns, arithmetic shifts. Pixe
 - id = (seq + rollover − offset) / 43 · 14 + MCUN/14. The segment is **dropped** if the channel's id span with it,
   max(last, id) − min(first, id), would exceed 20,000; otherwise first, last and the previous sequence count are
   updated and the segment is stored, replacing any earlier one with the same id.
+- All of this is unsigned 32-bit. If a channel's first segment has seq < offset (the recording starts just after the
+  14-bit count wrapped, part-way into a scan), seq − offset wraps and its id is near 2^32 / 43 · 14 ≈ 1.4 × 10^9.
+  The channel's later segments, back in small ids, are then dropped by the 20,000 rule, and the shared extent spans
+  the gap between channels. Found while building gs-image's vectors (scripts/gen_msumr_vectors.py); not seen on a
+  real pass. gs-image refuses an image over 11,440 rows (`kMaxRows`, the most one channel's span allows) rather
+  than allocate it; the Python model would try to.
 
 **Image extent** (`getChannel`, `lrpt_msumr_reader.cpp:96-201`): all channels share one extent.
 
